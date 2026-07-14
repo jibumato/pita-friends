@@ -2,6 +2,7 @@
 import { avatarColors } from './theme/tokens'
 
 export type ScreenKey =
+  // --- コアフロー(信頼ループ) ---
   | 'welcome'
   | 'verify'
   | 'setup'
@@ -16,6 +17,15 @@ export type ScreenKey =
   | 'joining'
   | 'review'
   | 'result'
+  // --- 周辺画面(アプリシェル) ---
+  | 'search'
+  | 'board'
+  | 'boardCreate'
+  | 'talkList'
+  | 'mypage'
+  | 'settings'
+  | 'safety'
+  | 'notifications'
 
 export const screenNames: Record<ScreenKey, string> = {
   welcome: 'ようこそ',
@@ -32,9 +42,20 @@ export const screenNames: Record<ScreenKey, string> = {
   joining: '合流中',
   review: 'プレイ後レビュー',
   result: 'RESULT',
+  search: 'さがす',
+  board: '募集板',
+  boardCreate: '募集作成',
+  talkList: 'トーク一覧',
+  mypage: 'マイページ',
+  settings: '設定',
+  safety: '安全センター',
+  notifications: '通知',
 }
 
-/** 各画面がフローレールのどのステップ(0..4)に対応するか。 */
+/**
+ * 各画面がフローレールのどのステップ(0..4)に対応するか。
+ * 周辺画面(タブシェル)は信頼ループ外なので -1(レール非表示)。
+ */
 export const stepOf: Record<ScreenKey, number> = {
   welcome: 0,
   verify: 0,
@@ -50,6 +71,47 @@ export const stepOf: Record<ScreenKey, number> = {
   joining: 3,
   review: 4,
   result: 4,
+  search: -1,
+  board: -1,
+  boardCreate: -1,
+  talkList: -1,
+  mypage: -1,
+  settings: -1,
+  safety: -1,
+  notifications: -1,
+}
+
+/** 下部タブと画面キーの対応。 */
+export type TabKey = 'home' | 'search' | 'post' | 'talk' | 'mypage'
+
+export const tabToScreen: Record<TabKey, ScreenKey> = {
+  home: 'home',
+  search: 'search',
+  post: 'board',
+  talk: 'talkList',
+  mypage: 'mypage',
+}
+
+/** 現在の画面がどのタブに属するか(タブのハイライト用)。 */
+export function activeTabOf(screen: ScreenKey): TabKey | null {
+  switch (screen) {
+    case 'home':
+      return 'home'
+    case 'search':
+      return 'search'
+    case 'board':
+    case 'boardCreate':
+      return 'post'
+    case 'talkList':
+    case 'talk':
+      return 'talk'
+    case 'mypage':
+    case 'settings':
+    case 'safety':
+      return 'mypage'
+    default:
+      return null
+  }
 }
 
 export const GAMES = ['Apex', 'VALORANT', 'マイクラ'] as const

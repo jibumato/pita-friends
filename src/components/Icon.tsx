@@ -146,6 +146,30 @@ export function ArrowRight({ size = 22, color = '#E4F0A0', strokeWidth = 2.6, st
   )
 }
 
+export function Plus({ size = 15, color = '#453D5C', strokeWidth = 3, style }: IconProps) {
+  return (
+    <svg {...base(size, color, strokeWidth, style)}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
+
+export function ChevronDown({ size = 14, color = '#453D5C', strokeWidth = 2.6, style }: IconProps) {
+  return (
+    <svg {...base(size, color, strokeWidth, style)}>
+      <path d="M6 9 L12 15 L18 9" />
+    </svg>
+  )
+}
+
+export function Moon({ size = 34, color = '#5A5272', strokeWidth = 2.2, style }: IconProps) {
+  return (
+    <svg {...base(size, color, strokeWidth, style)}>
+      <path d="M18 15a6 6 0 0 1-8-8 7 7 0 1 0 8 8Z" />
+    </svg>
+  )
+}
+
 /** 横三点(メニュー) */
 export function DotsHorizontal({ size = 20, color = '#fff', style }: IconProps) {
   return (

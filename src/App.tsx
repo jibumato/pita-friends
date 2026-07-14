@@ -20,6 +20,14 @@ import Joining from './screens/Joining'
 import Review from './screens/Review'
 import Result from './screens/Result'
 import ReportSheet from './screens/ReportSheet'
+import Search from './screens/Search'
+import Board from './screens/Board'
+import BoardCreate from './screens/BoardCreate'
+import TalkList from './screens/TalkList'
+import MyPage from './screens/MyPage'
+import Settings from './screens/Settings'
+import SafetyCenter from './screens/SafetyCenter'
+import Notifications from './screens/Notifications'
 
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
@@ -190,8 +198,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* フローレール */}
-      {SHOW_RAIL && <FlowRail step={stepOf[state.screen]} />}
+      {/* フローレール(信頼ループの画面のみ表示) */}
+      {SHOW_RAIL && stepOf[state.screen] >= 0 && <FlowRail step={stepOf[state.screen]} />}
 
       {/* 端末 */}
       <PhoneFrame>
@@ -209,6 +217,14 @@ export default function App() {
         {state.screen === 'joining' && <Joining flow={flow} />}
         {state.screen === 'review' && <Review flow={flow} />}
         {state.screen === 'result' && <Result flow={flow} />}
+        {state.screen === 'search' && <Search flow={flow} />}
+        {state.screen === 'board' && <Board flow={flow} />}
+        {state.screen === 'boardCreate' && <BoardCreate flow={flow} />}
+        {state.screen === 'talkList' && <TalkList flow={flow} />}
+        {state.screen === 'mypage' && <MyPage flow={flow} />}
+        {state.screen === 'settings' && <Settings flow={flow} />}
+        {state.screen === 'safety' && <SafetyCenter flow={flow} />}
+        {state.screen === 'notifications' && <Notifications flow={flow} />}
         {flow.reportOpen && <ReportSheet flow={flow} />}
       </PhoneFrame>
 
