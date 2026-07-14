@@ -1,0 +1,220 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { color as C } from './theme/tokens'
+import { screenNames, stepOf, type ScreenKey } from './flow'
+import FlowRail from './components/FlowRail'
+import PhoneFrame from './components/PhoneFrame'
+import { usePress } from './hooks/usePress'
+
+import Welcome from './screens/Welcome'
+import Verify from './screens/Verify'
+import Setup from './screens/Setup'
+import HomeScreen from './screens/Home'
+import Profile from './screens/Profile'
+import InviteSheet from './screens/InviteSheet'
+import Sending from './screens/Sending'
+import Match from './screens/Match'
+import Party from './screens/Party'
+import Talk from './screens/Talk'
+import Reminder from './screens/Reminder'
+import Joining from './screens/Joining'
+import Review from './screens/Review'
+import Result from './screens/Result'
+import ReportSheet from './screens/ReportSheet'
+
+/** デモ調整パラメータ(ハンドオフの props に対応)。 */
+const MATCH_SCORE = 92
+const AUTO_ADVANCE_MS = 2400
+const SHOW_RAIL = true
+
+/** 全画面が受け取るフローコンテキスト。 */
+export type Flow = {
+  screen: ScreenKey
+  game: string
+  when: string
+  dealDone: boolean
+  reviewStars: number
+  reviewTag: string
+  score: number
+  reportOpen: boolean
+  setGame: (g: string) => void
+  setWhen: (w: string) => void
+  setReviewStars: (n: number) => void
+  setReviewTag: (t: string) => void
+  confirmDeal: () => void
+  openReport: () => void
+  closeReport: () => void
+  go: (s: ScreenKey) => void
+  sendInvite: () => void
+  goJoin: () => void
+  restart: () => void
+}
+
+const INITIAL = {
+  screen: 'welcome' as ScreenKey,
+  game: 'Apex',
+  when: '今夜 22:00〜',
+  dealDone: false,
+  reportOpen: false,
+  reviewStars: 5,
+  reviewTag: '時間ぴったり',
+}
+
+export default function App() {
+  const [state, setState] = useState(INITIAL)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearTimer = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current)
+      timer.current = null
+    }
+  }, [])
+
+  useEffect(() => () => clearTimer(), [clearTimer])
+
+  const go = useCallback(
+    (s: ScreenKey) => {
+      clearTimer()
+      setState((p) => ({ ...p, screen: s, reportOpen: false }))
+    },
+    [clearTimer],
+  )
+
+  const sendInvite = useCallback(() => {
+    clearTimer()
+    setState((p) => ({ ...p, screen: 'sending' }))
+    timer.current = setTimeout(
+      () => setState((p) => ({ ...p, screen: 'match' })),
+      AUTO_ADVANCE_MS,
+    )
+  }, [clearTimer])
+
+  const goJoin = useCallback(() => {
+    clearTimer()
+    setState((p) => ({ ...p, screen: 'joining' }))
+    timer.current = setTimeout(
+      () => setState((p) => ({ ...p, screen: 'review' })),
+      AUTO_ADVANCE_MS,
+    )
+  }, [clearTimer])
+
+  const restart = useCallback(() => {
+    clearTimer()
+    setState(INITIAL)
+  }, [clearTimer])
+
+  const flow: Flow = {
+    ...state,
+    score: MATCH_SCORE,
+    setGame: (g) => setState((p) => ({ ...p, game: g })),
+    setWhen: (w) => setState((p) => ({ ...p, when: w })),
+    setReviewStars: (n) => setState((p) => ({ ...p, reviewStars: n })),
+    setReviewTag: (t) => setState((p) => ({ ...p, reviewTag: t })),
+    confirmDeal: () => setState((p) => ({ ...p, dealDone: true })),
+    openReport: () => setState((p) => ({ ...p, reportOpen: true })),
+    closeReport: () => setState((p) => ({ ...p, reportOpen: false })),
+    go,
+    sendInvite,
+    goJoin,
+    restart,
+  }
+
+  const restartBtn = usePress(`2px 2px 0 ${C.ink}`)
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '34px 20px 60px',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* ヘッダー */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 720,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          marginBottom: 22,
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 6,
+                background: C.lime,
+                border: `1.5px solid ${C.ink}`,
+                boxShadow: `2px 2px 0 ${C.lavender}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: C.ink,
+                fontSize: 14,
+              }}
+            >
+              ピ
+            </div>
+            <span style={{ fontSize: 18, color: C.ink, letterSpacing: '.04em' }}>
+              ピタフレ コアフロー
+            </span>
+          </div>
+          <span style={{ fontSize: 11, color: C.muted }}>
+            準備 → 探す → 約束 → 合流 → 評価 ／ タップで進める完全フロー
+          </span>
+        </div>
+        <div
+          className="pita-press"
+          onClick={restart}
+          {...restartBtn.handlers}
+          style={{
+            cursor: 'pointer',
+            fontSize: 12,
+            color: C.ink,
+            background: C.white,
+            border: `1.5px solid ${C.ink}`,
+            padding: '9px 14px',
+            borderRadius: 6,
+            userSelect: 'none',
+            ...restartBtn.style,
+          }}
+        >
+          ↺ 最初から
+        </div>
+      </div>
+
+      {/* フローレール */}
+      {SHOW_RAIL && <FlowRail step={stepOf[state.screen]} />}
+
+      {/* 端末 */}
+      <PhoneFrame>
+        {state.screen === 'welcome' && <Welcome flow={flow} />}
+        {state.screen === 'verify' && <Verify flow={flow} />}
+        {state.screen === 'setup' && <Setup flow={flow} />}
+        {state.screen === 'home' && <HomeScreen flow={flow} />}
+        {state.screen === 'profile' && <Profile flow={flow} />}
+        {state.screen === 'invite' && <InviteSheet flow={flow} />}
+        {state.screen === 'sending' && <Sending flow={flow} />}
+        {state.screen === 'match' && <Match flow={flow} />}
+        {state.screen === 'party' && <Party flow={flow} />}
+        {state.screen === 'talk' && <Talk flow={flow} />}
+        {state.screen === 'reminder' && <Reminder flow={flow} />}
+        {state.screen === 'joining' && <Joining flow={flow} />}
+        {state.screen === 'review' && <Review flow={flow} />}
+        {state.screen === 'result' && <Result flow={flow} />}
+        {flow.reportOpen && <ReportSheet flow={flow} />}
+      </PhoneFrame>
+
+      <span style={{ marginTop: 20, fontSize: 11, color: C.placeholder }}>
+        現在: {screenNames[state.screen]}
+      </span>
+    </div>
+  )
+}

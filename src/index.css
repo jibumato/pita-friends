@@ -1,0 +1,134 @@
+/* ピタフレ グローバルスタイル & キーフレーム(ハンドオフのコアフロープロトを移植) */
+
+:root {
+  --ink: #453d5c;
+  --lavender: #a78bdf;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #edecf3;
+  font-family: 'DotGothic16', monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--ink);
+}
+
+a {
+  color: var(--lavender);
+}
+a:hover {
+  color: #9d82e0;
+}
+
+/* 画面遷移: 下から10px + フェード */
+@keyframes scrIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 感情ピーク演出: scale 0.5→1.12→1 + わずかな回転 */
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) rotate(-6deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+/* スピナー */
+@keyframes ringSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 待機アバターの浮遊 */
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+/* 紙吹雪 */
+@keyframes conf {
+  0% {
+    transform: translateY(-30px) rotate(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(560px) rotate(420deg);
+    opacity: 0;
+  }
+}
+
+@keyframes dotblink {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ボトムシートのせり上がり */
+@keyframes sheetUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 押し込みホバー(hover対応デバイスのみ) */
+.pita-press {
+  transition:
+    transform 0.06s ease,
+    box-shadow 0.06s ease;
+}
+
+/* 端末内スクロールバーは控えめに */
+.pita-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #d8d3e4 transparent;
+}
+.pita-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.pita-scroll::-webkit-scrollbar-thumb {
+  background: #d8d3e4;
+  border-radius: 99px;
+}
