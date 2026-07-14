@@ -101,6 +101,16 @@ a:hover {
   }
 }
 
+/* スケルトンのシマー */
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
 /* ボトムシートのせり上がり */
 @keyframes sheetUp {
   from {

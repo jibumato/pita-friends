@@ -47,7 +47,9 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           <span style={{ fontSize: 21, color: C.ink, letterSpacing: '.05em' }}>ピタフレ</span>
         </div>
         <div
+          onClick={() => flow.go('notifications')}
           style={{
+            cursor: 'pointer',
             width: 38,
             height: 38,
             borderRadius: 8,
@@ -233,7 +235,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           </div>
         </div>
       </div>
-      <BottomTabs active="home" />
+      <BottomTabs current={flow.screen} onNavigate={flow.go} />
     </Screen>
   )
 }

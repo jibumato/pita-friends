@@ -1,8 +1,7 @@
-/** 下部タブバー(ホーム/さがす/募集/トーク/マイページ)。active でハイライト。 */
+/** 下部タブバー(ホーム/さがす/募集/トーク/マイページ)。現在画面から自動でハイライト。 */
 import { color as C } from '../theme/tokens'
 import { Home, Search, PlusCircle, Chat, User } from './Icon'
-
-type TabKey = 'home' | 'search' | 'post' | 'talk' | 'mypage'
+import { activeTabOf, tabToScreen, type ScreenKey, type TabKey } from '../flow'
 
 const TABS: { key: TabKey; label: string; Icon: typeof Home }[] = [
   { key: 'home', label: 'ホーム', Icon: Home },
@@ -13,12 +12,13 @@ const TABS: { key: TabKey; label: string; Icon: typeof Home }[] = [
 ]
 
 export default function BottomTabs({
-  active = 'home',
-  onSelect,
+  current,
+  onNavigate,
 }: {
-  active?: TabKey
-  onSelect?: (key: TabKey) => void
+  current: ScreenKey
+  onNavigate: (screen: ScreenKey) => void
 }) {
+  const active = activeTabOf(current)
   return (
     <div
       style={{
@@ -36,13 +36,14 @@ export default function BottomTabs({
         return (
           <div
             key={key}
-            onClick={() => onSelect?.(key)}
+            onClick={() => onNavigate(tabToScreen[key])}
             style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               gap: 3,
-              cursor: onSelect ? 'pointer' : 'default',
+              cursor: 'pointer',
+              flex: 1,
             }}
           >
             <Icon color={c} />

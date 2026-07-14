@@ -1,0 +1,172 @@
+import type { Flow } from '../App'
+import { color as C } from '../theme/tokens'
+import Screen from '../components/Screen'
+import StatusBar from '../components/StatusBar'
+import BottomTabs from '../components/BottomTabs'
+import { Card, ListRow } from '../components/Ui'
+
+const STATS = [
+  { v: '★4.8', l: 'マナー', fg: C.lavender },
+  { v: '0%', l: 'ドタキャン', fg: C.ink },
+  { v: '47', l: 'プレイ回数', fg: C.ink },
+  { v: '12', l: 'フレンド', fg: C.ink },
+]
+
+export default function MyPage({ flow }: { flow: Flow }) {
+  return (
+    <Screen background={C.surface}>
+      <StatusBar time="21:47" />
+      <div
+        className="pita-scroll"
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '12px 20px 0',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+        }}
+      >
+        <span style={{ fontSize: 21, color: C.ink }}>▶ マイページ</span>
+
+        {/* プロフィールサマリー */}
+        <div
+          style={{
+            background: C.white,
+            border: `1.5px solid ${C.ink}`,
+            borderRadius: 12,
+            boxShadow: `3px 3px 0 ${C.ink}`,
+            padding: 14,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: 10,
+                background: C.avatarOrange,
+                border: `1.5px solid ${C.ink}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 22,
+                color: C.ink,
+              }}
+            >
+              ユ
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 16, color: C.ink }}>ユウキ</span>
+                <span
+                  style={{
+                    fontSize: 9.5,
+                    color: C.ink,
+                    background: C.lime,
+                    border: `1.5px solid ${C.ink}`,
+                    padding: '2px 7px',
+                    borderRadius: 4,
+                  }}
+                >
+                  ✓ 本人確認済み
+                </span>
+              </div>
+              <span style={{ fontSize: 11, color: C.muted }}>Apex / マイクラ · 平日夜メイン</span>
+            </div>
+            <span style={{ fontSize: 11, color: C.lavender, cursor: 'pointer' }}>編集</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {STATS.map((s) => (
+              <div
+                key={s.l}
+                style={{
+                  flex: 1,
+                  background: C.surface,
+                  border: `1.5px solid ${C.ink}`,
+                  borderRadius: 8,
+                  padding: '8px 4px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                <span style={{ fontSize: 15, color: s.fg }}>{s.v}</span>
+                <span style={{ fontSize: 9, color: C.muted }}>{s.l}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* プレミアム */}
+        <div
+          style={{
+            background: C.lavender,
+            border: `1.5px solid ${C.ink}`,
+            borderRadius: 12,
+            boxShadow: `3px 3px 0 ${C.ink}`,
+            padding: '13px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 13, color: '#fff' }}>ピタフレ プレミアム</span>
+            <span style={{ fontSize: 10.5, color: C.lavenderText }}>
+              優先マッチ・フィルタ無制限・広告なし
+            </span>
+          </div>
+          <span
+            style={{
+              fontSize: 11,
+              color: C.ink,
+              background: C.lime,
+              border: `1.5px solid ${C.ink}`,
+              padding: '6px 11px',
+              borderRadius: 4,
+              cursor: 'pointer',
+            }}
+          >
+            詳しく
+          </span>
+        </div>
+
+        {/* メニュー */}
+        <Card>
+          <ListRow label="プロフィール編集" onClick={() => flow.go('setup')} />
+          <ListRow
+            label="本人確認ステータス"
+            right={
+              <span
+                style={{
+                  fontSize: 10,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.ink}`,
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                }}
+              >
+                確認済み
+              </span>
+            }
+          />
+          <ListRow label="ブロックリスト" />
+          <ListRow label="設定" onClick={() => flow.go('settings')} />
+          <ListRow label="安全センター・ヘルプ" onClick={() => flow.go('safety')} />
+          <ListRow label="利用規約" />
+          <ListRow label="プライバシーポリシー" divider={false} />
+        </Card>
+        <span style={{ textAlign: 'center', fontSize: 11.5, color: C.placeholder, cursor: 'pointer' }}>
+          ログアウト
+        </span>
+      </div>
+      <BottomTabs current={flow.screen} onNavigate={flow.go} />
+    </Screen>
+  )
+}
