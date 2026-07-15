@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { color as C } from './theme/tokens'
-import { screenNames, stepOf, type ScreenKey } from './flow'
+import {
+  screenNames,
+  stepOf,
+  defaultSafetyPrefs,
+  recommendedFemalePrefs,
+  type ScreenKey,
+  type Gender,
+  type SafetyPrefs,
+} from './flow'
 import FlowRail from './components/FlowRail'
 import PhoneFrame from './components/PhoneFrame'
 import { usePress } from './hooks/usePress'
@@ -28,6 +36,8 @@ import MyPage from './screens/MyPage'
 import Settings from './screens/Settings'
 import SafetyCenter from './screens/SafetyCenter'
 import Notifications from './screens/Notifications'
+import SafetyPreferences from './screens/SafetyPreferences'
+import Requests from './screens/Requests'
 
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
@@ -44,6 +54,8 @@ export type Flow = {
   reviewTag: string
   score: number
   reportOpen: boolean
+  gender: Gender
+  safetyPrefs: SafetyPrefs
   setGame: (g: string) => void
   setWhen: (w: string) => void
   setReviewStars: (n: number) => void
@@ -51,6 +63,9 @@ export type Flow = {
   confirmDeal: () => void
   openReport: () => void
   closeReport: () => void
+  setGender: (g: Gender) => void
+  setSafetyPref: <K extends keyof SafetyPrefs>(key: K, value: SafetyPrefs[K]) => void
+  applyRecommendedFemalePrefs: () => void
   go: (s: ScreenKey) => void
   sendInvite: () => void
   goJoin: () => void
@@ -65,6 +80,8 @@ const INITIAL = {
   reportOpen: false,
   reviewStars: 5,
   reviewTag: '時間ぴったり',
+  gender: 'na' as Gender,
+  safetyPrefs: defaultSafetyPrefs,
 }
 
 export default function App() {
@@ -121,6 +138,11 @@ export default function App() {
     confirmDeal: () => setState((p) => ({ ...p, dealDone: true })),
     openReport: () => setState((p) => ({ ...p, reportOpen: true })),
     closeReport: () => setState((p) => ({ ...p, reportOpen: false })),
+    setGender: (g) => setState((p) => ({ ...p, gender: g })),
+    setSafetyPref: (key, value) =>
+      setState((p) => ({ ...p, safetyPrefs: { ...p.safetyPrefs, [key]: value } })),
+    applyRecommendedFemalePrefs: () =>
+      setState((p) => ({ ...p, safetyPrefs: recommendedFemalePrefs })),
     go,
     sendInvite,
     goJoin,
@@ -225,6 +247,8 @@ export default function App() {
         {state.screen === 'settings' && <Settings flow={flow} />}
         {state.screen === 'safety' && <SafetyCenter flow={flow} />}
         {state.screen === 'notifications' && <Notifications flow={flow} />}
+        {state.screen === 'safetyPrefs' && <SafetyPreferences flow={flow} />}
+        {state.screen === 'requests' && <Requests flow={flow} />}
         {flow.reportOpen && <ReportSheet flow={flow} />}
       </PhoneFrame>
 

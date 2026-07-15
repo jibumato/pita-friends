@@ -138,6 +138,32 @@ export default function MyPage({ flow }: { flow: Flow }) {
 
         {/* メニュー */}
         <Card>
+          <ListRow
+            label="受け取った誘い"
+            sub="承認待ちのリクエスト"
+            onClick={() => flow.go('requests')}
+            right={
+              <span
+                style={{
+                  fontSize: 10,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.ink}`,
+                  borderRadius: 99,
+                  minWidth: 18,
+                  textAlign: 'center',
+                  padding: '1px 6px',
+                }}
+              >
+                2
+              </span>
+            }
+          />
+          <ListRow
+            label="安心設定"
+            sub="誘いを受ける範囲・承認制・公開範囲"
+            onClick={() => flow.go('safetyPrefs')}
+          />
           <ListRow label="プロフィール編集" onClick={() => flow.go('setup')} />
           <ListRow
             label="本人確認ステータス"

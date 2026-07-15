@@ -58,6 +58,11 @@ export default function Settings({ flow }: { flow: Flow }) {
         <SectionLabel>プライバシー・安全</SectionLabel>
         <Card>
           <ListRow
+            label="安心設定"
+            sub="誘いを受ける範囲・承認制・公開範囲"
+            onClick={() => flow.go('safetyPrefs')}
+          />
+          <ListRow
             label="本人確認済みのみから連絡を受ける"
             sub="推奨"
             right={<Toggle on={sw.verifiedOnly} onToggle={() => toggle('verifiedOnly')} />}

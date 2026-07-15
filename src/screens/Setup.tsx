@@ -4,8 +4,8 @@ import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import Avatar from '../components/Avatar'
-import { ChevronLeft, Upload } from '../components/Icon'
-import { GAMES } from '../flow'
+import { ChevronLeft, Upload, Shield } from '../components/Icon'
+import { GAMES, genderLabel, type Gender } from '../flow'
 import { usePress } from '../hooks/usePress'
 
 function ChipRow({
@@ -112,11 +112,59 @@ export default function Setup({ flow }: { flow: Flow }) {
           <span style={{ fontSize: 12, color: C.muted }}>プレイスタイル</span>
           <ChipRow options={['エンジョイ', 'ガチ', 'まったり']} value={style} onPick={setStyle} />
         </div>
+        {/* 性別(安心設計のための任意項目) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 12, color: C.muted }}>性別</span>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {(['female', 'male', 'na'] as Gender[]).map((g) => {
+              const sel = flow.gender === g
+              return (
+                <span
+                  key={g}
+                  onClick={() => flow.setGender(g)}
+                  style={{
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    color: sel ? C.lime : C.ink,
+                    background: sel ? C.ink : C.white,
+                    border: `1.5px solid ${C.ink}`,
+                    padding: '7px 13px',
+                    borderRadius: 4,
+                  }}
+                >
+                  {genderLabel[g]}
+                </span>
+              )
+            })}
+          </div>
+          <span style={{ fontSize: 10, color: C.placeholder, lineHeight: 1.6 }}>
+            性別は、あなたが選んだ範囲だけに表示されます。いつでも「安心設定」で変更できます。
+          </span>
+        </div>
+        {/* 女性向けの安心設定への導線 */}
+        {flow.gender === 'female' && (
+          <div
+            style={{
+              background: C.surfaceLavender,
+              border: `1.5px solid ${C.lavender}`,
+              borderRadius: 8,
+              padding: '11px 12px',
+              display: 'flex',
+              gap: 8,
+              alignItems: 'flex-start',
+            }}
+          >
+            <Shield style={{ flex: 'none', marginTop: 1 }} />
+            <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
+              次のステップで<b style={{ color: C.ink }}>「安心設定」</b>を用意しました。誰から誘いを受けるか・誘いの承認制など、あなたのペースで安心して遊べる設定ができます。
+            </span>
+          </div>
+        )}
       </div>
       <div style={{ padding: '12px 22px 30px' }}>
         <div
           className="pita-press"
-          onClick={() => flow.go('home')}
+          onClick={() => flow.go(flow.gender === 'female' ? 'safetyPrefs' : 'home')}
           {...cta.handlers}
           style={{
             cursor: 'pointer',
@@ -130,7 +178,7 @@ export default function Setup({ flow }: { flow: Flow }) {
             ...cta.style,
           }}
         >
-          はじめる ▶
+          {flow.gender === 'female' ? '安心設定へ ▶' : 'はじめる ▶'}
         </div>
       </div>
     </Screen>

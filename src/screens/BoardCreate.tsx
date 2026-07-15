@@ -57,6 +57,7 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
   const [mood, setMood] = useState('エンジョイ')
   const [vc, setVc] = useState('必須')
   const [count, setCount] = useState(2)
+  const [audience, setAudience] = useState('全員')
   const [verifiedOnly, setVerifiedOnly] = useState(true)
   const submit = usePress(`3px 3px 0 ${C.lavender}`)
 
@@ -141,6 +142,9 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
         </div>
         <Field label="ボイスチャット">
           <SegRow options={['必須', 'どちらでも', 'なし']} value={vc} onPick={setVc} />
+        </Field>
+        <Field label="参加できる相手">
+          <SegRow options={['全員', '同性のみ', '女性のみ']} value={audience} onPick={setAudience} />
         </Field>
         <div
           style={{
