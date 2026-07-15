@@ -188,6 +188,25 @@ export function Sun({ size = 17, color = '#E4F0A0', strokeWidth = 2.2, style }: 
   )
 }
 
+export function Coin({ size = 17, color = '#453D5C', strokeWidth = 2.2, style }: IconProps) {
+  return (
+    <svg {...base(size, color, strokeWidth, style)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 15.5c0 1 1 1.5 2.5 1.5s2.5-.6 2.5-1.6c0-2.4-5-1-5-3.4 0-1 1-1.6 2.5-1.6s2.5.5 2.5 1.5" />
+      <path d="M12 7v1.3M12 15.7V17" />
+    </svg>
+  )
+}
+
+export function Clock({ size = 16, color = '#453D5C', strokeWidth = 2.2, style }: IconProps) {
+  return (
+    <svg {...base(size, color, strokeWidth, style)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
+    </svg>
+  )
+}
+
 /** 横三点(メニュー) */
 export function DotsHorizontal({ size = 20, color = '#fff', style }: IconProps) {
   return (

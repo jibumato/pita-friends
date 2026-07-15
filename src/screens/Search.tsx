@@ -4,7 +4,7 @@ import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import BottomTabs from '../components/BottomTabs'
-import { Search as SearchIcon } from '../components/Icon'
+import { Search as SearchIcon, Coin } from '../components/Icon'
 import { EmptyState, ErrorState, SkeletonCard } from '../components/States'
 import { searchUsers } from '../data/mock'
 
@@ -211,6 +211,44 @@ export default function Search({ flow }: { flow: Flow }) {
                   </span>
                 ))}
               </div>
+              {u.hourlyRate != null && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    borderTop: `1.5px solid ${C.divider}`,
+                    paddingTop: 10,
+                  }}
+                >
+                  <Coin size={14} />
+                  <span style={{ flex: 1, fontSize: 12, color: C.ink }}>
+                    1時間 {u.hourlyRate} コインでホスト中
+                  </span>
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      flow.startBooking({
+                        name: u.name,
+                        initial: u.initial,
+                        color: u.color,
+                        hourlyRate: u.hourlyRate!,
+                      })
+                    }}
+                    style={{
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      color: C.ctaFg,
+                      background: C.ctaBg,
+                      padding: '7px 14px',
+                      borderRadius: 4,
+                      boxShadow: `2px 2px 0 ${C.lavender}`,
+                    }}
+                  >
+                    予約する
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>

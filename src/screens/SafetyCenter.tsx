@@ -6,7 +6,7 @@ import { SubHeader, Card, ListRow } from '../components/Ui'
 
 const REPORTS = [
   '暴言・ハラスメント',
-  '金銭の要求・勧誘',
+  'アプリ外での直接の金銭要求',
   '出会い目的・不適切な誘い',
   'ドタキャン・無断欠席',
   'なりすまし・偽プロフィール',
@@ -119,7 +119,7 @@ export default function SafetyCenter({ flow }: { flow: Flow }) {
             <br />
             ・違反者は再登録不可(身分証ベースで排除)
             <br />
-            ・通話・メッセージはアプリ内で完結、金銭のやり取りは禁止
+            ・通話・メッセージはアプリ内で完結。予約はコイン決済のみで、アプリ外での直接の金銭要求は禁止
           </span>
         </div>
       </div>

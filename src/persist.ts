@@ -3,7 +3,7 @@
  * デモのフロー状態(screen/dealDone 等)は保存せず、ユーザーの好み
  * (テーマ / 性別 / 安心設定)だけを保存・復元する。
  */
-import { defaultSafetyPrefs, type Gender, type SafetyPrefs } from './flow'
+import { defaultSafetyPrefs, defaultHostSettings, type Gender, type SafetyPrefs, type HostSettings } from './flow'
 import type { Theme } from './App'
 
 const KEY = 'pita:prefs:v1'
@@ -12,6 +12,8 @@ export type PersistedPrefs = {
   theme: Theme
   gender: Gender
   safetyPrefs: SafetyPrefs
+  coinBalance: number
+  hostSettings: HostSettings
 }
 
 /** 保存済みの設定を読み出す(壊れていれば無視)。 */
@@ -28,6 +30,12 @@ export function loadPrefs(): Partial<PersistedPrefs> {
     if (data.safetyPrefs && typeof data.safetyPrefs === 'object') {
       // 既知キーのみ既定値にマージ(将来のキー追加に耐える)
       out.safetyPrefs = { ...defaultSafetyPrefs, ...data.safetyPrefs }
+    }
+    if (typeof data.coinBalance === 'number' && Number.isFinite(data.coinBalance)) {
+      out.coinBalance = Math.max(0, data.coinBalance)
+    }
+    if (data.hostSettings && typeof data.hostSettings === 'object') {
+      out.hostSettings = { ...defaultHostSettings, ...data.hostSettings }
     }
     return out
   } catch {

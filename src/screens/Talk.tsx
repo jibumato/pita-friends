@@ -89,7 +89,7 @@ export default function Talk({ flow }: { flow: Flow }) {
       >
         <Shield size={13} style={{ flex: 'none' }} />
         <span style={{ flex: 1, fontSize: 10, color: C.body }}>
-          通話はアプリ内が安全です。外部アプリへの誘導・金銭の話が出たら通報してください。
+          通話はアプリ内が安全です。予約はコインで完結します。外部アプリへの誘導・直接の金銭要求が出たら通報してください。
         </span>
         <span style={{ fontSize: 10, color: C.lavender }}>通報 ›</span>
       </div>
