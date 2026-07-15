@@ -177,18 +177,6 @@ export default function Search({ flow }: { flow: Flow }) {
                     >
                       ✓ 本人確認済み
                     </span>
-                    <span
-                      style={{
-                        fontSize: 9.5,
-                        color: C.ink,
-                        background: u.gender === '女性' ? C.avatarPink : C.avatarAqua,
-                        border: `1.5px solid ${C.border}`,
-                        padding: '2px 7px',
-                        borderRadius: 4,
-                      }}
-                    >
-                      {u.gender}
-                    </span>
                   </div>
                   <span style={{ fontSize: 10.5, color: C.muted }}>{u.meta}</span>
                 </div>
