@@ -113,6 +113,22 @@ export default function Search({ flow }: { flow: Flow }) {
           }}
         >
           <span style={{ fontSize: 11.5, color: C.muted }}>24人が条件にマッチ · 相性順</span>
+          <div
+            style={{
+              background: C.surfaceLavender,
+              border: `1.5px solid ${C.lavender}`,
+              borderRadius: 8,
+              padding: '8px 11px',
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ fontSize: 13, flex: 'none' }}>🛡️</span>
+            <span style={{ fontSize: 10, color: C.body, lineHeight: 1.5 }}>
+              「安心設定」で受け身にしている人は表示されません。誘いは相手の設定により承認制になります。
+            </span>
+          </div>
           {searchUsers.map((u) => (
             <div
               key={u.name}
@@ -147,7 +163,7 @@ export default function Search({ flow }: { flow: Flow }) {
                   {u.initial}
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 15, color: C.ink }}>{u.name}</span>
                     <span
                       style={{
@@ -160,6 +176,18 @@ export default function Search({ flow }: { flow: Flow }) {
                       }}
                     >
                       ✓ 本人確認済み
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 9.5,
+                        color: C.ink,
+                        background: u.gender === '女性' ? C.avatarPink : C.avatarAqua,
+                        border: `1.5px solid ${C.ink}`,
+                        padding: '2px 7px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      {u.gender}
                     </span>
                   </div>
                   <span style={{ fontSize: 10.5, color: C.muted }}>{u.meta}</span>

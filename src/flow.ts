@@ -26,6 +26,8 @@ export type ScreenKey =
   | 'settings'
   | 'safety'
   | 'notifications'
+  | 'safetyPrefs'
+  | 'requests'
 
 export const screenNames: Record<ScreenKey, string> = {
   welcome: 'ようこそ',
@@ -50,6 +52,57 @@ export const screenNames: Record<ScreenKey, string> = {
   settings: '設定',
   safety: '安全センター',
   notifications: '通知',
+  safetyPrefs: '安心設定',
+  requests: '受け取った誘い',
+}
+
+/** 性別(任意公開)。 */
+export type Gender = 'female' | 'male' | 'na'
+
+export const genderLabel: Record<Gender, string> = {
+  female: '女性',
+  male: '男性',
+  na: '回答しない',
+}
+
+/** だれから連絡・誘いを受けるか。女性ファーストの中核コントロール。 */
+export type ContactScope = 'verified' | 'sameGender' | 'all'
+
+export const contactScopeLabel: Record<ContactScope, string> = {
+  verified: '本人確認済みのみ',
+  sameGender: '同性のみ',
+  all: '全員',
+}
+
+/** 安心設定(女性ファースト)。 */
+export type SafetyPrefs = {
+  /** 連絡・誘いを受け付ける相手の範囲 */
+  contactScope: ContactScope
+  /** 誘いを承認制にする(届いた誘いはリクエストとして受け、承認するまで連絡先やトークは開かない) */
+  approvalRequired: boolean
+  /** オンライン状態を公開する */
+  showOnline: boolean
+  /** 相手からの検索・おすすめに自分を表示する(オフで完全に受け身) */
+  discoverable: boolean
+  /** 低マナー・未確認ユーザーからの接触をブロック */
+  blockLowTrust: boolean
+}
+
+export const defaultSafetyPrefs: SafetyPrefs = {
+  contactScope: 'verified',
+  approvalRequired: true,
+  showOnline: true,
+  discoverable: true,
+  blockLowTrust: true,
+}
+
+/** 女性ユーザー向けの推奨初期値(より保守的)。 */
+export const recommendedFemalePrefs: SafetyPrefs = {
+  contactScope: 'verified',
+  approvalRequired: true,
+  showOnline: false,
+  discoverable: true,
+  blockLowTrust: true,
 }
 
 /**
@@ -79,6 +132,8 @@ export const stepOf: Record<ScreenKey, number> = {
   settings: -1,
   safety: -1,
   notifications: -1,
+  safetyPrefs: -1,
+  requests: -1,
 }
 
 /** 下部タブと画面キーの対応。 */
@@ -108,6 +163,8 @@ export function activeTabOf(screen: ScreenKey): TabKey | null {
     case 'mypage':
     case 'settings':
     case 'safety':
+    case 'safetyPrefs':
+    case 'requests':
       return 'mypage'
     default:
       return null

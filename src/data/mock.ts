@@ -5,6 +5,7 @@ export type SearchUser = {
   initial: string
   color: string
   name: string
+  gender: '女性' | '男性'
   meta: string
   score: number
   tags: string[]
@@ -15,6 +16,7 @@ export const searchUsers: SearchUser[] = [
     initial: 'る',
     color: C.avatarOrange,
     name: 'るか',
+    gender: '女性',
     meta: 'マナー ★4.9 · ドタキャン 0% · 132回プレイ',
     score: 89,
     tags: ['Apex プラチナⅣ', '今夜 22時〜'],
@@ -23,6 +25,7 @@ export const searchUsers: SearchUser[] = [
     initial: 'そ',
     color: C.avatarAqua,
     name: 'そら',
+    gender: '男性',
     meta: 'マナー ★4.8 · 社会人 / 夜メイン',
     score: 84,
     tags: ['Apex ゴールドⅠ', 'VALORANT'],
@@ -31,6 +34,7 @@ export const searchUsers: SearchUser[] = [
     initial: 'ひ',
     color: C.avatarPink,
     name: 'ひなた',
+    gender: '女性',
     meta: 'マナー ★5.0 · まったり勢',
     score: 81,
     tags: ['あつ森', 'マイクラ 建築'],
@@ -92,6 +96,53 @@ export const talkThreads: TalkThread[] = [
     verified: true,
     last: '時間ぴったりに来てくれてありがとう！また遊ぼ〜',
     time: '昨日',
+  },
+]
+
+export type InviteRequest = {
+  id: string
+  initial: string
+  color: string
+  name: string
+  verified: boolean
+  manner: string
+  dotakyan: string
+  plays: number
+  common: string[]
+  game: string
+  when: string
+  message: string
+}
+
+/** 受け取った誘い(リクエスト)。女性ファーストの承認制フローで表示。 */
+export const inviteRequests: InviteRequest[] = [
+  {
+    id: 'r1',
+    initial: 'ハ',
+    color: C.avatarAqua,
+    name: 'ハルト',
+    verified: true,
+    manner: '★4.8',
+    dotakyan: '0%',
+    plays: 96,
+    common: ['Apex', 'エンジョイ'],
+    game: 'Apex',
+    when: '今夜 22:00〜',
+    message: 'はじめまして！ゴールド帯でまったりランク回しませんか？',
+  },
+  {
+    id: 'r2',
+    initial: 'リ',
+    color: C.avatarOrange,
+    name: 'リク',
+    verified: true,
+    manner: '★4.6',
+    dotakyan: '3%',
+    plays: 41,
+    common: ['マイクラ', 'まったり'],
+    game: 'マイクラ',
+    when: '週末',
+    message: '建築まったり勢です。よかったら一緒にどうですか？',
   },
 ]
 

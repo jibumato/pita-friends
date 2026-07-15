@@ -74,6 +74,28 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '14px 20px 0',
         }}
       >
+        {/* 受け取った誘い(承認制) */}
+        <div
+          onClick={() => flow.go('requests')}
+          style={{
+            cursor: 'pointer',
+            background: C.lime,
+            border: `1.5px solid ${C.ink}`,
+            borderRadius: 10,
+            boxShadow: `2px 2px 0 ${C.ink}`,
+            padding: '10px 13px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>🙌</span>
+          <span style={{ flex: 1, fontSize: 12, color: C.ink }}>
+            2件の誘いが承認待ちです
+          </span>
+          <span style={{ fontSize: 11, color: C.ink }}>確認する ›</span>
+        </div>
+
         {/* いま遊べる */}
         <div
           style={{

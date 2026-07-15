@@ -65,6 +65,19 @@ export default function Welcome({ flow }: { flow: Flow }) {
             </span>
           ))}
         </div>
+        <span
+          style={{
+            fontSize: 10,
+            color: C.muted,
+            textAlign: 'center',
+            lineHeight: 1.7,
+            maxWidth: 260,
+          }}
+        >
+          ここはゲームを一緒に楽しむ場です。出会い目的の利用は禁止。
+          <br />
+          安心して遊べるよう、みんなの安全を最優先にしています。
+        </span>
       </div>
       <div
         style={{
