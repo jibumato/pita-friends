@@ -12,6 +12,7 @@ import {
 import FlowRail from './components/FlowRail'
 import PhoneFrame from './components/PhoneFrame'
 import { usePress } from './hooks/usePress'
+import { useIsMobile } from './hooks/useMediaQuery'
 
 import Welcome from './screens/Welcome'
 import Verify from './screens/Verify'
@@ -150,78 +151,85 @@ export default function App() {
   }
 
   const restartBtn = usePress(`2px 2px 0 ${C.ink}`)
+  const mobile = useIsMobile()
 
   return (
     <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '34px 20px 60px',
-        boxSizing: 'border-box',
-      }}
+      style={
+        mobile
+          ? { display: 'flex', flexDirection: 'column' }
+          : {
+              minHeight: '100vh',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '34px 20px 60px',
+              boxSizing: 'border-box',
+            }
+      }
     >
-      {/* ヘッダー */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 720,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          marginBottom: 22,
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 6,
-                background: C.lime,
-                border: `1.5px solid ${C.ink}`,
-                boxShadow: `2px 2px 0 ${C.lavender}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: C.ink,
-                fontSize: 14,
-              }}
-            >
-              ピ
-            </div>
-            <span style={{ fontSize: 18, color: C.ink, letterSpacing: '.04em' }}>
-              ピタフレ コアフロー
-            </span>
-          </div>
-          <span style={{ fontSize: 11, color: C.muted }}>
-            準備 → 探す → 約束 → 合流 → 評価 ／ タップで進める完全フロー
-          </span>
-        </div>
+      {/* ヘッダー(ショーケースのデモ枠。実機幅では非表示) */}
+      {!mobile && (
         <div
-          className="pita-press"
-          onClick={restart}
-          {...restartBtn.handlers}
           style={{
-            cursor: 'pointer',
-            fontSize: 12,
-            color: C.ink,
-            background: C.white,
-            border: `1.5px solid ${C.ink}`,
-            padding: '9px 14px',
-            borderRadius: 6,
-            userSelect: 'none',
-            ...restartBtn.style,
+            width: '100%',
+            maxWidth: 720,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            marginBottom: 22,
           }}
         >
-          ↺ 最初から
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <div
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 6,
+                  background: C.lime,
+                  border: `1.5px solid ${C.ink}`,
+                  boxShadow: `2px 2px 0 ${C.lavender}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: C.ink,
+                  fontSize: 14,
+                }}
+              >
+                ピ
+              </div>
+              <span style={{ fontSize: 18, color: C.ink, letterSpacing: '.04em' }}>
+                ピタフレ コアフロー
+              </span>
+            </div>
+            <span style={{ fontSize: 11, color: C.muted }}>
+              準備 → 探す → 約束 → 合流 → 評価 ／ タップで進める完全フロー
+            </span>
+          </div>
+          <div
+            className="pita-press"
+            onClick={restart}
+            {...restartBtn.handlers}
+            style={{
+              cursor: 'pointer',
+              fontSize: 12,
+              color: C.ink,
+              background: C.white,
+              border: `1.5px solid ${C.ink}`,
+              padding: '9px 14px',
+              borderRadius: 6,
+              userSelect: 'none',
+              ...restartBtn.style,
+            }}
+          >
+            ↺ 最初から
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* フローレール(信頼ループの画面のみ表示) */}
-      {SHOW_RAIL && stepOf[state.screen] >= 0 && <FlowRail step={stepOf[state.screen]} />}
+      {/* フローレール(信頼ループの画面のみ・ショーケース時のみ表示) */}
+      {!mobile && SHOW_RAIL && stepOf[state.screen] >= 0 && <FlowRail step={stepOf[state.screen]} />}
 
       {/* 端末 */}
       <PhoneFrame>
@@ -252,9 +260,11 @@ export default function App() {
         {flow.reportOpen && <ReportSheet flow={flow} />}
       </PhoneFrame>
 
-      <span style={{ marginTop: 20, fontSize: 11, color: C.placeholder }}>
-        現在: {screenNames[state.screen]}
-      </span>
+      {!mobile && (
+        <span style={{ marginTop: 20, fontSize: 11, color: C.placeholder }}>
+          現在: {screenNames[state.screen]}
+        </span>
+      )}
     </div>
   )
 }
