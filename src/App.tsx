@@ -20,6 +20,7 @@ import { useIsMobile } from './hooks/useMediaQuery'
 import { loadPrefs, savePrefs } from './persist'
 
 import Welcome from './screens/Welcome'
+import Consent from './screens/Consent'
 import Verify from './screens/Verify'
 import Setup from './screens/Setup'
 import HomeScreen from './screens/Home'
@@ -343,6 +344,7 @@ export default function App() {
       {/* 端末 */}
       <PhoneFrame>
         {state.screen === 'welcome' && <Welcome flow={flow} />}
+        {state.screen === 'consent' && <Consent flow={flow} />}
         {state.screen === 'verify' && <Verify flow={flow} />}
         {state.screen === 'setup' && <Setup flow={flow} />}
         {state.screen === 'home' && <HomeScreen flow={flow} />}

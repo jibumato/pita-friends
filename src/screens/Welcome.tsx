@@ -90,7 +90,7 @@ export default function Welcome({ flow }: { flow: Flow }) {
       >
         <div
           className="pita-press"
-          onClick={() => flow.go('verify')}
+          onClick={() => flow.go('consent')}
           {...start.handlers}
           style={{
             cursor: 'pointer',

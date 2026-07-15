@@ -174,8 +174,14 @@ export default function Booking({ flow }: { flow: Flow }) {
           }}
         >
           <Shield size={14} style={{ flex: 'none', marginTop: 1 }} />
-          <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
-            コインは予約確定時に消費されます。ドタキャン・トラブル時はいつでも通報・返金相談ができます。
+          <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
+            コインは予約確定時に消費されます。
+            <br />
+            ・<b style={{ color: C.ink }}>ホスト都合</b>のキャンセル・無断欠席 → コインを<b style={{ color: C.ink }}>全額再付与</b>
+            <br />
+            ・<b style={{ color: C.ink }}>あなたの都合</b>のキャンセル → 開始1時間前まで全額再付与
+            <br />
+            トラブル時はいつでも通報・相談ができます。
           </span>
         </div>
       </div>

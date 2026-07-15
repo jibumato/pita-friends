@@ -51,7 +51,7 @@ export default function Verify({ flow }: { flow: Flow }) {
     <Screen background={C.surface}>
       <StatusBar time="21:44" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 20px 0' }}>
-        <div onClick={() => flow.go('welcome')} style={{ cursor: 'pointer' }}>
+        <div onClick={() => flow.go('consent')} style={{ cursor: 'pointer' }}>
           <ChevronLeft />
         </div>
         <span style={{ fontSize: 11, color: C.muted }}>STEP 1 / 2</span>
@@ -104,7 +104,7 @@ export default function Verify({ flow }: { flow: Flow }) {
         >
           <Shield style={{ flex: 'none', marginTop: 1 }} />
           <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
-            年齢確認を兼ねています。18歳未満はご利用いただけません。
+            年齢確認を兼ねています。18歳未満はご利用いただけません。書類・顔写真の画像は照合が終わりしだい削除し、確認結果だけを保存します。
           </span>
         </div>
       </div>
