@@ -1,8 +1,31 @@
-/** 端末フレーム(375×812 の内側 + ベゼル)。中に現在画面を描画。 */
+/**
+ * 端末フレーム。
+ * - デスクトップ/タブレット: 375×812 の内側 + ベゼル(ショーケース表示)
+ * - モバイル実機幅: ベゼルを外して画面いっぱいに全画面表示
+ */
 import type { ReactNode } from 'react'
 import { color as C, device, radius, shadow } from '../theme/tokens'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 export default function PhoneFrame({ children }: { children: ReactNode }) {
+  const mobile = useIsMobile()
+
+  if (mobile) {
+    return (
+      <div
+        className="app-fullbleed"
+        style={{
+          position: 'relative',
+          width: '100%',
+          background: C.surface,
+          overflow: 'hidden',
+        }}
+      >
+        {children}
+      </div>
+    )
+  }
+
   return (
     <div
       style={{

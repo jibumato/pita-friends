@@ -130,6 +130,13 @@ a:hover {
     box-shadow 0.06s ease;
 }
 
+/* モバイル全画面表示: dvh フォールバック付き */
+.app-fullbleed {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+}
+
 /* 端末内スクロールバーは控えめに */
 .pita-scroll {
   scrollbar-width: thin;
