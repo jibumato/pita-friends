@@ -9,6 +9,8 @@ export type SearchUser = {
   meta: string
   score: number
   tags: string[]
+  /** ホストとして掲載中の場合の時給コイン(未掲載は undefined) */
+  hourlyRate?: number
 }
 
 export const searchUsers: SearchUser[] = [
@@ -20,6 +22,7 @@ export const searchUsers: SearchUser[] = [
     meta: 'マナー ★4.9 · ドタキャン 0% · 132回プレイ',
     score: 89,
     tags: ['Apex プラチナⅣ', '今夜 22時〜'],
+    hourlyRate: 450,
   },
   {
     initial: 'そ',
@@ -38,6 +41,7 @@ export const searchUsers: SearchUser[] = [
     meta: 'マナー ★5.0 · まったり勢',
     score: 81,
     tags: ['あつ森', 'マイクラ 建築'],
+    hourlyRate: 380,
   },
 ]
 

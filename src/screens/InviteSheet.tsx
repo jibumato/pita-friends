@@ -132,7 +132,7 @@ export default function InviteSheet({ flow }: { flow: Flow }) {
         >
           <Shield style={{ flex: 'none', marginTop: 1 }} />
           <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
-            やり取りと通話はアプリ内で完結します。外部アプリへの誘導や金銭のやり取りは通報の対象です。
+            やり取りと通話はアプリ内で完結します。外部アプリへの誘導や、アプリ外での直接の金銭要求は通報の対象です。
           </span>
         </div>
         <div

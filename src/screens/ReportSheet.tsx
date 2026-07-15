@@ -3,7 +3,7 @@ import { color as C } from '../theme/tokens'
 
 const REASONS = [
   '外部アプリ(LINE等)への誘導',
-  '金銭・RMTの要求',
+  'アプリ外での直接の金銭・RMTの要求',
   '暴言・ハラスメント',
   'なりすまし・年齢詐称',
 ]

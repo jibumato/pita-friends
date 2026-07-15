@@ -5,9 +5,13 @@ import {
   stepOf,
   defaultSafetyPrefs,
   recommendedFemalePrefs,
+  defaultHostSettings,
+  coinsForDuration,
   type ScreenKey,
   type Gender,
   type SafetyPrefs,
+  type HostSettings,
+  type BookingDuration,
 } from './flow'
 import FlowRail from './components/FlowRail'
 import PhoneFrame from './components/PhoneFrame'
@@ -41,11 +45,22 @@ import Notifications from './screens/Notifications'
 import SafetyPreferences from './screens/SafetyPreferences'
 import Requests from './screens/Requests'
 import SendFailDialog from './screens/SendFailDialog'
+import Wallet from './screens/Wallet'
+import HostSettingsScreen from './screens/HostSettingsScreen'
+import Booking from './screens/Booking'
 
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
 const AUTO_ADVANCE_MS = 2400
 const SHOW_RAIL = true
+
+/** 予約対象のホスト(さがす画面のカードから渡す最小情報)。 */
+export type BookingHost = {
+  name: string
+  initial: string
+  color: string
+  hourlyRate: number
+}
 
 /** 全画面が受け取るフローコンテキスト。 */
 export type Flow = {
@@ -61,11 +76,21 @@ export type Flow = {
   gender: Gender
   safetyPrefs: SafetyPrefs
   theme: Theme
+  coinBalance: number
+  hostSettings: HostSettings
+  bookingHost: BookingHost | null
+  bookingDuration: BookingDuration
+  bookingInsufficient: boolean
   setTheme: (t: Theme) => void
   toggleTheme: () => void
   openSendFail: () => void
   closeSendFail: () => void
   reserveInvite: () => void
+  buyCoins: (coins: number) => void
+  setHostPref: <K extends keyof HostSettings>(key: K, value: HostSettings[K]) => void
+  startBooking: (host: BookingHost) => void
+  setBookingDuration: (min: BookingDuration) => void
+  confirmBooking: () => void
   setGame: (g: string) => void
   setWhen: (w: string) => void
   setReviewStars: (n: number) => void
@@ -94,6 +119,11 @@ const INITIAL = {
   gender: 'na' as Gender,
   safetyPrefs: defaultSafetyPrefs,
   theme: 'light' as Theme,
+  coinBalance: 500,
+  hostSettings: defaultHostSettings,
+  bookingHost: null as BookingHost | null,
+  bookingDuration: 60 as BookingDuration,
+  bookingInsufficient: false,
 }
 
 export type Theme = 'light' | 'dark'
@@ -110,8 +140,14 @@ export default function App() {
 
   // ユーザー設定を永続化(変わったときだけ書き込み)
   useEffect(() => {
-    savePrefs({ theme: state.theme, gender: state.gender, safetyPrefs: state.safetyPrefs })
-  }, [state.theme, state.gender, state.safetyPrefs])
+    savePrefs({
+      theme: state.theme,
+      gender: state.gender,
+      safetyPrefs: state.safetyPrefs,
+      coinBalance: state.coinBalance,
+      hostSettings: state.hostSettings,
+    })
+  }, [state.theme, state.gender, state.safetyPrefs, state.coinBalance, state.hostSettings])
 
   const clearTimer = useCallback(() => {
     if (timer.current) {
@@ -139,6 +175,24 @@ export default function App() {
     )
   }, [clearTimer])
 
+  const confirmBooking = useCallback(() => {
+    if (!state.bookingHost) return
+    const cost = coinsForDuration(state.bookingHost.hourlyRate, state.bookingDuration)
+    if (cost > state.coinBalance) {
+      setState((p) => ({ ...p, bookingInsufficient: true }))
+      return
+    }
+    clearTimer()
+    setState((p) => ({
+      ...p,
+      coinBalance: p.coinBalance - cost,
+      bookingInsufficient: false,
+      screen: 'sending',
+    }))
+    // 決済成功後は、誘い送信と同じ自動遷移(返事待ち→マッチ)につなげる
+    timer.current = setTimeout(() => setState((p) => ({ ...p, screen: 'match' })), AUTO_ADVANCE_MS)
+  }, [state.bookingHost, state.bookingDuration, state.coinBalance, clearTimer])
+
   const goJoin = useCallback(() => {
     clearTimer()
     setState((p) => ({ ...p, screen: 'joining' }))
@@ -156,6 +210,8 @@ export default function App() {
       theme: p.theme,
       gender: p.gender,
       safetyPrefs: p.safetyPrefs,
+      coinBalance: p.coinBalance,
+      hostSettings: p.hostSettings,
     }))
   }, [clearTimer])
 
@@ -183,6 +239,20 @@ export default function App() {
       clearTimer()
       setState((p) => ({ ...p, sendFailOpen: false, screen: 'home' }))
     },
+    buyCoins: (coins) => setState((p) => ({ ...p, coinBalance: p.coinBalance + coins })),
+    setHostPref: (key, value) =>
+      setState((p) => ({ ...p, hostSettings: { ...p.hostSettings, [key]: value } })),
+    startBooking: (host) =>
+      setState((p) => ({
+        ...p,
+        bookingHost: host,
+        bookingDuration: 60,
+        bookingInsufficient: false,
+        screen: 'booking',
+      })),
+    setBookingDuration: (min) =>
+      setState((p) => ({ ...p, bookingDuration: min, bookingInsufficient: false })),
+    confirmBooking,
     go,
     sendInvite,
     goJoin,
@@ -296,6 +366,9 @@ export default function App() {
         {state.screen === 'notifications' && <Notifications flow={flow} />}
         {state.screen === 'safetyPrefs' && <SafetyPreferences flow={flow} />}
         {state.screen === 'requests' && <Requests flow={flow} />}
+        {state.screen === 'wallet' && <Wallet flow={flow} />}
+        {state.screen === 'hostSettings' && <HostSettingsScreen flow={flow} />}
+        {state.screen === 'booking' && <Booking flow={flow} />}
         {flow.reportOpen && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
       </PhoneFrame>

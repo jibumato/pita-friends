@@ -4,6 +4,7 @@ import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import BottomTabs from '../components/BottomTabs'
 import { Card, ListRow } from '../components/Ui'
+import { Coin } from '../components/Icon'
 
 const STATS = [
   { v: '★4.8', l: 'マナー', fg: C.lavender },
@@ -102,9 +103,11 @@ export default function MyPage({ flow }: { flow: Flow }) {
           </div>
         </div>
 
-        {/* プレミアム */}
+        {/* コインウォレット */}
         <div
+          onClick={() => flow.go('wallet')}
           style={{
+            cursor: 'pointer',
             background: C.lavender,
             border: `1.5px solid ${C.border}`,
             borderRadius: 12,
@@ -115,10 +118,25 @@ export default function MyPage({ flow }: { flow: Flow }) {
             gap: 12,
           }}
         >
+          <div
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 8,
+              background: C.lime,
+              border: `1.5px solid ${C.border}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: 'none',
+            }}
+          >
+            <Coin size={18} />
+          </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 13, color: '#fff' }}>ピタフレ プレミアム</span>
+            <span style={{ fontSize: 13, color: '#fff' }}>コインウォレット</span>
             <span style={{ fontSize: 10.5, color: C.lavenderText }}>
-              優先マッチ・フィルタ無制限・広告なし
+              残高 {flow.coinBalance.toLocaleString()} コイン
             </span>
           </div>
           <span
@@ -129,15 +147,23 @@ export default function MyPage({ flow }: { flow: Flow }) {
               border: `1.5px solid ${C.border}`,
               padding: '6px 11px',
               borderRadius: 4,
-              cursor: 'pointer',
             }}
           >
-            詳しく
+            チャージ
           </span>
         </div>
 
         {/* メニュー */}
         <Card>
+          <ListRow
+            label={flow.hostSettings.isHost ? 'ホスト設定' : 'ホストになる'}
+            sub={
+              flow.hostSettings.isHost
+                ? `掲載中 · 1時間 ${flow.hostSettings.hourlyRate} コイン`
+                : '一緒に遊ぶ時間をコインで提供できます'
+            }
+            onClick={() => flow.go('hostSettings')}
+          />
           <ListRow
             label="受け取った誘い"
             sub="承認待ちのリクエスト"

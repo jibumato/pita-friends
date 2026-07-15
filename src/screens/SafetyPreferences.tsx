@@ -168,7 +168,7 @@ export default function SafetyPreferences({ flow }: { flow: Flow }) {
           <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
             ・ワンタップの通報 / ブロック(相手に通知されません)
             <br />
-            ・外部アプリ誘導・金銭要求の自動検知
+            ・外部アプリ誘導・直接の金銭要求の自動検知(コイン決済は対象外)
             <br />
             ・違反者は身分証ベースで再登録不可
           </span>

@@ -28,6 +28,9 @@ export type ScreenKey =
   | 'notifications'
   | 'safetyPrefs'
   | 'requests'
+  | 'wallet'
+  | 'hostSettings'
+  | 'booking'
 
 export const screenNames: Record<ScreenKey, string> = {
   welcome: 'ようこそ',
@@ -54,6 +57,9 @@ export const screenNames: Record<ScreenKey, string> = {
   notifications: '通知',
   safetyPrefs: '安心設定',
   requests: '受け取った誘い',
+  wallet: 'コインウォレット',
+  hostSettings: 'ホスト設定',
+  booking: '予約する',
 }
 
 /** 性別(任意公開)。 */
@@ -106,6 +112,53 @@ export const recommendedFemalePrefs: SafetyPrefs = {
 }
 
 /**
+ * コイン経済(GameRoom型マーケットプレイス)。
+ * ユーザーはコインを購入し、ホスト(一緒に遊ぶ時間を提供する相手)に
+ * 時間単位で消費する。公式コイン決済のみが「安全な金銭のやり取り」で、
+ * アプリ外・直接の金銭要求は引き続き禁止・通報対象。
+ */
+export type CoinPack = {
+  coins: number
+  priceYen: number
+  bonus?: string
+}
+
+export const COIN_PACKS: CoinPack[] = [
+  { coins: 300, priceYen: 300 },
+  { coins: 1000, priceYen: 1000, bonus: '+50コイン' },
+  { coins: 3000, priceYen: 3000, bonus: '+300コイン' },
+  { coins: 6000, priceYen: 6000, bonus: '+900コイン' },
+]
+
+/** ホスト設定(一緒に遊ぶ時間を時給コインで提供する)。 */
+export type HostSettings = {
+  isHost: boolean
+  hourlyRate: number
+  games: string[]
+  bio: string
+}
+
+export const defaultHostSettings: HostSettings = {
+  isHost: false,
+  hourlyRate: 400,
+  games: ['Apex'],
+  bio: '',
+}
+
+/** 予約できる時間(分)と、それに対応するラベル。 */
+export const BOOKING_DURATIONS = [30, 60, 120] as const
+export type BookingDuration = (typeof BOOKING_DURATIONS)[number]
+
+export function durationLabel(min: BookingDuration): string {
+  return min === 30 ? '30分' : min === 60 ? '1時間' : '2時間'
+}
+
+/** 時給コインと分数から、消費コインを計算(30分単位切り上げなし・比例配分)。 */
+export function coinsForDuration(hourlyRate: number, minutes: number): number {
+  return Math.round((hourlyRate * minutes) / 60)
+}
+
+/**
  * 各画面がフローレールのどのステップ(0..4)に対応するか。
  * 周辺画面(タブシェル)は信頼ループ外なので -1(レール非表示)。
  */
@@ -134,6 +187,9 @@ export const stepOf: Record<ScreenKey, number> = {
   notifications: -1,
   safetyPrefs: -1,
   requests: -1,
+  wallet: -1,
+  hostSettings: -1,
+  booking: -1,
 }
 
 /** 下部タブと画面キーの対応。 */
@@ -165,6 +221,8 @@ export function activeTabOf(screen: ScreenKey): TabKey | null {
     case 'safety':
     case 'safetyPrefs':
     case 'requests':
+    case 'wallet':
+    case 'hostSettings':
       return 'mypage'
     default:
       return null
