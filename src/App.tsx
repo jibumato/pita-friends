@@ -13,6 +13,7 @@ import FlowRail from './components/FlowRail'
 import PhoneFrame from './components/PhoneFrame'
 import { usePress } from './hooks/usePress'
 import { useIsMobile } from './hooks/useMediaQuery'
+import { loadPrefs, savePrefs } from './persist'
 
 import Welcome from './screens/Welcome'
 import Verify from './screens/Verify'
@@ -98,13 +99,19 @@ const INITIAL = {
 export type Theme = 'light' | 'dark'
 
 export default function App() {
-  const [state, setState] = useState(INITIAL)
+  // 保存済みのユーザー設定(テーマ/性別/安心設定)で初期状態を上書き
+  const [state, setState] = useState(() => ({ ...INITIAL, ...loadPrefs() }))
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // テーマを <html data-theme> に反映(CSS変数が切替わる)
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme
   }, [state.theme])
+
+  // ユーザー設定を永続化(変わったときだけ書き込み)
+  useEffect(() => {
+    savePrefs({ theme: state.theme, gender: state.gender, safetyPrefs: state.safetyPrefs })
+  }, [state.theme, state.gender, state.safetyPrefs])
 
   const clearTimer = useCallback(() => {
     if (timer.current) {
@@ -143,8 +150,13 @@ export default function App() {
 
   const restart = useCallback(() => {
     clearTimer()
-    // テーマはユーザー設定なのでリスタートでも保持
-    setState((p) => ({ ...INITIAL, theme: p.theme }))
+    // ユーザー設定(テーマ/性別/安心設定)はデモのリスタートでも保持
+    setState((p) => ({
+      ...INITIAL,
+      theme: p.theme,
+      gender: p.gender,
+      safetyPrefs: p.safetyPrefs,
+    }))
   }, [clearTimer])
 
   const flow: Flow = {
