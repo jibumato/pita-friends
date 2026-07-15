@@ -32,7 +32,7 @@ export default function ReportSheet({ flow }: { flow: Flow }) {
         style={{
           position: 'relative',
           background: C.surface,
-          borderTop: `1.5px solid ${C.ink}`,
+          borderTop: `1.5px solid ${C.border}`,
           borderRadius: '20px 20px 0 0',
           padding: '14px 20px 30px',
           display: 'flex',
@@ -54,7 +54,7 @@ export default function ReportSheet({ flow }: { flow: Flow }) {
               key={r}
               style={{
                 background: C.white,
-                border: `1.5px solid ${C.ink}`,
+                border: `1.5px solid ${C.border}`,
                 borderRadius: 8,
                 padding: '12px 14px',
                 fontSize: 12.5,
@@ -68,7 +68,7 @@ export default function ReportSheet({ flow }: { flow: Flow }) {
         </div>
         <div
           style={{
-            background: C.ink,
+            background: C.fill,
             color: C.avatarPink,
             borderRadius: 8,
             padding: '14px 0',

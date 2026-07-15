@@ -15,7 +15,7 @@ function TrustStat({ value, label }: { value: string; label: string }) {
       style={{
         flex: 1,
         background: C.surface,
-        border: `1.5px solid ${C.ink}`,
+        border: `1.5px solid ${C.border}`,
         borderRadius: 8,
         padding: '7px 4px',
         display: 'flex',
@@ -45,9 +45,9 @@ function RequestCard({
     <div
       style={{
         background: C.white,
-        border: `1.5px solid ${C.ink}`,
+        border: `1.5px solid ${C.border}`,
         borderRadius: 12,
-        boxShadow: `3px 3px 0 ${C.ink}`,
+        boxShadow: `3px 3px 0 ${C.shadowCol}`,
         padding: 14,
         display: 'flex',
         flexDirection: 'column',
@@ -62,7 +62,7 @@ function RequestCard({
             height: 48,
             borderRadius: 10,
             background: r.color,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -81,7 +81,7 @@ function RequestCard({
                   fontSize: 9.5,
                   color: C.ink,
                   background: C.lime,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   padding: '2px 7px',
                   borderRadius: 4,
                 }}
@@ -100,7 +100,7 @@ function RequestCard({
                   background: C.surfaceLavender,
                   padding: '2px 8px',
                   borderRadius: 4,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                 }}
               >
                 共通: {t}
@@ -132,7 +132,7 @@ function RequestCard({
             background: C.surfaceLavender,
             padding: '4px 10px',
             borderRadius: 4,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
           }}
         >
           {r.game}
@@ -144,7 +144,7 @@ function RequestCard({
             background: C.surfaceLavender,
             padding: '4px 10px',
             borderRadius: 4,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
           }}
         >
           {r.when}
@@ -172,7 +172,7 @@ function RequestCard({
             fontSize: 12.5,
             color: C.ink,
             background: C.white,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '10px 0',
           }}
@@ -188,10 +188,10 @@ function RequestCard({
             fontSize: 12.5,
             color: C.ink,
             background: C.lime,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '10px 0',
-            boxShadow: `2px 2px 0 ${C.ink}`,
+            boxShadow: `2px 2px 0 ${C.shadowCol}`,
           }}
         >
           ✓ 承認してトークへ

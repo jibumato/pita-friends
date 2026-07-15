@@ -13,7 +13,7 @@ export default function FlowRail({ step }: { step: number }) {
               height: 6,
               borderRadius: 99,
               background: i <= step ? C.lime : C.white,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
             }}
           />
           <span

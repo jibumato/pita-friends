@@ -32,9 +32,9 @@ export default function SafetyCenter({ flow }: { flow: Flow }) {
         <div
           style={{
             background: C.lime,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 12,
-            boxShadow: `3px 3px 0 ${C.ink}`,
+            boxShadow: `3px 3px 0 ${C.shadowCol}`,
             padding: 14,
             display: 'flex',
             gap: 12,
@@ -72,9 +72,9 @@ export default function SafetyCenter({ flow }: { flow: Flow }) {
             style={{
               flex: 1,
               background: C.white,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               borderRadius: 10,
-              boxShadow: `2px 2px 0 ${C.ink}`,
+              boxShadow: `2px 2px 0 ${C.shadowCol}`,
               padding: 13,
               display: 'flex',
               flexDirection: 'column',
@@ -88,9 +88,9 @@ export default function SafetyCenter({ flow }: { flow: Flow }) {
             style={{
               flex: 1,
               background: C.white,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               borderRadius: 10,
-              boxShadow: `2px 2px 0 ${C.ink}`,
+              boxShadow: `2px 2px 0 ${C.shadowCol}`,
               padding: 13,
               display: 'flex',
               flexDirection: 'column',

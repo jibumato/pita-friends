@@ -6,7 +6,7 @@ import { usePress } from '../hooks/usePress'
 export default function Welcome({ flow }: { flow: Flow }) {
   const start = usePress(`3px 3px 0 ${C.lavender}`)
   return (
-    <Screen background={C.ink} style={{ animation: 'scrIn .34s ease both' }}>
+    <Screen background={C.fill} style={{ animation: 'scrIn .34s ease both' }}>
       <DotPattern />
       <div
         style={{
@@ -26,7 +26,7 @@ export default function Welcome({ flow }: { flow: Flow }) {
             height: 76,
             borderRadius: 16,
             background: C.lime,
-            border: `2px solid ${C.ink}`,
+            border: `2px solid ${C.border}`,
             boxShadow: `5px 5px 0 ${C.lavender}`,
             display: 'flex',
             alignItems: 'center',

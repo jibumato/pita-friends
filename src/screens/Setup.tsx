@@ -29,8 +29,8 @@ function ChipRow({
               cursor: 'pointer',
               fontSize: 12,
               color: sel ? C.lime : C.ink,
-              background: sel ? C.ink : C.white,
-              border: `1.5px solid ${C.ink}`,
+              background: sel ? C.fill : C.white,
+              border: `1.5px solid ${C.border}`,
               padding: '7px 13px',
               borderRadius: 4,
             }}
@@ -45,7 +45,7 @@ function ChipRow({
 
 export default function Setup({ flow }: { flow: Flow }) {
   const [style, setStyle] = useState('エンジョイ')
-  const cta = usePress(`3px 3px 0 ${C.ink}`)
+  const cta = usePress(`3px 3px 0 ${C.shadowCol}`)
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:45" />
@@ -78,8 +78,8 @@ export default function Setup({ flow }: { flow: Flow }) {
                 width: 28,
                 height: 28,
                 borderRadius: 8,
-                background: C.ink,
-                border: `1.5px solid ${C.ink}`,
+                background: C.fill,
+                border: `1.5px solid ${C.border}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -95,10 +95,10 @@ export default function Setup({ flow }: { flow: Flow }) {
           <div
             style={{
               background: C.white,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               borderRadius: 8,
               padding: '12px 14px',
-              boxShadow: `2px 2px 0 ${C.ink}`,
+              boxShadow: `2px 2px 0 ${C.shadowCol}`,
             }}
           >
             <span style={{ fontSize: 13, color: C.ink }}>あおい</span>
@@ -126,8 +126,8 @@ export default function Setup({ flow }: { flow: Flow }) {
                     cursor: 'pointer',
                     fontSize: 12,
                     color: sel ? C.lime : C.ink,
-                    background: sel ? C.ink : C.white,
-                    border: `1.5px solid ${C.ink}`,
+                    background: sel ? C.fill : C.white,
+                    border: `1.5px solid ${C.border}`,
                     padding: '7px 13px',
                     borderRadius: 4,
                   }}
@@ -170,7 +170,7 @@ export default function Setup({ flow }: { flow: Flow }) {
             cursor: 'pointer',
             background: C.lime,
             color: C.ink,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '15px 0',
             textAlign: 'center',

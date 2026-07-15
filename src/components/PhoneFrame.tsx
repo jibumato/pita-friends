@@ -32,7 +32,7 @@ export default function PhoneFrame({ children }: { children: ReactNode }) {
         width: device.outerW,
         height: device.outerH,
         maxWidth: '100%',
-        background: C.ink,
+        background: C.fill,
         borderRadius: radius.bezel,
         padding: device.pad,
         boxSizing: 'border-box',

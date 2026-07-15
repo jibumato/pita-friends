@@ -57,9 +57,9 @@ export default function Notifications({ flow }: { flow: Flow }) {
               key={i}
               style={{
                 background: n.unread ? C.surfaceLavender : C.white,
-                border: `1.5px solid ${C.ink}`,
+                border: `1.5px solid ${C.border}`,
                 borderRadius: 12,
-                boxShadow: `2px 2px 0 ${C.ink}`,
+                boxShadow: `2px 2px 0 ${C.shadowCol}`,
                 padding: '12px 13px',
                 display: 'flex',
                 gap: 11,
@@ -72,7 +72,7 @@ export default function Notifications({ flow }: { flow: Flow }) {
                   height: 38,
                   borderRadius: 8,
                   background: n.tint,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -98,7 +98,7 @@ export default function Notifications({ flow }: { flow: Flow }) {
                     height: 8,
                     borderRadius: '50%',
                     background: C.lavender,
-                    border: `1.5px solid ${C.ink}`,
+                    border: `1.5px solid ${C.border}`,
                     flex: 'none',
                     marginTop: 4,
                   }}

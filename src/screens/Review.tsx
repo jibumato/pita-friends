@@ -64,8 +64,8 @@ export default function Review({ flow }: { flow: Flow }) {
                     cursor: 'pointer',
                     fontSize: 12,
                     color: sel ? C.lime : C.ink,
-                    background: sel ? C.ink : C.white,
-                    border: `1.5px solid ${C.ink}`,
+                    background: sel ? C.fill : C.white,
+                    border: `1.5px solid ${C.border}`,
                     padding: '8px 14px',
                     borderRadius: 4,
                   }}
@@ -94,7 +94,7 @@ export default function Review({ flow }: { flow: Flow }) {
           </span>
         </div>
       </div>
-      <div style={{ padding: '12px 24px 30px', background: C.white, borderTop: `1.5px solid ${C.ink}` }}>
+      <div style={{ padding: '12px 24px 30px', background: C.white, borderTop: `1.5px solid ${C.border}` }}>
         <PitaButton label="評価を送る ▶" variant="primary" full onClick={() => flow.go('result')} />
       </div>
     </Screen>

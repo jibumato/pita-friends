@@ -24,7 +24,7 @@ function StepRow({
           height: 36,
           borderRadius: 8,
           background: C.lavender,
-          border: `1.5px solid ${C.ink}`,
+          border: `1.5px solid ${C.border}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -78,9 +78,9 @@ export default function Verify({ flow }: { flow: Flow }) {
         <div
           style={{
             background: C.white,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 12,
-            boxShadow: `4px 4px 0 ${C.ink}`,
+            boxShadow: `4px 4px 0 ${C.shadowCol}`,
             padding: 16,
             display: 'flex',
             flexDirection: 'column',
@@ -115,8 +115,8 @@ export default function Verify({ flow }: { flow: Flow }) {
           {...cta.handlers}
           style={{
             cursor: 'pointer',
-            background: C.ink,
-            color: C.lime,
+            background: C.ctaBg,
+            color: C.ctaFg,
             borderRadius: 8,
             padding: '15px 0',
             textAlign: 'center',

@@ -6,7 +6,7 @@ import { ChevronLeft, Shield, Phone, Send } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 
 export default function Talk({ flow }: { flow: Flow }) {
-  const goDay = usePress(`3px 3px 0 ${C.ink}`)
+  const goDay = usePress(`3px 3px 0 ${C.shadowCol}`)
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:49" />
@@ -17,7 +17,7 @@ export default function Talk({ flow }: { flow: Flow }) {
           alignItems: 'center',
           gap: 10,
           padding: '10px 20px',
-          borderBottom: `1.5px solid ${C.ink}`,
+          borderBottom: `1.5px solid ${C.border}`,
           background: C.white,
         }}
       >
@@ -30,7 +30,7 @@ export default function Talk({ flow }: { flow: Flow }) {
             height: 36,
             borderRadius: 8,
             background: C.avatarAqua,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -48,7 +48,7 @@ export default function Talk({ flow }: { flow: Flow }) {
                 fontSize: 9,
                 color: C.ink,
                 background: C.lime,
-                border: `1.5px solid ${C.ink}`,
+                border: `1.5px solid ${C.border}`,
                 padding: '1px 5px',
                 borderRadius: 4,
               }}
@@ -64,8 +64,8 @@ export default function Talk({ flow }: { flow: Flow }) {
             height: 38,
             borderRadius: 8,
             background: C.lime,
-            border: `1.5px solid ${C.ink}`,
-            boxShadow: `2px 2px 0 ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
+            boxShadow: `2px 2px 0 ${C.shadowCol}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -114,9 +114,9 @@ export default function Talk({ flow }: { flow: Flow }) {
             alignSelf: 'center',
             width: '100%',
             background: C.lavender,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 10,
-            boxShadow: `3px 3px 0 ${C.ink}`,
+            boxShadow: `3px 3px 0 ${C.shadowCol}`,
             padding: '13px 14px',
             display: 'flex',
             flexDirection: 'column',
@@ -130,7 +130,7 @@ export default function Talk({ flow }: { flow: Flow }) {
                 fontSize: 10,
                 color: C.ink,
                 background: flow.dealDone ? C.lime : C.avatarOrange,
-                border: `1.5px solid ${C.ink}`,
+                border: `1.5px solid ${C.border}`,
                 padding: '2px 8px',
                 borderRadius: 4,
               }}
@@ -152,7 +152,7 @@ export default function Talk({ flow }: { flow: Flow }) {
                   fontSize: 12,
                   color: C.ink,
                   background: C.lime,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   padding: '9px 0',
                   borderRadius: 4,
                 }}
@@ -178,7 +178,7 @@ export default function Talk({ flow }: { flow: Flow }) {
           {flow.dealDone && (
             <div
               style={{
-                background: C.ink,
+                background: C.fill,
                 borderRadius: 6,
                 padding: '8px 10px',
                 display: 'flex',
@@ -222,7 +222,7 @@ export default function Talk({ flow }: { flow: Flow }) {
                 boxSizing: 'border-box',
                 background: C.lime,
                 color: C.ink,
-                border: `1.5px solid ${C.ink}`,
+                border: `1.5px solid ${C.border}`,
                 borderRadius: 8,
                 padding: '12px 0',
                 textAlign: 'center',
@@ -243,7 +243,7 @@ export default function Talk({ flow }: { flow: Flow }) {
           gap: 8,
           padding: '12px 16px 26px',
           background: C.white,
-          borderTop: `1.5px solid ${C.ink}`,
+          borderTop: `1.5px solid ${C.border}`,
           alignItems: 'center',
         }}
       >
@@ -251,7 +251,7 @@ export default function Talk({ flow }: { flow: Flow }) {
           style={{
             flex: 1,
             background: C.surface,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '11px 14px',
           }}
@@ -263,7 +263,7 @@ export default function Talk({ flow }: { flow: Flow }) {
             width: 44,
             height: 44,
             borderRadius: 8,
-            background: C.ink,
+            background: C.fill,
             boxShadow: `2px 2px 0 ${C.lavender}`,
             display: 'flex',
             alignItems: 'center',
@@ -285,7 +285,7 @@ function Bubble({ side, children }: { side: 'left' | 'right'; children: React.Re
         alignSelf: left ? 'flex-start' : 'flex-end',
         maxWidth: '75%',
         background: left ? C.white : C.lime,
-        border: `1.5px solid ${C.ink}`,
+        border: `1.5px solid ${C.border}`,
         borderRadius: left ? '2px 10px 10px 10px' : '10px 2px 10px 10px',
         padding: '10px 13px',
       }}

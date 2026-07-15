@@ -18,9 +18,9 @@ type PitaButtonProps = {
 
 const variantMap: Record<PitaVariant, { bg: string; fg: string; border: string; shadow: string }> =
   {
-    primary: { bg: C.ink, fg: C.lime, border: C.ink, shadow: `3px 3px 0 ${C.lavender}` },
-    confirm: { bg: C.lime, fg: C.ink, border: C.ink, shadow: `3px 3px 0 ${C.ink}` },
-    secondary: { bg: C.white, fg: C.ink, border: C.ink, shadow: `2px 2px 0 ${C.ink}` },
+    primary: { bg: C.ctaBg, fg: C.ctaFg, border: C.ctaBg, shadow: `3px 3px 0 ${C.lavender}` },
+    confirm: { bg: C.lime, fg: C.ink, border: C.border, shadow: `3px 3px 0 ${C.shadowCol}` },
+    secondary: { bg: C.white, fg: C.ink, border: C.border, shadow: `2px 2px 0 ${C.shadowCol}` },
     disabled: {
       bg: C.disabledBg,
       fg: C.disabledFg,

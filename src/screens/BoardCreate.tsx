@@ -30,8 +30,8 @@ function SegRow({
               cursor: 'pointer',
               fontSize: 12,
               color: sel ? C.lime : C.ink,
-              background: sel ? C.ink : C.white,
-              border: `1.5px solid ${C.ink}`,
+              background: sel ? C.fill : C.white,
+              border: `1.5px solid ${C.border}`,
               padding: '9px 0',
               borderRadius: 4,
             }}
@@ -80,7 +80,7 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
           <div
             style={{
               background: C.white,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               borderRadius: 8,
               padding: '12px 14px',
               display: 'flex',
@@ -101,7 +101,7 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
               <div
                 style={{
                   background: C.white,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   borderRadius: 8,
                   padding: '12px 14px',
                 }}
@@ -115,7 +115,7 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
               <div
                 style={{
                   background: C.white,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   borderRadius: 8,
                   padding: '9px 12px',
                   display: 'flex',
@@ -149,7 +149,7 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
         <div
           style={{
             background: C.white,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '13px 14px',
             display: 'flex',
@@ -167,7 +167,7 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
           <div
             style={{
               background: C.white,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               borderRadius: 8,
               padding: '12px 14px',
               minHeight: 64,
@@ -179,15 +179,15 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
           </div>
         </Field>
       </div>
-      <div style={{ padding: '12px 20px 26px', background: C.white, borderTop: `1.5px solid ${C.ink}` }}>
+      <div style={{ padding: '12px 20px 26px', background: C.white, borderTop: `1.5px solid ${C.border}` }}>
         <div
           className="pita-press"
           onClick={() => flow.go('board')}
           {...submit.handlers}
           style={{
             cursor: 'pointer',
-            background: C.ink,
-            color: C.lime,
+            background: C.ctaBg,
+            color: C.ctaFg,
             borderRadius: 8,
             padding: '14px 0',
             textAlign: 'center',
