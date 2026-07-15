@@ -100,6 +100,8 @@
 
 ## Phase 5 — 法務・コンプライアンス ⬜
 
+> 専門家レビュー用の質問リスト: コイン経済は [`docs/legal/coin-economy-legal-review.md`](docs/legal/coin-economy-legal-review.md)、運用業務（通報対応・本人確認データ・監視・トラブル対応等）は [`docs/legal/operations-legal-qa.md`](docs/legal/operations-legal-qa.md) を参照。
+
 - ⬜ 利用規約 / プライバシーポリシー / 特定商取引法表記
 - ⬜ 個人情報保護・本人確認書類の暗号化保存
 - ⬜ 年齢確認の義務対応
