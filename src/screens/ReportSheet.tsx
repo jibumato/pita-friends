@@ -4,6 +4,7 @@ import { color as C } from '../theme/tokens'
 const REASONS = [
   '外部アプリ(LINE等)への誘導',
   'アプリ外での直接の金銭・RMTの要求',
+  '出会い・恋愛目的の勧誘',
   '暴言・ハラスメント',
   'なりすまし・年齢詐称',
 ]

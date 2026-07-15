@@ -76,7 +76,7 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
           gap: 16,
         }}
       >
-        <Field label="ゲーム">
+        <Field label="ゲーム（必須）">
           <div
             style={{
               background: C.white,
@@ -143,9 +143,12 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
         <Field label="ボイスチャット">
           <SegRow options={['必須', 'どちらでも', 'なし']} value={vc} onPick={setVc} />
         </Field>
-        <Field label="参加できる相手">
-          <SegRow options={['全員', '同性のみ', '女性のみ']} value={audience} onPick={setAudience} />
+        <Field label="参加を受け付ける範囲">
+          <SegRow options={['全員', '同性のみ']} value={audience} onPick={setAudience} />
         </Field>
+        <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6, marginTop: -8 }}>
+          安心して遊ぶための受付制限です。特定の性別を指定して募ることはできません。
+        </span>
         <div
           style={{
             background: C.white,
