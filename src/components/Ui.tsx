@@ -2,13 +2,18 @@
 import type { ReactNode } from 'react'
 import { color as C } from '../theme/tokens'
 import { ChevronLeft } from './Icon'
+import { clickable, switchable } from '../hooks/clickable'
 
 /** 戻る矢印 + タイトルのサブヘッダー。 */
 export function SubHeader({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px' }}>
       {onBack && (
-        <div onClick={onBack} style={{ cursor: 'pointer', display: 'flex' }}>
+        <div
+          onClick={onBack}
+          {...clickable(onBack, '戻る')}
+          style={{ cursor: 'pointer', display: 'flex' }}
+        >
           <ChevronLeft />
         </div>
       )}
@@ -23,10 +28,19 @@ export function SectionLabel({ children }: { children: ReactNode }) {
 }
 
 /** ネオブルータリズムのトグルスイッチ(表示専用 or onToggle 制御)。 */
-export function Toggle({ on, onToggle }: { on: boolean; onToggle?: () => void }) {
+export function Toggle({
+  on,
+  onToggle,
+  label,
+}: {
+  on: boolean
+  onToggle?: () => void
+  label?: string
+}) {
   return (
     <div
       onClick={onToggle}
+      {...switchable(on, onToggle, label)}
       style={{
         width: 46,
         height: 26,
@@ -73,6 +87,7 @@ export function ListRow({
   return (
     <div
       onClick={onClick}
+      {...clickable(onClick, label)}
       style={{
         padding: '13px 14px',
         display: 'flex',

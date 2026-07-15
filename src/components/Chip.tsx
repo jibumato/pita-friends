@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import { color as C } from '../theme/tokens'
+import { clickable } from '../hooks/clickable'
 
 type ChipProps = {
   label?: string
@@ -16,12 +17,16 @@ export default function Chip({ label = 'Apex', selected, onToggle }: ChipProps) 
   const controlled = selected !== undefined
   const sel = controlled ? selected : internal
 
+  const handle = () => {
+    if (onToggle) onToggle()
+    if (!controlled) setInternal((v) => !v)
+  }
+
   return (
     <span
-      onClick={() => {
-        if (onToggle) onToggle()
-        if (!controlled) setInternal((v) => !v)
-      }}
+      onClick={handle}
+      {...clickable(handle, label)}
+      aria-pressed={sel}
       style={{
         display: 'inline-block',
         fontFamily: "'DotGothic16', monospace",

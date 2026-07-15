@@ -152,6 +152,12 @@ export default function InviteSheet({ flow }: { flow: Flow }) {
         >
           誘いを送る ▶
         </div>
+        <span
+          onClick={flow.openSendFail}
+          style={{ cursor: 'pointer', textAlign: 'center', fontSize: 10.5, color: C.placeholder }}
+        >
+          相手がオフラインのとき(デモ) →
+        </span>
       </div>
     </div>
   )

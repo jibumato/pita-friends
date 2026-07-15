@@ -6,6 +6,7 @@
 import type { ReactNode } from 'react'
 import { color as C } from '../theme/tokens'
 import { usePress } from '../hooks/usePress'
+import { clickable } from '../hooks/clickable'
 
 export type PitaVariant = 'primary' | 'confirm' | 'secondary' | 'disabled'
 
@@ -44,6 +45,8 @@ export default function PitaButton({
       className="pita-press"
       onClick={enabled ? onClick : undefined}
       {...(enabled ? handlers : {})}
+      {...clickable(enabled ? onClick : undefined, typeof label === 'string' ? label : undefined)}
+      aria-disabled={!enabled || undefined}
       style={{
         display: full ? 'block' : 'inline-block',
         fontFamily: "'DotGothic16', monospace",
