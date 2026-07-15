@@ -56,7 +56,7 @@ export default function SafetyCenter({ flow }: { flow: Flow }) {
             <path d="M9 12 L11 14 L15 9.5" />
           </svg>
           <span style={{ fontSize: 12, lineHeight: 1.7, color: C.ink }}>
-            通報は24時間以内に対応します。緊急の危険を感じた場合は警察(110)へ連絡してください。
+            通報は原則24時間以内に内容の確認に着手するよう努めます。緊急の危険を感じた場合は警察(110)へ連絡してください。
           </span>
         </div>
 
