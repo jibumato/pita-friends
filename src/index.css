@@ -67,6 +67,29 @@
   box-sizing: border-box;
 }
 
+/* キーボードフォーカスの可視化 */
+:focus-visible {
+  outline: 2.5px solid var(--pf-lavender);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* マウス操作時はアウトラインを出さない(focus-visibleのみ) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* モーション低減設定を尊重 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 html,
 body {
   margin: 0;

@@ -39,6 +39,7 @@ import SafetyCenter from './screens/SafetyCenter'
 import Notifications from './screens/Notifications'
 import SafetyPreferences from './screens/SafetyPreferences'
 import Requests from './screens/Requests'
+import SendFailDialog from './screens/SendFailDialog'
 
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
@@ -55,11 +56,15 @@ export type Flow = {
   reviewTag: string
   score: number
   reportOpen: boolean
+  sendFailOpen: boolean
   gender: Gender
   safetyPrefs: SafetyPrefs
   theme: Theme
   setTheme: (t: Theme) => void
   toggleTheme: () => void
+  openSendFail: () => void
+  closeSendFail: () => void
+  reserveInvite: () => void
   setGame: (g: string) => void
   setWhen: (w: string) => void
   setReviewStars: (n: number) => void
@@ -82,6 +87,7 @@ const INITIAL = {
   when: '今夜 22:00〜',
   dealDone: false,
   reportOpen: false,
+  sendFailOpen: false,
   reviewStars: 5,
   reviewTag: '時間ぴったり',
   gender: 'na' as Gender,
@@ -112,7 +118,7 @@ export default function App() {
   const go = useCallback(
     (s: ScreenKey) => {
       clearTimer()
-      setState((p) => ({ ...p, screen: s, reportOpen: false }))
+      setState((p) => ({ ...p, screen: s, reportOpen: false, sendFailOpen: false }))
     },
     [clearTimer],
   )
@@ -159,6 +165,12 @@ export default function App() {
     setTheme: (t) => setState((p) => ({ ...p, theme: t })),
     toggleTheme: () =>
       setState((p) => ({ ...p, theme: p.theme === 'dark' ? 'light' : 'dark' })),
+    openSendFail: () => setState((p) => ({ ...p, sendFailOpen: true })),
+    closeSendFail: () => setState((p) => ({ ...p, sendFailOpen: false })),
+    reserveInvite: () => {
+      clearTimer()
+      setState((p) => ({ ...p, sendFailOpen: false, screen: 'home' }))
+    },
     go,
     sendInvite,
     goJoin,
@@ -273,6 +285,7 @@ export default function App() {
         {state.screen === 'safetyPrefs' && <SafetyPreferences flow={flow} />}
         {state.screen === 'requests' && <Requests flow={flow} />}
         {flow.reportOpen && <ReportSheet flow={flow} />}
+        {flow.sendFailOpen && <SendFailDialog flow={flow} />}
       </PhoneFrame>
 
       {!mobile && (

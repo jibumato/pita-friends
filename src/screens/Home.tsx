@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import BottomTabs from '../components/BottomTabs'
-import { Bell, Sun, MoonSmall } from '../components/Icon'
+import { Bell, Sun, MoonSmall, Moon } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
+import { clickable } from '../hooks/clickable'
 
 const ONLINE = [
   { initial: 'る', name: 'るか', color: C.avatarOrange },
@@ -15,9 +17,11 @@ const ONLINE = [
 
 export default function HomeScreen({ flow }: { flow: Flow }) {
   const card = usePress(`4px 4px 0 ${C.shadowCol}`)
+  // 深夜オフライン状態(状態網羅 C1)のデモ切替
+  const [night, setNight] = useState(false)
   return (
     <Screen background={C.surface}>
-      <StatusBar time="21:47" />
+      <StatusBar time={night ? '03:12' : '21:47'} />
       <div
         style={{
           display: 'flex',
@@ -49,6 +53,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
         <div style={{ display: 'flex', gap: 8 }}>
           <div
             onClick={flow.toggleTheme}
+            {...clickable(flow.toggleTheme, flow.theme === 'dark' ? 'ライトテーマに切替' : 'ダークテーマに切替')}
             style={{
               cursor: 'pointer',
               width: 38,
@@ -66,6 +71,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           </div>
           <div
             onClick={() => flow.go('notifications')}
+            {...clickable(() => flow.go('notifications'), '通知')}
             style={{
               cursor: 'pointer',
               width: 38,
@@ -93,6 +99,33 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '14px 20px 0',
         }}
       >
+        {/* デモ: 通常 / 深夜オフライン 状態の切替 */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, marginBottom: -8 }}>
+          {(
+            [
+              [false, '通常'],
+              [true, '深夜'],
+            ] as [boolean, string][]
+          ).map(([v, label]) => (
+            <span
+              key={label}
+              onClick={() => setNight(v)}
+              {...clickable(() => setNight(v), `${label}状態を表示`)}
+              style={{
+                cursor: 'pointer',
+                fontSize: 9,
+                color: night === v ? C.lime : C.muted,
+                background: night === v ? C.fill : 'transparent',
+                border: `1.5px solid ${night === v ? C.border : C.placeholder}`,
+                padding: '2px 8px',
+                borderRadius: 4,
+              }}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+
         {/* 受け取った誘い(承認制) */}
         <div
           onClick={() => flow.go('requests')}
@@ -115,6 +148,10 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           <span style={{ fontSize: 11, color: C.ink }}>確認する ›</span>
         </div>
 
+        {night ? (
+          <NightHome flow={flow} />
+        ) : (
+        <>
         {/* いま遊べる */}
         <div
           style={{
@@ -275,8 +312,99 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
       <BottomTabs current={flow.screen} onNavigate={flow.go} />
     </Screen>
+  )
+}
+
+/** 深夜オフライン状態(状態網羅 C1): オンライン0人 + 予約導線。 */
+function NightHome({ flow }: { flow: Flow }) {
+  return (
+    <>
+      {/* いま遊べる(深夜) */}
+      <div
+        style={{
+          background: C.deepCard,
+          border: `1.5px solid ${C.border}`,
+          borderRadius: 12,
+          boxShadow: `4px 4px 0 ${C.shadowCol}`,
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 15, color: '#fff' }}>▶ いま遊べる</span>
+          <span
+            style={{
+              fontSize: 10.5,
+              color: C.ink,
+              background: C.muted,
+              border: `1.5px solid ${C.border}`,
+              padding: '3px 9px',
+              borderRadius: 4,
+            }}
+          >
+            0人 ONLINE
+          </span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+            padding: '14px 0',
+          }}
+        >
+          <Moon size={34} color="#948DA8" />
+          <span style={{ fontSize: 11.5, color: C.muted, textAlign: 'center', lineHeight: 1.6 }}>
+            いまはみんな寝ているみたい。
+            <br />
+            朝以降にまた覗いてみて
+          </span>
+        </div>
+      </div>
+
+      {/* 予約して寝る */}
+      <div
+        style={{
+          background: C.white,
+          border: `1.5px solid ${C.border}`,
+          borderRadius: 12,
+          boxShadow: `4px 4px 0 ${C.shadowCol}`,
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        <span style={{ fontSize: 13, color: C.ink }}>▶ 予約して寝る</span>
+        <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
+          「明日21時〜Apex」で募集を予約しておくと、起きたら候補が集まっています。
+        </span>
+        <div
+          onClick={() => flow.go('boardCreate')}
+          {...clickable(() => flow.go('boardCreate'), '予約募集をつくる')}
+          style={{
+            cursor: 'pointer',
+            background: C.lime,
+            color: C.ink,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 8,
+            padding: '11px 0',
+            textAlign: 'center',
+            fontSize: 13,
+            boxShadow: `2px 2px 0 ${C.shadowCol}`,
+          }}
+        >
+          予約募集をつくる
+        </div>
+      </div>
+    </>
   )
 }

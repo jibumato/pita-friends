@@ -2,6 +2,7 @@
 import { color as C } from '../theme/tokens'
 import { Home, Search, PlusCircle, Chat, User } from './Icon'
 import { activeTabOf, tabToScreen, type ScreenKey, type TabKey } from '../flow'
+import { clickable } from '../hooks/clickable'
 
 const TABS: { key: TabKey; label: string; Icon: typeof Home }[] = [
   { key: 'home', label: 'ホーム', Icon: Home },
@@ -37,6 +38,8 @@ export default function BottomTabs({
           <div
             key={key}
             onClick={() => onNavigate(tabToScreen[key])}
+            {...clickable(() => onNavigate(tabToScreen[key]), label)}
+            aria-current={on || undefined}
             style={{
               display: 'flex',
               flexDirection: 'column',
