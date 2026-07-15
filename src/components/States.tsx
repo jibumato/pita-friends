@@ -21,7 +21,7 @@ export function EmptyState({
   ctaVariant?: 'primary' | 'confirm'
   onCta?: () => void
 }) {
-  const shadow = ctaVariant === 'confirm' ? `3px 3px 0 ${C.ink}` : `3px 3px 0 ${C.lavender}`
+  const shadow = ctaVariant === 'confirm' ? `3px 3px 0 ${C.shadowCol}` : `3px 3px 0 ${C.lavender}`
   const btn = usePress(shadow)
   return (
     <div
@@ -42,8 +42,8 @@ export function EmptyState({
           height: 96,
           borderRadius: 20,
           background: tileColor,
-          border: `1.5px solid ${C.ink}`,
-          boxShadow: `4px 4px 0 ${C.ink}`,
+          border: `1.5px solid ${C.border}`,
+          boxShadow: `4px 4px 0 ${C.shadowCol}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -63,9 +63,9 @@ export function EmptyState({
           style={{
             cursor: 'pointer',
             width: '100%',
-            background: ctaVariant === 'confirm' ? C.lime : C.ink,
-            color: ctaVariant === 'confirm' ? C.ink : C.lime,
-            border: ctaVariant === 'confirm' ? `1.5px solid ${C.ink}` : 'none',
+            background: ctaVariant === 'confirm' ? C.lime : C.ctaBg,
+            color: ctaVariant === 'confirm' ? C.ink : C.ctaFg,
+            border: ctaVariant === 'confirm' ? `1.5px solid ${C.border}` : 'none',
             borderRadius: 8,
             padding: '14px 0',
             textAlign: 'center',
@@ -111,8 +111,8 @@ export function ErrorState({
           width: 92,
           height: 92,
           background: C.avatarOrange,
-          border: `1.5px solid ${C.ink}`,
-          boxShadow: `4px 4px 0 ${C.ink}`,
+          border: `1.5px solid ${C.border}`,
+          boxShadow: `4px 4px 0 ${C.shadowCol}`,
           transform: 'rotate(45deg)',
           display: 'flex',
           alignItems: 'center',
@@ -132,8 +132,8 @@ export function ErrorState({
         style={{
           cursor: 'pointer',
           width: '100%',
-          background: C.ink,
-          color: C.lime,
+          background: C.ctaBg,
+          color: C.ctaFg,
           borderRadius: 8,
           padding: '14px 0',
           textAlign: 'center',
@@ -179,9 +179,9 @@ export function SkeletonCard({ dim = false }: { dim?: boolean }) {
     <div
       style={{
         background: C.white,
-        border: `1.5px solid ${C.ink}`,
+        border: `1.5px solid ${C.border}`,
         borderRadius: 12,
-        boxShadow: `3px 3px 0 ${C.ink}`,
+        boxShadow: `3px 3px 0 ${C.shadowCol}`,
         padding: 14,
         display: 'flex',
         flexDirection: 'column',

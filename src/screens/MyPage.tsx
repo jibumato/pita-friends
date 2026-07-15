@@ -33,9 +33,9 @@ export default function MyPage({ flow }: { flow: Flow }) {
         <div
           style={{
             background: C.white,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 12,
-            boxShadow: `3px 3px 0 ${C.ink}`,
+            boxShadow: `3px 3px 0 ${C.shadowCol}`,
             padding: 14,
             display: 'flex',
             flexDirection: 'column',
@@ -49,7 +49,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
                 height: 54,
                 borderRadius: 10,
                 background: C.avatarOrange,
-                border: `1.5px solid ${C.ink}`,
+                border: `1.5px solid ${C.border}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -67,7 +67,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
                     fontSize: 9.5,
                     color: C.ink,
                     background: C.lime,
-                    border: `1.5px solid ${C.ink}`,
+                    border: `1.5px solid ${C.border}`,
                     padding: '2px 7px',
                     borderRadius: 4,
                   }}
@@ -86,7 +86,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
                 style={{
                   flex: 1,
                   background: C.surface,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   borderRadius: 8,
                   padding: '8px 4px',
                   display: 'flex',
@@ -106,9 +106,9 @@ export default function MyPage({ flow }: { flow: Flow }) {
         <div
           style={{
             background: C.lavender,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 12,
-            boxShadow: `3px 3px 0 ${C.ink}`,
+            boxShadow: `3px 3px 0 ${C.shadowCol}`,
             padding: '13px 14px',
             display: 'flex',
             alignItems: 'center',
@@ -126,7 +126,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
               fontSize: 11,
               color: C.ink,
               background: C.lime,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               padding: '6px 11px',
               borderRadius: 4,
               cursor: 'pointer',
@@ -148,7 +148,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
                   fontSize: 10,
                   color: C.ink,
                   background: C.lime,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   borderRadius: 99,
                   minWidth: 18,
                   textAlign: 'center',
@@ -173,7 +173,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
                   fontSize: 10,
                   color: C.ink,
                   background: C.lime,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   padding: '2px 8px',
                   borderRadius: 4,
                 }}

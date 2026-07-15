@@ -3,7 +3,7 @@ import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import BottomTabs from '../components/BottomTabs'
-import { Bell } from '../components/Icon'
+import { Bell, Sun, MoonSmall } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 
 const ONLINE = [
@@ -14,7 +14,7 @@ const ONLINE = [
 ]
 
 export default function HomeScreen({ flow }: { flow: Flow }) {
-  const card = usePress(`4px 4px 0 ${C.ink}`)
+  const card = usePress(`4px 4px 0 ${C.shadowCol}`)
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:47" />
@@ -33,7 +33,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
               height: 36,
               borderRadius: 6,
               background: C.lime,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               boxShadow: `3px 3px 0 ${C.lavender}`,
               display: 'flex',
               alignItems: 'center',
@@ -46,22 +46,41 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           </div>
           <span style={{ fontSize: 21, color: C.ink, letterSpacing: '.05em' }}>ピタフレ</span>
         </div>
-        <div
-          onClick={() => flow.go('notifications')}
-          style={{
-            cursor: 'pointer',
-            width: 38,
-            height: 38,
-            borderRadius: 8,
-            background: C.white,
-            border: `1.5px solid ${C.ink}`,
-            boxShadow: `2px 2px 0 ${C.ink}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Bell />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div
+            onClick={flow.toggleTheme}
+            style={{
+              cursor: 'pointer',
+              width: 38,
+              height: 38,
+              borderRadius: 8,
+              background: C.white,
+              border: `1.5px solid ${C.border}`,
+              boxShadow: `2px 2px 0 ${C.shadowCol}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {flow.theme === 'dark' ? <Sun /> : <MoonSmall />}
+          </div>
+          <div
+            onClick={() => flow.go('notifications')}
+            style={{
+              cursor: 'pointer',
+              width: 38,
+              height: 38,
+              borderRadius: 8,
+              background: C.white,
+              border: `1.5px solid ${C.border}`,
+              boxShadow: `2px 2px 0 ${C.shadowCol}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Bell />
+          </div>
         </div>
       </div>
       <div
@@ -80,9 +99,9 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           style={{
             cursor: 'pointer',
             background: C.lime,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 10,
-            boxShadow: `2px 2px 0 ${C.ink}`,
+            boxShadow: `2px 2px 0 ${C.shadowCol}`,
             padding: '10px 13px',
             display: 'flex',
             alignItems: 'center',
@@ -100,9 +119,9 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
         <div
           style={{
             background: C.lavender,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 12,
-            boxShadow: `4px 4px 0 ${C.ink}`,
+            boxShadow: `4px 4px 0 ${C.shadowCol}`,
             padding: 16,
             display: 'flex',
             flexDirection: 'column',
@@ -116,7 +135,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                 fontSize: 11,
                 color: C.ink,
                 background: C.lime,
-                border: `1.5px solid ${C.ink}`,
+                border: `1.5px solid ${C.border}`,
                 padding: '3px 10px',
                 borderRadius: 4,
               }}
@@ -131,7 +150,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                 style={{
                   flex: 1,
                   background: C.white,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   borderRadius: 8,
                   padding: '9px 6px',
                   display: 'flex',
@@ -146,7 +165,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                     height: 42,
                     borderRadius: 8,
                     background: u.color,
-                    border: `1.5px solid ${C.ink}`,
+                    border: `1.5px solid ${C.border}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -176,7 +195,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             style={{
               cursor: 'pointer',
               background: C.white,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               borderRadius: 12,
               padding: 16,
               display: 'flex',
@@ -192,7 +211,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   height: 56,
                   borderRadius: 10,
                   background: C.avatarAqua,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -210,7 +229,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                       fontSize: 9.5,
                       color: C.ink,
                       background: C.lime,
-                      border: `1.5px solid ${C.ink}`,
+                      border: `1.5px solid ${C.border}`,
                       padding: '2px 7px',
                       borderRadius: 4,
                     }}
@@ -228,7 +247,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   flexDirection: 'column',
                   alignItems: 'center',
                   background: C.lavender,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   borderRadius: 8,
                   padding: '6px 9px',
                 }}
@@ -247,7 +266,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                     background: C.surfaceLavender,
                     padding: '4px 10px',
                     borderRadius: 4,
-                    border: `1.5px solid ${C.ink}`,
+                    border: `1.5px solid ${C.border}`,
                   }}
                 >
                   {t}

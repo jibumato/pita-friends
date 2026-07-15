@@ -32,7 +32,7 @@ export function Toggle({ on, onToggle }: { on: boolean; onToggle?: () => void })
         height: 26,
         borderRadius: 99,
         background: on ? C.lime : C.white,
-        border: `1.5px solid ${C.ink}`,
+        border: `1.5px solid ${C.border}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: on ? 'flex-end' : 'flex-start',
@@ -47,7 +47,7 @@ export function Toggle({ on, onToggle }: { on: boolean; onToggle?: () => void })
           width: 20,
           height: 20,
           borderRadius: '50%',
-          background: on ? C.ink : C.placeholder,
+          background: on ? C.fill : C.placeholder,
         }}
       />
     </div>
@@ -98,7 +98,7 @@ export function Card({ children }: { children: ReactNode }) {
     <div
       style={{
         background: C.white,
-        border: `1.5px solid ${C.ink}`,
+        border: `1.5px solid ${C.border}`,
         borderRadius: 12,
         overflow: 'hidden',
       }}

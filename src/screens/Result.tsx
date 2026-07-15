@@ -9,7 +9,7 @@ export default function Result({ flow }: { flow: Flow }) {
   // ★4.90 を起点に、選択星数で微増(最大5.00)
   const newScore = Math.min(5, 4.9 + (flow.reviewStars - 5) * 0.02 + 0.02).toFixed(2)
   return (
-    <Screen background={C.ink} style={{ animation: 'scrIn .3s ease both' }}>
+    <Screen background={C.fill} style={{ animation: 'scrIn .3s ease both' }}>
       <DotPattern />
       <Confetti />
       <div
@@ -67,7 +67,7 @@ export default function Result({ flow }: { flow: Flow }) {
               <div
                 key={s.l}
                 style={{
-                  background: C.ink,
+                  background: C.fill,
                   border: `1.5px solid ${C.deepBorder}`,
                   borderRadius: 8,
                   padding: '9px 12px',

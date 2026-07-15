@@ -33,7 +33,10 @@ export default function Settings({ flow }: { flow: Flow }) {
       >
         <SectionLabel>表示</SectionLabel>
         <Card>
-          <ListRow label="ダークテーマ" right={<Toggle on={sw.dark} onToggle={() => toggle('dark')} />} />
+          <ListRow
+            label="ダークテーマ"
+            right={<Toggle on={flow.theme === 'dark'} onToggle={flow.toggleTheme} />}
+          />
           <ListRow
             label="オンライン状態を表示"
             divider={false}

@@ -11,17 +11,18 @@ type IconProps = {
   style?: CSSProperties
 }
 
+// stroke は currentColor 経由で解決(CSS変数を確実に反映するため色は style で指定)
 function base(size: number, color: string, sw: number, style?: CSSProperties) {
   return {
     width: size,
     height: size,
     viewBox: '0 0 24 24',
     fill: 'none',
-    stroke: color,
+    stroke: 'currentColor',
     strokeWidth: sw,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
-    style,
+    style: { color, ...style },
   }
 }
 
@@ -170,10 +171,33 @@ export function Moon({ size = 34, color = '#5A5272', strokeWidth = 2.2, style }:
   )
 }
 
+export function MoonSmall({ size = 17, color = '#453D5C', strokeWidth = 2.2, style }: IconProps) {
+  return (
+    <svg {...base(size, color, strokeWidth, style)}>
+      <path d="M20 13 A8 8 0 1 1 11 4 A7 7 0 0 0 20 13 Z" />
+    </svg>
+  )
+}
+
+export function Sun({ size = 17, color = '#E4F0A0', strokeWidth = 2.2, style }: IconProps) {
+  return (
+    <svg {...base(size, color, strokeWidth, style)}>
+      <circle cx="12" cy="12" r="5" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.5 4.5l2 2M17.5 17.5l2 2M19.5 4.5l-2 2M6.5 17.5l-2 2" />
+    </svg>
+  )
+}
+
 /** 横三点(メニュー) */
 export function DotsHorizontal({ size = 20, color = '#fff', style }: IconProps) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={style}>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      style={{ color, ...style }}
+    >
       <circle cx="5" cy="12" r="1.8" />
       <circle cx="12" cy="12" r="1.8" />
       <circle cx="19" cy="12" r="1.8" />

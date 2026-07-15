@@ -12,7 +12,7 @@ const SCOPES: ContactScope[] = ['verified', 'sameGender', 'all']
 export default function SafetyPreferences({ flow }: { flow: Flow }) {
   const p = flow.safetyPrefs
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
-  const rec = usePress(`2px 2px 0 ${C.ink}`)
+  const rec = usePress(`2px 2px 0 ${C.shadowCol}`)
 
   return (
     <Screen background={C.surface}>
@@ -56,7 +56,7 @@ export default function SafetyPreferences({ flow }: { flow: Flow }) {
             cursor: 'pointer',
             background: C.lime,
             color: C.ink,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '11px 0',
             textAlign: 'center',
@@ -74,7 +74,7 @@ export default function SafetyPreferences({ flow }: { flow: Flow }) {
             display: 'flex',
             gap: 6,
             background: C.white,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: 6,
           }}
@@ -91,7 +91,7 @@ export default function SafetyPreferences({ flow }: { flow: Flow }) {
                   cursor: 'pointer',
                   fontSize: 11.5,
                   color: sel ? C.lime : C.ink,
-                  background: sel ? C.ink : 'transparent',
+                  background: sel ? C.fill : 'transparent',
                   borderRadius: 4,
                   padding: '8px 0',
                 }}
@@ -155,9 +155,9 @@ export default function SafetyPreferences({ flow }: { flow: Flow }) {
         <div
           style={{
             background: C.white,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
-            boxShadow: `2px 2px 0 ${C.ink}`,
+            boxShadow: `2px 2px 0 ${C.shadowCol}`,
             padding: '11px 13px',
             display: 'flex',
             flexDirection: 'column',
@@ -174,15 +174,15 @@ export default function SafetyPreferences({ flow }: { flow: Flow }) {
           </span>
         </div>
       </div>
-      <div style={{ padding: '12px 20px 26px', background: C.white, borderTop: `1.5px solid ${C.ink}` }}>
+      <div style={{ padding: '12px 20px 26px', background: C.white, borderTop: `1.5px solid ${C.border}` }}>
         <div
           className="pita-press"
           onClick={() => flow.go('home')}
           {...cta.handlers}
           style={{
             cursor: 'pointer',
-            background: C.ink,
-            color: C.lime,
+            background: C.ctaBg,
+            color: C.ctaFg,
             borderRadius: 8,
             padding: '14px 0',
             textAlign: 'center',

@@ -7,7 +7,7 @@ import PitaButton from '../components/PitaButton'
 
 export default function Reminder({ flow }: { flow: Flow }) {
   return (
-    <Screen background={C.ink}>
+    <Screen background={C.fill}>
       <DotPattern />
       <div style={{ position: 'relative' }}>
         <StatusBar time="21:58" dark />
@@ -55,7 +55,7 @@ export default function Reminder({ flow }: { flow: Flow }) {
             <span style={{ fontSize: 10, color: C.muted }}>開始まで</span>
             <div
               style={{
-                background: C.ink,
+                background: C.fill,
                 border: `1.5px solid ${C.lime}`,
                 borderRadius: 8,
                 padding: '8px 16px',

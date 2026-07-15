@@ -20,7 +20,7 @@ export default function Avatar({
 }: AvatarProps) {
   const radius = Math.max(4, Math.round(size * 0.17))
   const fontSize = Math.round(size * 0.42)
-  const boxShadow = size >= 50 ? `3px 3px 0 ${C.ink}` : 'none'
+  const boxShadow = size >= 50 ? `3px 3px 0 ${C.shadowCol}` : 'none'
   const badge = Math.round(size * 0.3)
   const badgeFont = Math.round(size * 0.16)
 
@@ -32,7 +32,7 @@ export default function Avatar({
           height: size,
           borderRadius: radius,
           background: color,
-          border: `1.5px solid ${C.ink}`,
+          border: `1.5px solid ${C.border}`,
           boxShadow,
           display: 'flex',
           alignItems: 'center',
@@ -53,7 +53,7 @@ export default function Avatar({
             height: badge,
             borderRadius: '50%',
             background: C.lime,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

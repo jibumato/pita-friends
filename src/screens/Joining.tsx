@@ -5,7 +5,7 @@ import Avatar from '../components/Avatar'
 
 export default function Joining({ flow: _flow }: { flow: Flow }) {
   return (
-    <Screen background={C.ink}>
+    <Screen background={C.fill}>
       <DotPattern />
       <div
         style={{

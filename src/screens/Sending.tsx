@@ -37,7 +37,7 @@ function Spinner({ children }: { children: React.ReactNode }) {
 
 export default function Sending({ flow }: { flow: Flow }) {
   return (
-    <Screen background={C.ink}>
+    <Screen background={C.fill}>
       <DotPattern />
       <div style={{ position: 'relative' }}>
         <StatusBar time="21:47" dark />
@@ -61,7 +61,7 @@ export default function Sending({ flow }: { flow: Flow }) {
               height: 66,
               borderRadius: 16,
               background: C.avatarAqua,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

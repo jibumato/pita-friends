@@ -25,8 +25,8 @@ function PickRow({
               cursor: 'pointer',
               fontSize: 12,
               color: sel ? C.lime : C.ink,
-              background: sel ? C.ink : C.white,
-              border: `1.5px solid ${C.ink}`,
+              background: sel ? C.fill : C.white,
+              border: `1.5px solid ${C.border}`,
               padding: '7px 13px',
               borderRadius: 4,
             }}
@@ -64,7 +64,7 @@ export default function InviteSheet({ flow }: { flow: Flow }) {
         style={{
           position: 'relative',
           background: C.surface,
-          borderTop: `1.5px solid ${C.ink}`,
+          borderTop: `1.5px solid ${C.border}`,
           borderRadius: '20px 20px 0 0',
           padding: '14px 20px 30px',
           display: 'flex',
@@ -83,7 +83,7 @@ export default function InviteSheet({ flow }: { flow: Flow }) {
               height: 44,
               borderRadius: 8,
               background: C.avatarAqua,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -108,7 +108,7 @@ export default function InviteSheet({ flow }: { flow: Flow }) {
           <div
             style={{
               background: C.white,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               borderRadius: 8,
               padding: '12px 14px',
               minHeight: 44,
@@ -141,8 +141,8 @@ export default function InviteSheet({ flow }: { flow: Flow }) {
           {...send.handlers}
           style={{
             cursor: 'pointer',
-            background: C.ink,
-            color: C.lime,
+            background: C.ctaBg,
+            color: C.ctaFg,
             borderRadius: 8,
             padding: '14px 0',
             textAlign: 'center',

@@ -14,7 +14,7 @@ const MEMBERS = [
 export default function Party({ flow }: { flow: Flow }) {
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
   return (
-    <Screen background={C.ink} style={{ animation: 'scrIn .3s ease both' }}>
+    <Screen background={C.fill} style={{ animation: 'scrIn .3s ease both' }}>
       <DotPattern />
       <Confetti />
       <div style={{ position: 'relative' }}>
@@ -51,7 +51,7 @@ export default function Party({ flow }: { flow: Flow }) {
                 height: m.size,
                 borderRadius: 14,
                 background: m.color,
-                border: `2px solid ${C.ink}`,
+                border: `2px solid ${C.border}`,
                 boxShadow: `3px 3px 0 ${C.lavender}`,
                 display: 'flex',
                 alignItems: 'center',
@@ -140,7 +140,7 @@ function TimeBox({ value, unit }: { value: string; unit: string }) {
   return (
     <div
       style={{
-        background: C.ink,
+        background: C.fill,
         border: `1.5px solid ${C.lime}`,
         borderRadius: 8,
         padding: '8px 12px',

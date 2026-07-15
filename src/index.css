@@ -3,6 +3,64 @@
 :root {
   --ink: #453d5c;
   --lavender: #a78bdf;
+
+  /* ===== ライト(既定) ===== */
+  --pf-ink: #453d5c; /* 主要テキスト/前景 */
+  --pf-border: #453d5c;
+  --pf-shadow: #453d5c;
+  --pf-fill: #453d5c; /* 濃い塗り(両テーマ濃色) */
+  --pf-cta-bg: #453d5c;
+  --pf-cta-fg: #e4f0a0;
+
+  --pf-lavender: #a78bdf;
+  --pf-lime: #e4f0a0;
+  --pf-deep-card: #5a5175;
+  --pf-deep-border: #6e648c;
+
+  --pf-muted: #948da8;
+  --pf-body: #6a6480;
+  --pf-placeholder: #b9b3cc;
+  --pf-surface: #f7f6fb;
+  --pf-surface-lav: #f1eefb;
+  --pf-canvas: #edecf3;
+  --pf-card: #ffffff;
+  --pf-disabled-bg: #edebf2;
+  --pf-disabled-border: #c9c4d6;
+  --pf-disabled-fg: #b9b3cc;
+  --pf-star-off: #d8d3e4;
+  --pf-divider: #edebf2;
+
+  color-scheme: light;
+}
+
+/* ===== ダーク ===== */
+:root[data-theme='dark'] {
+  --pf-ink: #ffffff;
+  --pf-border: #6e648c;
+  --pf-shadow: #6e648c;
+  --pf-fill: #453d5c;
+  --pf-cta-bg: #e4f0a0;
+  --pf-cta-fg: #453d5c;
+
+  --pf-lavender: #a78bdf;
+  --pf-lime: #e4f0a0;
+  --pf-deep-card: #5a5175;
+  --pf-deep-border: #6e648c;
+
+  --pf-muted: #a79fc0;
+  --pf-body: #d8d3e4;
+  --pf-placeholder: #6e648c;
+  --pf-surface: #453d5c;
+  --pf-surface-lav: #3b3450;
+  --pf-canvas: #2a2440;
+  --pf-card: #5a5175;
+  --pf-disabled-bg: #4a4265;
+  --pf-disabled-border: #6e648c;
+  --pf-disabled-fg: #857e9e;
+  --pf-star-off: #4a4265;
+  --pf-divider: #6e648c;
+
+  color-scheme: dark;
 }
 
 * {
@@ -16,11 +74,14 @@ body {
 }
 
 body {
-  background: #edecf3;
+  background: var(--pf-canvas);
   font-family: 'DotGothic16', monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: var(--ink);
+  color: var(--pf-ink);
+  transition:
+    background 0.25s ease,
+    color 0.25s ease;
 }
 
 a {

@@ -6,7 +6,7 @@ import { SwapArrows } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 
 export default function Match({ flow }: { flow: Flow }) {
-  const cta = usePress(`3px 3px 0 ${C.ink}`)
+  const cta = usePress(`3px 3px 0 ${C.shadowCol}`)
   return (
     <Screen background={C.lavender} style={{ animation: 'scrIn .3s ease both' }}>
       {/* ストライプ地 */}
@@ -41,7 +41,7 @@ export default function Match({ flow }: { flow: Flow }) {
             fontSize: 38,
             color: C.lime,
             letterSpacing: '.04em',
-            textShadow: `4px 4px 0 ${C.ink}`,
+            textShadow: `4px 4px 0 ${C.shadowCol}`,
             textAlign: 'center',
             lineHeight: 1.1,
             animation: 'popIn .55s cubic-bezier(.2,1.3,.4,1) both',
@@ -59,8 +59,8 @@ export default function Match({ flow }: { flow: Flow }) {
                 height: 72,
                 borderRadius: 16,
                 background: C.avatarOrange,
-                border: `2px solid ${C.ink}`,
-                boxShadow: `4px 4px 0 ${C.ink}`,
+                border: `2px solid ${C.border}`,
+                boxShadow: `4px 4px 0 ${C.shadowCol}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -85,7 +85,7 @@ export default function Match({ flow }: { flow: Flow }) {
                 width: 44,
                 height: 44,
                 borderRadius: '50%',
-                background: C.ink,
+                background: C.fill,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -101,8 +101,8 @@ export default function Match({ flow }: { flow: Flow }) {
                 height: 72,
                 borderRadius: 16,
                 background: C.avatarAqua,
-                border: `2px solid ${C.ink}`,
-                boxShadow: `4px 4px 0 ${C.ink}`,
+                border: `2px solid ${C.border}`,
+                boxShadow: `4px 4px 0 ${C.shadowCol}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -130,7 +130,7 @@ export default function Match({ flow }: { flow: Flow }) {
         </div>
         <div
           style={{
-            background: C.ink,
+            background: C.fill,
             border: `2px solid ${C.lime}`,
             borderRadius: 16,
             padding: '14px 28px',

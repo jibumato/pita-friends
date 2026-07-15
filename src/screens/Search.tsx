@@ -49,7 +49,7 @@ export default function Search({ flow }: { flow: Flow }) {
                   cursor: 'pointer',
                   fontSize: 9,
                   color: phase === p ? C.lime : C.muted,
-                  background: phase === p ? C.ink : 'transparent',
+                  background: phase === p ? C.fill : 'transparent',
                   border: `1.5px solid ${phase === p ? C.ink : C.placeholder}`,
                   padding: '2px 6px',
                   borderRadius: 4,
@@ -66,10 +66,10 @@ export default function Search({ flow }: { flow: Flow }) {
             alignItems: 'center',
             gap: 10,
             background: C.white,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '12px 14px',
-            boxShadow: `2px 2px 0 ${C.ink}`,
+            boxShadow: `2px 2px 0 ${C.shadowCol}`,
           }}
         >
           <SearchIcon size={16} color={C.ink} strokeWidth={2.4} />
@@ -88,7 +88,7 @@ export default function Search({ flow }: { flow: Flow }) {
                   fontSize: 12,
                   color: sel ? (isVerify ? C.ink : C.lime) : C.ink,
                   background: sel ? (isVerify ? C.lime : C.ink) : C.white,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   padding: '7px 13px',
                   borderRadius: 4,
                 }}
@@ -136,9 +136,9 @@ export default function Search({ flow }: { flow: Flow }) {
               style={{
                 cursor: 'pointer',
                 background: C.white,
-                border: `1.5px solid ${C.ink}`,
+                border: `1.5px solid ${C.border}`,
                 borderRadius: 12,
-                boxShadow: `3px 3px 0 ${C.ink}`,
+                boxShadow: `3px 3px 0 ${C.shadowCol}`,
                 padding: 14,
                 display: 'flex',
                 flexDirection: 'column',
@@ -152,7 +152,7 @@ export default function Search({ flow }: { flow: Flow }) {
                     height: 50,
                     borderRadius: 8,
                     background: u.color,
-                    border: `1.5px solid ${C.ink}`,
+                    border: `1.5px solid ${C.border}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -170,7 +170,7 @@ export default function Search({ flow }: { flow: Flow }) {
                         fontSize: 9.5,
                         color: C.ink,
                         background: C.lime,
-                        border: `1.5px solid ${C.ink}`,
+                        border: `1.5px solid ${C.border}`,
                         padding: '2px 7px',
                         borderRadius: 4,
                       }}
@@ -182,7 +182,7 @@ export default function Search({ flow }: { flow: Flow }) {
                         fontSize: 9.5,
                         color: C.ink,
                         background: u.gender === '女性' ? C.avatarPink : C.avatarAqua,
-                        border: `1.5px solid ${C.ink}`,
+                        border: `1.5px solid ${C.border}`,
                         padding: '2px 7px',
                         borderRadius: 4,
                       }}
@@ -204,7 +204,7 @@ export default function Search({ flow }: { flow: Flow }) {
                       background: C.surfaceLavender,
                       padding: '4px 10px',
                       borderRadius: 4,
-                      border: `1.5px solid ${C.ink}`,
+                      border: `1.5px solid ${C.border}`,
                     }}
                   >
                     {t}

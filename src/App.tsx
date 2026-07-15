@@ -57,6 +57,9 @@ export type Flow = {
   reportOpen: boolean
   gender: Gender
   safetyPrefs: SafetyPrefs
+  theme: Theme
+  setTheme: (t: Theme) => void
+  toggleTheme: () => void
   setGame: (g: string) => void
   setWhen: (w: string) => void
   setReviewStars: (n: number) => void
@@ -83,11 +86,19 @@ const INITIAL = {
   reviewTag: '時間ぴったり',
   gender: 'na' as Gender,
   safetyPrefs: defaultSafetyPrefs,
+  theme: 'light' as Theme,
 }
+
+export type Theme = 'light' | 'dark'
 
 export default function App() {
   const [state, setState] = useState(INITIAL)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // テーマを <html data-theme> に反映(CSS変数が切替わる)
+  useEffect(() => {
+    document.documentElement.dataset.theme = state.theme
+  }, [state.theme])
 
   const clearTimer = useCallback(() => {
     if (timer.current) {
@@ -126,7 +137,8 @@ export default function App() {
 
   const restart = useCallback(() => {
     clearTimer()
-    setState(INITIAL)
+    // テーマはユーザー設定なのでリスタートでも保持
+    setState((p) => ({ ...INITIAL, theme: p.theme }))
   }, [clearTimer])
 
   const flow: Flow = {
@@ -144,13 +156,16 @@ export default function App() {
       setState((p) => ({ ...p, safetyPrefs: { ...p.safetyPrefs, [key]: value } })),
     applyRecommendedFemalePrefs: () =>
       setState((p) => ({ ...p, safetyPrefs: recommendedFemalePrefs })),
+    setTheme: (t) => setState((p) => ({ ...p, theme: t })),
+    toggleTheme: () =>
+      setState((p) => ({ ...p, theme: p.theme === 'dark' ? 'light' : 'dark' })),
     go,
     sendInvite,
     goJoin,
     restart,
   }
 
-  const restartBtn = usePress(`2px 2px 0 ${C.ink}`)
+  const restartBtn = usePress(`2px 2px 0 ${C.shadowCol}`)
   const mobile = useIsMobile()
 
   return (
@@ -188,7 +203,7 @@ export default function App() {
                   height: 30,
                   borderRadius: 6,
                   background: C.lime,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   boxShadow: `2px 2px 0 ${C.lavender}`,
                   display: 'flex',
                   alignItems: 'center',
@@ -216,7 +231,7 @@ export default function App() {
               fontSize: 12,
               color: C.ink,
               background: C.white,
-              border: `1.5px solid ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
               padding: '9px 14px',
               borderRadius: 6,
               userSelect: 'none',

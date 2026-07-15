@@ -27,7 +27,7 @@ export default function BottomTabs({
         alignItems: 'center',
         padding: '10px 8px 24px',
         background: C.white,
-        borderTop: `1.5px solid ${C.ink}`,
+        borderTop: `1.5px solid ${C.border}`,
       }}
     >
       {TABS.map(({ key, label, Icon }) => {

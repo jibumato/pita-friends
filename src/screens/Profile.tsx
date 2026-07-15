@@ -35,7 +35,7 @@ export default function Profile({ flow }: { flow: Flow }) {
       <div
         style={{
           background: C.lavender,
-          borderBottom: `1.5px solid ${C.ink}`,
+          borderBottom: `1.5px solid ${C.border}`,
           padding: '14px 24px 0',
           display: 'flex',
           flexDirection: 'column',
@@ -88,8 +88,8 @@ export default function Profile({ flow }: { flow: Flow }) {
               height: 86,
               borderRadius: 16,
               background: C.avatarAqua,
-              border: `1.5px solid ${C.ink}`,
-              boxShadow: `4px 4px 0 ${C.ink}`,
+              border: `1.5px solid ${C.border}`,
+              boxShadow: `4px 4px 0 ${C.shadowCol}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -109,7 +109,7 @@ export default function Profile({ flow }: { flow: Flow }) {
                   fontSize: 9.5,
                   color: C.ink,
                   background: C.lime,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   padding: '3px 8px',
                   borderRadius: 4,
                 }}
@@ -130,9 +130,9 @@ export default function Profile({ flow }: { flow: Flow }) {
               style={{
                 flex: 1,
                 background: s.bg,
-                border: `1.5px solid ${C.ink}`,
+                border: `1.5px solid ${C.border}`,
                 borderRadius: 8,
-                boxShadow: `2px 2px 0 ${C.ink}`,
+                boxShadow: `2px 2px 0 ${C.shadowCol}`,
                 padding: '10px 6px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -159,7 +159,7 @@ export default function Profile({ flow }: { flow: Flow }) {
                   fontSize: 11,
                   color: C.ink,
                   background: C.white,
-                  border: `1.5px solid ${C.ink}`,
+                  border: `1.5px solid ${C.border}`,
                   padding: '6px 11px',
                   borderRadius: 4,
                 }}
@@ -191,7 +191,7 @@ export default function Profile({ flow }: { flow: Flow }) {
                     height: 24,
                     borderRadius: 4,
                     background: w.on ? C.lavender : C.white,
-                    border: `1.5px solid ${C.ink}`,
+                    border: `1.5px solid ${C.border}`,
                   }}
                 />
               </div>
@@ -202,9 +202,9 @@ export default function Profile({ flow }: { flow: Flow }) {
         <div
           style={{
             background: C.white,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
-            boxShadow: `2px 2px 0 ${C.ink}`,
+            boxShadow: `2px 2px 0 ${C.shadowCol}`,
             padding: '12px 14px',
             display: 'flex',
             flexDirection: 'column',
@@ -227,7 +227,7 @@ export default function Profile({ flow }: { flow: Flow }) {
           gap: 10,
           padding: '12px 20px 26px',
           background: C.white,
-          borderTop: `1.5px solid ${C.ink}`,
+          borderTop: `1.5px solid ${C.border}`,
         }}
       >
         <div
@@ -236,8 +236,8 @@ export default function Profile({ flow }: { flow: Flow }) {
             height: 50,
             borderRadius: 8,
             background: C.white,
-            border: `1.5px solid ${C.ink}`,
-            boxShadow: `2px 2px 0 ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
+            boxShadow: `2px 2px 0 ${C.shadowCol}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -252,8 +252,8 @@ export default function Profile({ flow }: { flow: Flow }) {
           style={{
             cursor: 'pointer',
             flex: 1,
-            background: C.ink,
-            color: C.lime,
+            background: C.ctaBg,
+            color: C.ctaFg,
             borderRadius: 8,
             display: 'flex',
             alignItems: 'center',

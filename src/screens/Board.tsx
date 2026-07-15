@@ -31,8 +31,8 @@ export default function Board({ flow }: { flow: Flow }) {
                   cursor: 'pointer',
                   fontSize: 12,
                   color: sel ? C.lime : C.ink,
-                  background: sel ? C.ink : C.white,
-                  border: `1.5px solid ${C.ink}`,
+                  background: sel ? C.fill : C.white,
+                  border: `1.5px solid ${C.border}`,
                   padding: '7px 13px',
                   borderRadius: 4,
                 }}
@@ -82,9 +82,9 @@ export default function Board({ flow }: { flow: Flow }) {
               key={p.title}
               style={{
                 background: C.white,
-                border: `1.5px solid ${C.ink}`,
+                border: `1.5px solid ${C.border}`,
                 borderRadius: 12,
-                boxShadow: `3px 3px 0 ${C.ink}`,
+                boxShadow: `3px 3px 0 ${C.shadowCol}`,
                 padding: 14,
                 display: 'flex',
                 flexDirection: 'column',
@@ -98,7 +98,7 @@ export default function Board({ flow }: { flow: Flow }) {
                     fontSize: 11,
                     color: C.ink,
                     background: C.lime,
-                    border: `1.5px solid ${C.ink}`,
+                    border: `1.5px solid ${C.border}`,
                     padding: '3px 9px',
                     borderRadius: 4,
                   }}
@@ -116,7 +116,7 @@ export default function Board({ flow }: { flow: Flow }) {
                       background: C.surfaceLavender,
                       padding: '4px 10px',
                       borderRadius: 4,
-                      border: `1.5px solid ${C.ink}`,
+                      border: `1.5px solid ${C.border}`,
                     }}
                   >
                     {t}
@@ -130,7 +130,7 @@ export default function Board({ flow }: { flow: Flow }) {
                     height: 30,
                     borderRadius: 6,
                     background: p.host.color,
-                    border: `1.5px solid ${C.ink}`,
+                    border: `1.5px solid ${C.border}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -146,7 +146,7 @@ export default function Board({ flow }: { flow: Flow }) {
                     fontSize: 9.5,
                     color: C.ink,
                     background: C.lime,
-                    border: `1.5px solid ${C.ink}`,
+                    border: `1.5px solid ${C.border}`,
                     padding: '1px 6px',
                     borderRadius: 4,
                   }}
@@ -160,8 +160,8 @@ export default function Board({ flow }: { flow: Flow }) {
                   style={{
                     cursor: 'pointer',
                     fontSize: 12,
-                    color: C.lime,
-                    background: C.ink,
+                    color: C.ctaFg,
+                    background: C.ctaBg,
                     padding: '7px 16px',
                     borderRadius: 4,
                     boxShadow: `2px 2px 0 ${C.lavender}`,
@@ -187,10 +187,10 @@ export default function Board({ flow }: { flow: Flow }) {
             alignItems: 'center',
             gap: 7,
             background: C.lime,
-            border: `1.5px solid ${C.ink}`,
+            border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '12px 16px',
-            boxShadow: `3px 3px 0 ${C.ink}`,
+            boxShadow: `3px 3px 0 ${C.shadowCol}`,
             cursor: 'pointer',
           }}
         >
