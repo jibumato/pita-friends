@@ -1,0 +1,19 @@
+{
+  "name": "ピタフレ — ゲーム仲間マッチング",
+  "short_name": "ピタフレ",
+  "description": "今すぐ一緒にゲームを遊べる仲間を、安全にマッチング。本人確認とマナースコアで安心。",
+  "lang": "ja",
+  "dir": "auto",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#edecf3",
+  "theme_color": "#453d5c",
+  "categories": ["social", "games", "lifestyle"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
