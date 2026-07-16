@@ -102,8 +102,9 @@
 ## Phase 5 — 法務・コンプライアンス ⬜
 
 > 専門家レビュー用の質問リスト: コイン経済は [`docs/legal/coin-economy-legal-review.md`](docs/legal/coin-economy-legal-review.md)、運用業務（通報対応・本人確認データ・監視・トラブル対応等）は [`docs/legal/operations-legal-qa.md`](docs/legal/operations-legal-qa.md) を参照。
+> 規約類のドラフト（**弁護士レビュー前のたたき台**）: [利用規約](docs/legal/terms-of-service-draft.md) / [プライバシーポリシー](docs/legal/privacy-policy-draft.md) / [特定商取引法に基づく表記](docs/legal/tokushoho-draft.md)。設定画面に導線あり。
 
-- ⬜ 利用規約 / プライバシーポリシー / 特定商取引法表記
+- 🚧 利用規約 / プライバシーポリシー / 特定商取引法表記（ドラフト作成済み。事業者情報の確定と弁護士レビューが必要）
 - ⬜ 個人情報保護・本人確認書類の暗号化保存
 - ⬜ 年齢確認の義務対応
 - ⬜ （課金導入時）決済・返金・特商法対応

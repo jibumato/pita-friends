@@ -75,6 +75,14 @@ export default function Settings({ flow }: { flow: Flow }) {
           <ListRow label="データのダウンロード請求" divider={false} />
         </Card>
 
+        <SectionLabel>規約・ポリシー</SectionLabel>
+        <Card>
+          <ListRow label="利用規約" />
+          <ListRow label="プライバシーポリシー" />
+          <ListRow label="特定商取引法に基づく表記" />
+          <ListRow label="みまもり（監視）について" divider={false} />
+        </Card>
+
         <SectionLabel>アカウント</SectionLabel>
         <Card>
           <ListRow label="メール・ログイン方法" />
