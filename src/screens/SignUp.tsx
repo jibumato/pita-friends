@@ -36,8 +36,9 @@ export default function SignUp({ flow }: { flow: Flow }) {
     setLoading(true)
     setError(null)
     try {
-      const { session } = await signUpWithEmail(email, password)
+      const { user, session } = await signUpWithEmail(email, password)
       if (session) {
+        await flow.hydrateAccount(user.id)
         flow.go('consent')
       } else {
         // プロジェクト設定でメール確認が必須な場合、この時点ではまだログインできていない

@@ -43,6 +43,22 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
           </span>
         </div>
 
+        {flow.hostSettingsError && (
+          <div
+            style={{
+              background: C.avatarPink,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 8,
+              padding: '10px 12px',
+              fontSize: 11.5,
+              color: C.ink,
+              lineHeight: 1.6,
+            }}
+          >
+            {flow.hostSettingsError}
+          </div>
+        )}
+
         <Card>
           <ListRow
             label="ホストとして掲載する"

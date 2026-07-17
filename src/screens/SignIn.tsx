@@ -35,7 +35,8 @@ export default function SignIn({ flow }: { flow: Flow }) {
     setLoading(true)
     setError(null)
     try {
-      await signInWithEmail(email, password)
+      const user = await signInWithEmail(email, password)
+      await flow.hydrateAccount(user.id)
       flow.go('home')
     } catch (e) {
       setError(authErrorMessage(e))

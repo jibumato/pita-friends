@@ -2,6 +2,14 @@
  * `supabase/migrations/*.sql` と手動で対応させたDB型定義。
  * 実際のSupabaseプロジェクトに接続後は `supabase gen types typescript`
  * で生成し直すことを推奨(スキーマとのズレを防ぐため)。
+ *
+ * 注記: `@supabase/supabase-js` の型解決は各テーブルが `Relationships`
+ * フィールドを持つこと、スキーマが `Views` を持つことを要求する
+ * (postgrest-js の `GenericTable` / `GenericSchema` 制約)。欠けていると
+ * `SupabaseClient<Database>` のジェネリクスが `never` に落ちて
+ * `.select()`/`.update()` の戻り値が軒並み `never` になり、実害の大きい
+ * サイレント型崩壊を起こすため、埋め込みリレーションを使わない場合も
+ * 空配列で明示する。
  */
 
 export type Gender = 'female' | 'male' | 'na'
@@ -46,6 +54,7 @@ export type Database = {
         }
         Insert: Partial<Omit<Database['public']['Tables']['profiles']['Row'], 'id'>> & { id: string }
         Update: Partial<Database['public']['Tables']['profiles']['Row']>
+        Relationships: []
       }
       profile_trust_stats: {
         Row: {
@@ -57,8 +66,9 @@ export type Database = {
           is_verified: boolean
           updated_at: string
         }
-        Insert: never
-        Update: never
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
       }
       safety_prefs: {
         Row: {
@@ -74,6 +84,7 @@ export type Database = {
           user_id: string
         }
         Update: Partial<Database['public']['Tables']['safety_prefs']['Row']>
+        Relationships: []
       }
       identity_verifications: {
         Row: {
@@ -88,12 +99,14 @@ export type Database = {
           verified_at: string | null
         }
         Insert: { id?: string; user_id: string; status?: 'pending' }
-        Update: never
+        Update: Record<string, never>
+        Relationships: []
       }
       coin_wallets: {
         Row: { user_id: string; balance: number; updated_at: string }
-        Insert: never
-        Update: never
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
       }
       coin_transactions: {
         Row: {
@@ -105,8 +118,9 @@ export type Database = {
           note: string | null
           created_at: string
         }
-        Insert: never
-        Update: never
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
       }
       host_settings: {
         Row: {
@@ -117,10 +131,11 @@ export type Database = {
           bio: string
           updated_at: string
         }
-        Insert: never
+        Insert: Record<string, never>
         Update: Partial<
           Pick<Database['public']['Tables']['host_settings']['Row'], 'is_host' | 'hourly_rate' | 'games' | 'bio'>
         >
+        Relationships: []
       }
       bookings: {
         Row: {
@@ -135,8 +150,9 @@ export type Database = {
           created_at: string
           cancelled_at: string | null
         }
-        Insert: never
-        Update: never
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
       }
       invites: {
         Row: {
@@ -158,7 +174,8 @@ export type Database = {
           when_text: string
           message?: string
         }
-        Update: never
+        Update: Record<string, never>
+        Relationships: []
       }
       promises: {
         Row: {
@@ -172,8 +189,9 @@ export type Database = {
           friend_code_revealed: boolean
           created_at: string
         }
-        Insert: never
-        Update: never
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
       }
       reviews: {
         Row: {
@@ -193,7 +211,8 @@ export type Database = {
           stars: 1 | 2 | 3 | 4 | 5
           tags?: string[]
         }
-        Update: never
+        Update: Record<string, never>
+        Relationships: []
       }
       reports: {
         Row: {
@@ -215,12 +234,14 @@ export type Database = {
           category: ReportCategory
           message_snapshot?: Record<string, unknown> | null
         }
-        Update: never
+        Update: Record<string, never>
+        Relationships: []
       }
       blocks: {
         Row: { blocker_id: string; blocked_id: string; reason: string | null; created_at: string }
         Insert: { blocker_id: string; blocked_id: string; reason?: string | null }
-        Update: never
+        Update: Record<string, never>
+        Relationships: []
       }
       manner_penalties: {
         Row: {
@@ -231,10 +252,12 @@ export type Database = {
           reason: string | null
           created_at: string
         }
-        Insert: never
-        Update: never
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
       }
     }
+    Views: Record<string, never>
     Functions: {
       create_booking: {
         Args: { p_host_id: string; p_duration_minutes: 30 | 60 | 120 }

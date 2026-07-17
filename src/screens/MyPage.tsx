@@ -6,14 +6,15 @@ import BottomTabs from '../components/BottomTabs'
 import { Card, ListRow } from '../components/Ui'
 import { Coin } from '../components/Icon'
 
-const STATS = [
-  { v: '★4.8', l: 'マナー', fg: C.lavender },
-  { v: '0%', l: 'ドタキャン', fg: C.ink },
-  { v: '47', l: 'プレイ回数', fg: C.ink },
-  { v: '12', l: 'フレンド', fg: C.ink },
-]
-
 export default function MyPage({ flow }: { flow: Flow }) {
+  const dotakyanRate =
+    flow.confirmedCount >= 3 ? `${Math.round((flow.dotakyanCount / flow.confirmedCount) * 100)}%` : '—'
+  const STATS = [
+    { v: `★${flow.mannerScore.toFixed(1)}`, l: 'マナー', fg: C.lavender },
+    { v: dotakyanRate, l: 'ドタキャン', fg: C.ink },
+    { v: String(flow.confirmedCount), l: 'プレイ回数', fg: C.ink },
+    { v: '12', l: 'フレンド', fg: C.ink },
+  ]
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:47" />
@@ -58,27 +59,32 @@ export default function MyPage({ flow }: { flow: Flow }) {
                 color: C.ink,
               }}
             >
-              ユ
+              {flow.nickname.charAt(0) || '?'}
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 16, color: C.ink }}>ユウキ</span>
+                <span style={{ fontSize: 16, color: C.ink }}>{flow.nickname || 'ニックネーム未設定'}</span>
                 <span
                   style={{
                     fontSize: 9.5,
                     color: C.ink,
-                    background: C.lime,
+                    background: flow.isVerified ? C.lime : C.disabledBg,
                     border: `1.5px solid ${C.border}`,
                     padding: '2px 7px',
                     borderRadius: 4,
                   }}
                 >
-                  ✓ 本人確認済み
+                  {flow.isVerified ? '✓ 本人確認済み' : '本人確認 未完了'}
                 </span>
               </div>
               <span style={{ fontSize: 11, color: C.muted }}>Apex / マイクラ · 平日夜メイン</span>
             </div>
-            <span style={{ fontSize: 11, color: C.lavender, cursor: 'pointer' }}>編集</span>
+            <span
+              onClick={() => flow.go('setup')}
+              style={{ fontSize: 11, color: C.lavender, cursor: 'pointer' }}
+            >
+              編集
+            </span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {STATS.map((s) => (
@@ -193,18 +199,19 @@ export default function MyPage({ flow }: { flow: Flow }) {
           <ListRow label="プロフィール編集" onClick={() => flow.go('setup')} />
           <ListRow
             label="本人確認ステータス"
+            onClick={() => flow.go('verify')}
             right={
               <span
                 style={{
                   fontSize: 10,
                   color: C.ink,
-                  background: C.lime,
+                  background: flow.isVerified ? C.lime : C.disabledBg,
                   border: `1.5px solid ${C.border}`,
                   padding: '2px 8px',
                   borderRadius: 4,
                 }}
               >
-                確認済み
+                {flow.isVerified ? '確認済み' : '未確認'}
               </span>
             }
           />
@@ -214,7 +221,10 @@ export default function MyPage({ flow }: { flow: Flow }) {
           <ListRow label="利用規約" />
           <ListRow label="プライバシーポリシー" divider={false} />
         </Card>
-        <span style={{ textAlign: 'center', fontSize: 11.5, color: C.placeholder, cursor: 'pointer' }}>
+        <span
+          onClick={flow.signOut}
+          style={{ textAlign: 'center', fontSize: 11.5, color: C.placeholder, cursor: 'pointer' }}
+        >
           ログアウト
         </span>
       </div>

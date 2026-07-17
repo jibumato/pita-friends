@@ -20,6 +20,12 @@ import { useIsMobile } from './hooks/useMediaQuery'
 import { loadPrefs, savePrefs } from './persist'
 import { isBackendConfigured } from './lib/supabase'
 import { getSession, signOut as supabaseSignOut } from './lib/auth'
+import {
+  fetchAccountBundle,
+  updateProfileRemote,
+  updateSafetyPrefsRemote,
+  updateHostSettingsRemote,
+} from './lib/queries'
 
 import Welcome from './screens/Welcome'
 import SignUp from './screens/SignUp'
@@ -86,6 +92,18 @@ export type Flow = {
   bookingHost: BookingHost | null
   bookingDuration: BookingDuration
   bookingInsufficient: boolean
+  /** バックエンド接続時、サインイン済みならSupabaseのユーザーID。デモモード/未サインインはnull。 */
+  userId: string | null
+  nickname: string
+  mannerScore: number
+  dotakyanCount: number
+  confirmedCount: number
+  isVerified: boolean
+  /** ホスト設定の直近の書き込みエラー(本人確認未完了等)。表示専用、次の操作で上書きされる。 */
+  hostSettingsError: string | null
+  setNickname: (n: string) => void
+  /** サインイン/起動時のセッション復元後に、本人のアカウントデータを読み込む。 */
+  hydrateAccount: (userId: string) => Promise<void>
   setTheme: (t: Theme) => void
   toggleTheme: () => void
   openSendFail: () => void
@@ -130,6 +148,13 @@ const INITIAL = {
   bookingHost: null as BookingHost | null,
   bookingDuration: 60 as BookingDuration,
   bookingInsufficient: false,
+  userId: null as string | null,
+  nickname: 'あおい',
+  mannerScore: 4.8,
+  dotakyanCount: 0,
+  confirmedCount: 47,
+  isVerified: true,
+  hostSettingsError: null as string | null,
 }
 
 export type Theme = 'light' | 'dark'
@@ -142,13 +167,50 @@ export default function App() {
   // (未接続=デモモードでは常にfalseなので、この確認自体をスキップする)
   const [authChecking, setAuthChecking] = useState(isBackendConfigured)
 
+  // サインイン/起動時のセッション復元後に、本人のアカウントデータ(プロフィール/
+  // 安心設定/ホスト設定/コイン残高/信頼スタッツ)をSupabaseから読み込み、
+  // デモ用のローカル状態を実データで上書きする。
+  const hydrateAccount = useCallback(async (userId: string) => {
+    try {
+      const bundle = await fetchAccountBundle(userId)
+      if (!bundle) return
+      setState((p) => ({
+        ...p,
+        userId,
+        nickname: bundle.profile.nickname || p.nickname,
+        gender: bundle.profile.gender,
+        safetyPrefs: {
+          contactScope: bundle.safetyPrefs.contact_scope,
+          approvalRequired: bundle.safetyPrefs.approval_required,
+          showOnline: bundle.safetyPrefs.show_online,
+          discoverable: bundle.safetyPrefs.discoverable,
+          blockLowTrust: bundle.safetyPrefs.block_low_trust,
+        },
+        hostSettings: {
+          isHost: bundle.hostSettings.is_host,
+          hourlyRate: bundle.hostSettings.hourly_rate,
+          games: bundle.hostSettings.games,
+          bio: bundle.hostSettings.bio,
+        },
+        coinBalance: bundle.wallet.balance,
+        mannerScore: bundle.trustStats.manner_score,
+        dotakyanCount: bundle.trustStats.dotakyan_count,
+        confirmedCount: bundle.trustStats.confirmed_count,
+        isVerified: bundle.trustStats.is_verified,
+      }))
+    } catch (err) {
+      console.warn('[pita-friends] アカウントデータの取得に失敗しました:', err)
+    }
+  }, [])
+
   useEffect(() => {
     if (!isBackendConfigured) return
     let active = true
     getSession()
-      .then((session) => {
+      .then(async (session) => {
         if (active && session) {
-          setState((p) => ({ ...p, screen: 'home' }))
+          await hydrateAccount(session.user.id)
+          if (active) setState((p) => ({ ...p, screen: 'home' }))
         }
       })
       .catch(() => {
@@ -160,7 +222,7 @@ export default function App() {
     return () => {
       active = false
     }
-  }, [])
+  }, [hydrateAccount])
 
   // テーマを <html data-theme> に反映(CSS変数が切替わる)
   useEffect(() => {
@@ -265,11 +327,53 @@ export default function App() {
     confirmDeal: () => setState((p) => ({ ...p, dealDone: true })),
     openReport: () => setState((p) => ({ ...p, reportOpen: true })),
     closeReport: () => setState((p) => ({ ...p, reportOpen: false })),
-    setGender: (g) => setState((p) => ({ ...p, gender: g })),
-    setSafetyPref: (key, value) =>
-      setState((p) => ({ ...p, safetyPrefs: { ...p.safetyPrefs, [key]: value } })),
-    applyRecommendedFemalePrefs: () =>
-      setState((p) => ({ ...p, safetyPrefs: recommendedFemalePrefs })),
+    setGender: (g) => {
+      setState((p) => ({ ...p, gender: g }))
+      if (isBackendConfigured && state.userId) {
+        updateProfileRemote(state.userId, { gender: g }).catch((err) =>
+          console.warn('[pita-friends] gender更新に失敗:', err),
+        )
+      }
+    },
+    setNickname: (n) => {
+      setState((p) => ({ ...p, nickname: n }))
+      if (isBackendConfigured && state.userId) {
+        updateProfileRemote(state.userId, { nickname: n }).catch((err) =>
+          console.warn('[pita-friends] nickname更新に失敗:', err),
+        )
+      }
+    },
+    hydrateAccount,
+    setSafetyPref: (key, value) => {
+      setState((p) => ({ ...p, safetyPrefs: { ...p.safetyPrefs, [key]: value } }))
+      if (isBackendConfigured && state.userId) {
+        const dbKey =
+          key === 'contactScope'
+            ? 'contact_scope'
+            : key === 'approvalRequired'
+              ? 'approval_required'
+              : key === 'showOnline'
+                ? 'show_online'
+                : key === 'discoverable'
+                  ? 'discoverable'
+                  : 'block_low_trust'
+        updateSafetyPrefsRemote(state.userId, { [dbKey]: value }).catch((err) =>
+          console.warn('[pita-friends] safety_prefs更新に失敗:', err),
+        )
+      }
+    },
+    applyRecommendedFemalePrefs: () => {
+      setState((p) => ({ ...p, safetyPrefs: recommendedFemalePrefs }))
+      if (isBackendConfigured && state.userId) {
+        updateSafetyPrefsRemote(state.userId, {
+          contact_scope: recommendedFemalePrefs.contactScope,
+          approval_required: recommendedFemalePrefs.approvalRequired,
+          show_online: recommendedFemalePrefs.showOnline,
+          discoverable: recommendedFemalePrefs.discoverable,
+          block_low_trust: recommendedFemalePrefs.blockLowTrust,
+        }).catch((err) => console.warn('[pita-friends] safety_prefs更新に失敗:', err))
+      }
+    },
     setTheme: (t) => setState((p) => ({ ...p, theme: t })),
     toggleTheme: () =>
       setState((p) => ({ ...p, theme: p.theme === 'dark' ? 'light' : 'dark' })),
@@ -280,8 +384,31 @@ export default function App() {
       setState((p) => ({ ...p, sendFailOpen: false, screen: 'home' }))
     },
     buyCoins: (coins) => setState((p) => ({ ...p, coinBalance: p.coinBalance + coins })),
-    setHostPref: (key, value) =>
-      setState((p) => ({ ...p, hostSettings: { ...p.hostSettings, [key]: value } })),
+    setHostPref: (key, value) => {
+      const previous = state.hostSettings[key]
+      setState((p) => ({
+        ...p,
+        hostSettings: { ...p.hostSettings, [key]: value },
+        hostSettingsError: null,
+      }))
+      if (isBackendConfigured && state.userId) {
+        const dbKey =
+          key === 'isHost' ? 'is_host' : key === 'hourlyRate' ? 'hourly_rate' : key === 'games' ? 'games' : 'bio'
+        updateHostSettingsRemote(state.userId, { [dbKey]: value }).catch((err) => {
+          const message =
+            err instanceof Error && err.message.includes('HOST_REQUIRES_VERIFICATION')
+              ? 'ホストとして掲載するには、本人確認の完了が必要です(本人確認フローは準備中です)。'
+              : 'ホスト設定の保存に失敗しました。時間をおいて再度お試しください。'
+          console.warn('[pita-friends] host_settings更新に失敗:', err)
+          // 反映できなかった場合は表示上も元に戻す
+          setState((p) => ({
+            ...p,
+            hostSettings: { ...p.hostSettings, [key]: previous },
+            hostSettingsError: message,
+          }))
+        })
+      }
+    },
     startBooking: (host) =>
       setState((p) => ({
         ...p,

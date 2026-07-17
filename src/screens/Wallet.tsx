@@ -7,26 +7,30 @@ import { SubHeader } from '../components/Ui'
 import { Coin, Shield } from '../components/Icon'
 import { COIN_PACKS } from '../flow'
 import { usePress } from '../hooks/usePress'
+import { isBackendConfigured } from '../lib/supabase'
 
 function PackCard({
   coins,
   priceYen,
   bonus,
+  disabled,
   onBuy,
 }: {
   coins: number
   priceYen: number
   bonus?: string
+  disabled?: boolean
   onBuy: () => void
 }) {
   const press = usePress(`3px 3px 0 ${C.shadowCol}`)
   return (
     <div
       className="pita-press"
-      onClick={onBuy}
-      {...press.handlers}
+      onClick={disabled ? undefined : onBuy}
+      {...(disabled ? {} : press.handlers)}
       style={{
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.55 : 1,
         background: C.white,
         border: `1.5px solid ${C.border}`,
         borderRadius: 12,
@@ -34,7 +38,7 @@ function PackCard({
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        ...press.style,
+        ...(disabled ? {} : press.style),
       }}
     >
       <div
@@ -126,6 +130,21 @@ export default function Wallet({ flow }: { flow: Flow }) {
         </div>
 
         <span style={{ fontSize: 13, color: C.ink }}>▶ コインを購入</span>
+        {isBackendConfigured && (
+          <div
+            style={{
+              background: C.disabledBg,
+              border: `1.5px solid ${C.disabledBorder}`,
+              borderRadius: 8,
+              padding: '10px 12px',
+              fontSize: 11,
+              color: C.disabledFg,
+              lineHeight: 1.7,
+            }}
+          >
+            決済連携は準備中です。現在コインの購入はできません(実際の決済代行事業者は未選定のため)。
+          </div>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {COIN_PACKS.map((p) => (
             <PackCard
@@ -133,6 +152,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
               coins={p.coins}
               priceYen={p.priceYen}
               bonus={p.bonus}
+              disabled={isBackendConfigured}
               onBuy={() => buy(p.coins)}
             />
           ))}

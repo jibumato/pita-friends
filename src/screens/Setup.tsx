@@ -92,17 +92,24 @@ export default function Setup({ flow }: { flow: Flow }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 12, color: C.muted }}>ニックネーム</span>
-          <div
+          <input
+            value={flow.nickname}
+            onChange={(e) => flow.setNickname(e.target.value)}
+            maxLength={20}
             style={{
               background: C.white,
               border: `1.5px solid ${C.border}`,
               borderRadius: 8,
               padding: '12px 14px',
               boxShadow: `2px 2px 0 ${C.shadowCol}`,
+              fontSize: 13,
+              color: C.ink,
+              fontFamily: 'inherit',
+              outline: 'none',
+              width: '100%',
+              boxSizing: 'border-box',
             }}
-          >
-            <span style={{ fontSize: 13, color: C.ink }}>あおい</span>
-          </div>
+          />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <span style={{ fontSize: 12, color: C.muted }}>よく遊ぶゲーム</span>
