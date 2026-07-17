@@ -18,8 +18,12 @@ import PhoneFrame from './components/PhoneFrame'
 import { usePress } from './hooks/usePress'
 import { useIsMobile } from './hooks/useMediaQuery'
 import { loadPrefs, savePrefs } from './persist'
+import { isBackendConfigured } from './lib/supabase'
+import { getSession, signOut as supabaseSignOut } from './lib/auth'
 
 import Welcome from './screens/Welcome'
+import SignUp from './screens/SignUp'
+import SignIn from './screens/SignIn'
 import Consent from './screens/Consent'
 import Verify from './screens/Verify'
 import Setup from './screens/Setup'
@@ -106,6 +110,7 @@ export type Flow = {
   sendInvite: () => void
   goJoin: () => void
   restart: () => void
+  signOut: () => void
 }
 
 const INITIAL = {
@@ -133,6 +138,29 @@ export default function App() {
   // 保存済みのユーザー設定(テーマ/性別/安心設定)で初期状態を上書き
   const [state, setState] = useState(() => ({ ...INITIAL, ...loadPrefs() }))
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // バックエンド接続時のみ、既存セッションの有無を確認してから初期画面を決める
+  // (未接続=デモモードでは常にfalseなので、この確認自体をスキップする)
+  const [authChecking, setAuthChecking] = useState(isBackendConfigured)
+
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    let active = true
+    getSession()
+      .then((session) => {
+        if (active && session) {
+          setState((p) => ({ ...p, screen: 'home' }))
+        }
+      })
+      .catch(() => {
+        /* セッション確認に失敗しても、ようこそ画面から始められれば問題ない */
+      })
+      .finally(() => {
+        if (active) setAuthChecking(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   // テーマを <html data-theme> に反映(CSS変数が切替わる)
   useEffect(() => {
@@ -216,6 +244,17 @@ export default function App() {
     }))
   }, [clearTimer])
 
+  const signOut = useCallback(() => {
+    clearTimer()
+    if (isBackendConfigured) {
+      // 失敗しても(セッション切れ等)、ローカル状態は必ずリセットして
+      // ようこそ画面へ戻す
+      void supabaseSignOut().catch(() => {})
+    }
+    // 実アカウントのログアウトなので、デモ用の設定保持はせず完全に初期化する
+    setState((p) => ({ ...INITIAL, theme: p.theme }))
+  }, [clearTimer])
+
   const flow: Flow = {
     ...state,
     score: MATCH_SCORE,
@@ -258,6 +297,7 @@ export default function App() {
     sendInvite,
     goJoin,
     restart,
+    signOut,
   }
 
   const restartBtn = usePress(`2px 2px 0 ${C.shadowCol}`)
@@ -343,7 +383,33 @@ export default function App() {
 
       {/* 端末 */}
       <PhoneFrame>
+        {authChecking ? (
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: C.surface,
+            }}
+          >
+            <div
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                border: '2.5px solid #E3DEF0',
+                borderTopColor: C.lavender,
+                borderRightColor: C.lavender,
+                animation: 'ringSpin .9s linear infinite',
+              }}
+            />
+          </div>
+        ) : (
+          <>
         {state.screen === 'welcome' && <Welcome flow={flow} />}
+        {state.screen === 'signUp' && <SignUp flow={flow} />}
+        {state.screen === 'signIn' && <SignIn flow={flow} />}
         {state.screen === 'consent' && <Consent flow={flow} />}
         {state.screen === 'verify' && <Verify flow={flow} />}
         {state.screen === 'setup' && <Setup flow={flow} />}
@@ -373,6 +439,8 @@ export default function App() {
         {state.screen === 'booking' && <Booking flow={flow} />}
         {flow.reportOpen && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
+          </>
+        )}
       </PhoneFrame>
 
       {!mobile && (

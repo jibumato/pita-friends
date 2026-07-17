@@ -2,6 +2,7 @@ import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen, { DotPattern } from '../components/Screen'
 import { usePress } from '../hooks/usePress'
+import { isBackendConfigured } from '../lib/supabase'
 
 export default function Welcome({ flow }: { flow: Flow }) {
   const start = usePress(`3px 3px 0 ${C.lavender}`)
@@ -90,7 +91,7 @@ export default function Welcome({ flow }: { flow: Flow }) {
       >
         <div
           className="pita-press"
-          onClick={() => flow.go('consent')}
+          onClick={() => flow.go(isBackendConfigured ? 'signUp' : 'consent')}
           {...start.handlers}
           style={{
             cursor: 'pointer',
@@ -106,7 +107,7 @@ export default function Welcome({ flow }: { flow: Flow }) {
           ▶ PRESS START
         </div>
         <span
-          onClick={() => flow.go('home')}
+          onClick={() => flow.go(isBackendConfigured ? 'signIn' : 'home')}
           style={{ cursor: 'pointer', textAlign: 'center', fontSize: 12, color: C.muted }}
         >
           アカウントを持っている(ログイン)

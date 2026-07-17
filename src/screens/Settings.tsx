@@ -4,6 +4,7 @@ import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader, SectionLabel, Card, ListRow, Toggle } from '../components/Ui'
+import { isBackendConfigured } from '../lib/supabase'
 
 export default function Settings({ flow }: { flow: Flow }) {
   const [sw, setSw] = useState<Record<string, boolean>>({
@@ -86,6 +87,7 @@ export default function Settings({ flow }: { flow: Flow }) {
         <SectionLabel>アカウント</SectionLabel>
         <Card>
           <ListRow label="メール・ログイン方法" />
+          {isBackendConfigured && <ListRow label="ログアウト" onClick={flow.signOut} />}
           <ListRow label="アカウントを削除" danger divider={false} />
         </Card>
       </div>
