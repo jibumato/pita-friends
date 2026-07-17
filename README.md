@@ -9,6 +9,7 @@
 
 - **React 18** + **TypeScript**（関数コンポーネント + Hooks）
 - **Vite** 5（開発サーバー / ビルド）
+- **Supabase**（Postgres + 認証 + リアルタイム + ストレージ）— バックエンド。未接続でもモックデータのデモモードで動作（セットアップ手順は [`docs/backend-setup.md`](docs/backend-setup.md)）
 - スタイルはハンドオフに合わせて **インラインスタイル + デザイントークン** で構成（外部 UI ライブラリ非依存）
 - フォント: Google Fonts `DotGothic16`
 - アイコン: すべてインライン SVG（依存なし）
