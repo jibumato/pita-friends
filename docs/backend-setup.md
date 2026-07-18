@@ -86,8 +86,9 @@ npm run dev
 
 - ニックネーム・性別（`Setup.tsx`）、安心設定（`SafetyPreferences.tsx`）、ホスト設定（`HostSettingsScreen.tsx`）の変更は、楽観的にローカル状態を更新したうえでSupabaseへ書き込みます。書き込みに失敗した場合はローカル状態を元に戻します（`console.warn` でログ出力。ユーザー向けのエラー表示は現状ホスト設定の「本人確認が必要」ケースのみ実装）
 - **コインの購入はできません。** `purchase_coins` 関数はクライアント(`authenticated`ロール)に実行権限を与えていないため（決済確認前提の設計）、バックエンド接続時はウォレット画面で「決済連携は準備中です」と表示し、購入ボタンを無効化します
-- **ホストとして掲載するには本人確認が必要です。** `check_host_requires_verification` トリガーにより、`profile_trust_stats.is_verified = true` でないと `is_host = true` への更新が拒否されます。本人確認（eKYC）は未接続なので、**現状すべての実アカウントで「ホストになる」は失敗します**（意図した挙動）。失敗時はホスト設定画面にその旨のメッセージを表示します
-- **さがす画面・予約は実データに接続済みです。** `fetchDiscoverableHosts()` が `host_settings`（`is_host=true`）＋`profiles`＋`profile_trust_stats` を取得して一覧表示し、予約確定は `create_booking` RPCを呼びます（コイン消費・残高チェックはサーバー側でアトミックに実行）。ただし上記のとおり本人確認が未接続で誰もホストになれないため、**実際に動かすと常に0件（空状態）になります**。埋め込みリレーション（`select`内のネスト構文）は手書きDatabase型が`Relationships`メタデータを持たないため使わず、3テーブルを個別に取得してJS側で結合しています
+- **ホストとして掲載するには本人確認が必要です。** `check_host_requires_verification` トリガーにより、`profile_trust_stats.is_verified = true` でないと `is_host = true` への更新が拒否されます。本人確認は下記のとおり運営の手動審査で完了させられます
+- **さがす画面・予約は実データに接続済みです。** `fetchDiscoverableHosts()` が `host_settings`（`is_host=true`）＋`profiles`＋`profile_trust_stats` を取得して一覧表示し、予約確定は `create_booking` RPCを呼びます（コイン消費・残高チェックはサーバー側でアトミックに実行）。本人確認が完了したホストがいなければ一覧は空になります。埋め込みリレーション（`select`内のネスト構文）は手書きDatabase型が`Relationships`メタデータを持たないため使わず、3テーブルを個別に取得してJS側で結合しています
+- **本人確認は運営の手動審査です（初期フェーズ）。** `Verify.tsx` で書類・顔写真を撮影/選択すると、非公開のSupabase Storageバケット `identity-documents`（本人のみ読み書き可）にアップロードし、`identity_verifications` に審査待ち行を作成します。運営はSupabaseダッシュボードで内容を確認し、SQLで承認/却下します。手順は [`docs/manual-verification-review.md`](manual-verification-review.md) を参照してください
 
 ## まだ設計・実装していないもの
 
@@ -96,8 +97,8 @@ npm run dev
 - `promises` のライフサイクル遷移（`joined` / `completed` への移行、フレンドコード開示のタイミング）— 現状は `scheduled` で作られるのみ
 - リアルタイムチャット（トークルーム）— Supabase Realtimeの利用を想定しているが未実装
 - 決済代行事業者との連携（`purchase_coins` を呼ぶWebhook/Edge Function）
-- 本人確認（eKYC）ベンダーとの連携（`identity_verifications` の `status` を確定させる処理）
-- 運営の審査オペレーション画面（`resolve_report` を呼ぶ管理画面）
+- eKYCベンダーとの連携（審査件数が増えた場合の、手動審査からの移行先）
+- 運営の審査オペレーション画面（`resolve_report` を呼ぶ管理画面。本人確認の審査は`manual-verification-review.md`のSQL運用で当面代替）
 
 これらはこのドキュメントとROADMAPのPhase 3〜5に追って反映していきます。
 

@@ -157,3 +157,59 @@ export async function createBookingRemote(hostId: string, durationMinutes: 30 | 
   if (error) throw error
   return data as string
 }
+
+function fileExtension(file: File): string {
+  const fromName = file.name.split('.').pop()
+  if (fromName && fromName.length <= 5) return fromName.toLowerCase()
+  if (file.type === 'image/png') return 'png'
+  if (file.type === 'image/webp') return 'webp'
+  return 'jpg'
+}
+
+/**
+ * 本人確認書類・顔写真をStorageにアップロードし、審査待ち行を作成する。
+ * 「初期のみ運営が目視で審査する」運用のため、eKYCベンダーのような即時
+ * 判定はできない。画像は審査完了まで一時的に保持され、審査後は運営が
+ * 手動で削除する(docs/manual-verification-review.md参照)。
+ */
+export async function submitIdentityVerification(
+  userId: string,
+  documentFile: File,
+  selfieFile: File,
+): Promise<void> {
+  const sb = requireSupabase()
+  const ts = Date.now()
+  const documentPath = `${userId}/document-${ts}.${fileExtension(documentFile)}`
+  const selfiePath = `${userId}/selfie-${ts}.${fileExtension(selfieFile)}`
+
+  const [docUpload, selfieUpload] = await Promise.all([
+    sb.storage.from('identity-documents').upload(documentPath, documentFile, { upsert: true }),
+    sb.storage.from('identity-documents').upload(selfiePath, selfieFile, { upsert: true }),
+  ])
+  if (docUpload.error) throw docUpload.error
+  if (selfieUpload.error) throw selfieUpload.error
+
+  const { error } = await sb.from('identity_verifications').insert({
+    user_id: userId,
+    status: 'pending',
+    document_path: documentPath,
+    selfie_path: selfiePath,
+  })
+  if (error) throw error
+}
+
+export type VerificationStatusInfo = { status: 'pending' | 'verified' | 'rejected'; rejectedReason: string | null } | null
+
+/** 直近の本人確認申請のステータスを取得する(未申請ならnull)。 */
+export async function fetchLatestVerificationStatus(userId: string): Promise<VerificationStatusInfo> {
+  const { data, error } = await requireSupabase()
+    .from('identity_verifications')
+    .select('status, rejected_reason')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  return { status: data.status, rejectedReason: data.rejected_reason }
+}

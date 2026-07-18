@@ -97,8 +97,16 @@ export type Database = {
           rejected_reason: string | null
           created_at: string
           verified_at: string | null
+          document_path: string | null
+          selfie_path: string | null
         }
-        Insert: { id?: string; user_id: string; status?: 'pending' }
+        Insert: {
+          id?: string
+          user_id: string
+          status?: 'pending'
+          document_path?: string | null
+          selfie_path?: string | null
+        }
         Update: Record<string, never>
         Relationships: []
       }

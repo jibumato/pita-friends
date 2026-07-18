@@ -433,7 +433,7 @@ export default function App() {
         updateHostSettingsRemote(state.userId, { [dbKey]: value }).catch((err) => {
           const message =
             err instanceof Error && err.message.includes('HOST_REQUIRES_VERIFICATION')
-              ? 'ホストとして掲載するには、本人確認の完了が必要です(本人確認フローは準備中です)。'
+              ? 'ホストとして掲載するには、本人確認の完了が必要です。「本人確認ステータス」から書類を提出してください(審査完了まで数日かかる場合があります)。'
               : 'ホスト設定の保存に失敗しました。時間をおいて再度お試しください。'
           console.warn('[pita-friends] host_settings更新に失敗:', err)
           // 反映できなかった場合は表示上も元に戻す
