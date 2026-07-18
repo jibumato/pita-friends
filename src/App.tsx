@@ -25,6 +25,7 @@ import {
   updateProfileRemote,
   updateSafetyPrefsRemote,
   updateHostSettingsRemote,
+  createBookingRemote,
 } from './lib/queries'
 
 import Welcome from './screens/Welcome'
@@ -71,6 +72,8 @@ export type BookingHost = {
   initial: string
   color: string
   hourlyRate: number
+  /** 実データのホスト(Supabase)の場合のみ設定される。デモのモックホストにはない。 */
+  userId?: string
 }
 
 /** 全画面が受け取るフローコンテキスト。 */
@@ -92,6 +95,8 @@ export type Flow = {
   bookingHost: BookingHost | null
   bookingDuration: BookingDuration
   bookingInsufficient: boolean
+  /** 予約確定の失敗理由(残高不足以外)。実データの予約でのみ発生しうる。 */
+  bookingError: string | null
   /** バックエンド接続時、サインイン済みならSupabaseのユーザーID。デモモード/未サインインはnull。 */
   userId: string | null
   nickname: string
@@ -148,6 +153,7 @@ const INITIAL = {
   bookingHost: null as BookingHost | null,
   bookingDuration: 60 as BookingDuration,
   bookingInsufficient: false,
+  bookingError: null as string | null,
   userId: null as string | null,
   nickname: 'あおい',
   mannerScore: 4.8,
@@ -266,9 +272,39 @@ export default function App() {
     )
   }, [clearTimer])
 
-  const confirmBooking = useCallback(() => {
-    if (!state.bookingHost) return
-    const cost = coinsForDuration(state.bookingHost.hourlyRate, state.bookingDuration)
+  const confirmBooking = useCallback(async () => {
+    const host = state.bookingHost
+    if (!host) return
+
+    // 実データのホスト(Supabase側にuserIdを持つ)は、コイン消費と予約作成を
+    // アトミックに行うcreate_booking RPCを呼ぶ。デモのモックホストは
+    // これまでどおりローカル計算のみで進める。
+    if (isBackendConfigured && host.userId && state.userId) {
+      setState((p) => ({ ...p, bookingInsufficient: false, bookingError: null }))
+      try {
+        await createBookingRemote(host.userId, state.bookingDuration)
+        const cost = coinsForDuration(host.hourlyRate, state.bookingDuration)
+        clearTimer()
+        setState((p) => ({ ...p, coinBalance: p.coinBalance - cost, screen: 'sending' }))
+        timer.current = setTimeout(() => setState((p) => ({ ...p, screen: 'match' })), AUTO_ADVANCE_MS)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : ''
+        if (message.includes('INSUFFICIENT_COINS')) {
+          setState((p) => ({ ...p, bookingInsufficient: true }))
+        } else if (message.includes('HOST_NOT_AVAILABLE')) {
+          setState((p) => ({ ...p, bookingError: 'このホストは現在、予約を受け付けていません。' }))
+        } else {
+          setState((p) => ({
+            ...p,
+            bookingError: '予約の確定に失敗しました。時間をおいて再度お試しください。',
+          }))
+        }
+        console.warn('[pita-friends] create_bookingに失敗:', err)
+      }
+      return
+    }
+
+    const cost = coinsForDuration(host.hourlyRate, state.bookingDuration)
     if (cost > state.coinBalance) {
       setState((p) => ({ ...p, bookingInsufficient: true }))
       return
@@ -282,7 +318,7 @@ export default function App() {
     }))
     // 決済成功後は、誘い送信と同じ自動遷移(返事待ち→マッチ)につなげる
     timer.current = setTimeout(() => setState((p) => ({ ...p, screen: 'match' })), AUTO_ADVANCE_MS)
-  }, [state.bookingHost, state.bookingDuration, state.coinBalance, clearTimer])
+  }, [state.bookingHost, state.bookingDuration, state.coinBalance, state.userId, clearTimer])
 
   const goJoin = useCallback(() => {
     clearTimer()
@@ -415,10 +451,11 @@ export default function App() {
         bookingHost: host,
         bookingDuration: 60,
         bookingInsufficient: false,
+        bookingError: null,
         screen: 'booking',
       })),
     setBookingDuration: (min) =>
-      setState((p) => ({ ...p, bookingDuration: min, bookingInsufficient: false })),
+      setState((p) => ({ ...p, bookingDuration: min, bookingInsufficient: false, bookingError: null })),
     confirmBooking,
     go,
     sendInvite,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Flow } from '../App'
+import type { Flow, BookingHost } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
@@ -7,9 +7,43 @@ import BottomTabs from '../components/BottomTabs'
 import { Search as SearchIcon, Coin } from '../components/Icon'
 import { EmptyState, ErrorState, SkeletonCard } from '../components/States'
 import { searchUsers } from '../data/mock'
+import { isBackendConfigured } from '../lib/supabase'
+import { fetchDiscoverableHosts } from '../lib/queries'
 
 type Phase = 'loading' | 'results' | 'empty' | 'error'
 const FILTERS = ['今夜あそべる', 'Apex', 'ゴールド帯', 'エンジョイ', '✓ 本人確認済みのみ']
+
+/** デモのモックユーザーと実データのホストを、カード表示用の共通形に正規化する。 */
+type DisplayCard = {
+  key: string
+  initial: string
+  color: string
+  name: string
+  verified: boolean
+  meta: string
+  scoreLabel: string
+  tags: string[]
+  hourlyRate?: number
+  bookingHost?: BookingHost
+}
+
+function fromMock(u: (typeof searchUsers)[number]): DisplayCard {
+  return {
+    key: u.name,
+    initial: u.initial,
+    color: u.color,
+    name: u.name,
+    verified: true,
+    meta: u.meta,
+    scoreLabel: `${u.score}%`,
+    tags: u.tags,
+    hourlyRate: u.hourlyRate,
+    bookingHost:
+      u.hourlyRate != null
+        ? { name: u.name, initial: u.initial, color: u.color, hourlyRate: u.hourlyRate }
+        : undefined,
+  }
+}
 
 export default function Search({ flow }: { flow: Flow }) {
   const [phase, setPhase] = useState<Phase>('loading')
@@ -18,13 +52,53 @@ export default function Search({ flow }: { flow: Flow }) {
     Apex: true,
     '✓ 本人確認済みのみ': true,
   })
+  const [realCards, setRealCards] = useState<DisplayCard[] | null>(null)
 
-  // 初回マウントで検索中 → 結果
+  // 初回マウント: バックエンド接続時は実際のホスト一覧を取得、
+  // 未接続(デモモード)時はこれまでどおり一定時間後にモック結果を表示する。
   useEffect(() => {
-    if (phase !== 'loading') return
-    const t = setTimeout(() => setPhase('results'), 850)
-    return () => clearTimeout(t)
-  }, [phase])
+    if (!isBackendConfigured) {
+      if (phase !== 'loading') return
+      const t = setTimeout(() => setPhase('results'), 850)
+      return () => clearTimeout(t)
+    }
+    let active = true
+    setPhase('loading')
+    fetchDiscoverableHosts(flow.userId)
+      .then((hosts) => {
+        if (!active) return
+        const cards = hosts.map<DisplayCard>((h) => ({
+          key: h.userId,
+          initial: h.avatarInitial,
+          color: h.avatarColor,
+          name: h.nickname,
+          verified: h.isVerified,
+          meta: h.bio || 'よろしくお願いします！',
+          scoreLabel: `★${h.mannerScore.toFixed(1)}`,
+          tags: h.games,
+          hourlyRate: h.hourlyRate,
+          bookingHost: {
+            name: h.nickname,
+            initial: h.avatarInitial,
+            color: h.avatarColor,
+            hourlyRate: h.hourlyRate,
+            userId: h.userId,
+          },
+        }))
+        setRealCards(cards)
+        setPhase(cards.length > 0 ? 'results' : 'empty')
+      })
+      .catch((err) => {
+        console.warn('[pita-friends] ホスト一覧の取得に失敗:', err)
+        if (active) setPhase('error')
+      })
+    return () => {
+      active = false
+    }
+    // 初回マウント時のみ実行(flow.userIdの変化では再実行しない)
+  }, [])
+
+  const cards = isBackendConfigured ? (realCards ?? []) : searchUsers.map(fromMock)
 
   return (
     <Screen background={C.surface}>
@@ -112,7 +186,9 @@ export default function Search({ flow }: { flow: Flow }) {
             gap: 12,
           }}
         >
-          <span style={{ fontSize: 11.5, color: C.muted }}>24人が条件にマッチ · 相性順</span>
+          <span style={{ fontSize: 11.5, color: C.muted }}>
+            {isBackendConfigured ? `${cards.length}人のホストが見つかりました` : '24人が条件にマッチ · 相性順'}
+          </span>
           <div
             style={{
               background: C.surfaceLavender,
@@ -129,9 +205,9 @@ export default function Search({ flow }: { flow: Flow }) {
               「安心設定」で受け身にしている人は表示されません。誘いは相手の設定により承認制になります。
             </span>
           </div>
-          {searchUsers.map((u) => (
+          {cards.map((u) => (
             <div
-              key={u.name}
+              key={u.key}
               onClick={() => flow.go('profile')}
               style={{
                 cursor: 'pointer',
@@ -165,22 +241,24 @@ export default function Search({ flow }: { flow: Flow }) {
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 15, color: C.ink }}>{u.name}</span>
-                    <span
-                      style={{
-                        fontSize: 9.5,
-                        color: C.ink,
-                        background: C.lime,
-                        border: `1.5px solid ${C.border}`,
-                        padding: '2px 7px',
-                        borderRadius: 4,
-                      }}
-                    >
-                      ✓ 本人確認済み
-                    </span>
+                    {u.verified && (
+                      <span
+                        style={{
+                          fontSize: 9.5,
+                          color: C.ink,
+                          background: C.lime,
+                          border: `1.5px solid ${C.border}`,
+                          padding: '2px 7px',
+                          borderRadius: 4,
+                        }}
+                      >
+                        ✓ 本人確認済み
+                      </span>
+                    )}
                   </div>
                   <span style={{ fontSize: 10.5, color: C.muted }}>{u.meta}</span>
                 </div>
-                <span style={{ fontSize: 17, color: C.lavender }}>{u.score}%</span>
+                <span style={{ fontSize: 17, color: C.lavender }}>{u.scoreLabel}</span>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {u.tags.map((t) => (
@@ -199,7 +277,7 @@ export default function Search({ flow }: { flow: Flow }) {
                   </span>
                 ))}
               </div>
-              {u.hourlyRate != null && (
+              {u.hourlyRate != null && u.bookingHost && (
                 <div
                   style={{
                     display: 'flex',
@@ -216,12 +294,7 @@ export default function Search({ flow }: { flow: Flow }) {
                   <span
                     onClick={(e) => {
                       e.stopPropagation()
-                      flow.startBooking({
-                        name: u.name,
-                        initial: u.initial,
-                        color: u.color,
-                        hourlyRate: u.hourlyRate!,
-                      })
+                      flow.startBooking(u.bookingHost!)
                     }}
                     style={{
                       cursor: 'pointer',

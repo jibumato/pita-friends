@@ -89,3 +89,71 @@ export async function updateHostSettingsRemote(
   const { error } = await requireSupabase().from('host_settings').update(patch).eq('user_id', userId)
   if (error) throw error
 }
+
+export type DiscoverableHost = {
+  userId: string
+  nickname: string
+  avatarInitial: string
+  avatarColor: string
+  hourlyRate: number
+  games: string[]
+  bio: string
+  mannerScore: number
+  isVerified: boolean
+}
+
+/**
+ * 「さがす」画面向けのホスト一覧。埋め込みリレーション(select内のネスト構文)は
+ * 手書きDatabase型にRelationshipsメタデータが無く型解決できないため、
+ * host_settings / profiles / profile_trust_stats を個別に取得しJS側で結合する。
+ */
+export async function fetchDiscoverableHosts(excludeUserId: string | null): Promise<DiscoverableHost[]> {
+  const sb = requireSupabase()
+  const { data: hosts, error: hostsError } = await sb
+    .from('host_settings')
+    .select('user_id, hourly_rate, games, bio')
+    .eq('is_host', true)
+  if (hostsError) throw hostsError
+  if (!hosts) return []
+
+  const userIds = hosts.map((h) => h.user_id).filter((id) => id !== excludeUserId)
+  if (userIds.length === 0) return []
+
+  const [{ data: profiles, error: profilesError }, { data: stats, error: statsError }] = await Promise.all([
+    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color').in('id', userIds),
+    sb.from('profile_trust_stats').select('user_id, manner_score, is_verified').in('user_id', userIds),
+  ])
+  if (profilesError) throw profilesError
+  if (statsError) throw statsError
+
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]))
+  const statsMap = new Map((stats ?? []).map((s) => [s.user_id, s]))
+
+  return hosts
+    .filter((h) => profileMap.has(h.user_id))
+    .map((h) => {
+      const profile = profileMap.get(h.user_id)!
+      const stat = statsMap.get(h.user_id)
+      return {
+        userId: h.user_id,
+        nickname: profile.nickname || '(名前未設定)',
+        avatarInitial: profile.avatar_initial || profile.nickname.charAt(0) || '?',
+        avatarColor: profile.avatar_color || '#B3E5F2',
+        hourlyRate: h.hourly_rate,
+        games: h.games,
+        bio: h.bio,
+        mannerScore: stat?.manner_score ?? 4.5,
+        isVerified: stat?.is_verified ?? false,
+      }
+    })
+}
+
+/** ホスト予約を確定し、コインをアトミックに消費する(create_booking RPC)。予約IDを返す。 */
+export async function createBookingRemote(hostId: string, durationMinutes: 30 | 60 | 120): Promise<string> {
+  const { data, error } = await requireSupabase().rpc('create_booking', {
+    p_host_id: hostId,
+    p_duration_minutes: durationMinutes,
+  })
+  if (error) throw error
+  return data as string
+}

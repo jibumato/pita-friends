@@ -162,6 +162,21 @@ export default function Booking({ flow }: { flow: Flow }) {
           </div>
         )}
 
+        {flow.bookingError && (
+          <div
+            style={{
+              background: C.avatarPink,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 8,
+              padding: '11px 13px',
+              fontSize: 12,
+              color: C.ink,
+            }}
+          >
+            {flow.bookingError}
+          </div>
+        )}
+
         <div
           style={{
             background: C.surfaceLavender,
