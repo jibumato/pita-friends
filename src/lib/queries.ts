@@ -12,6 +12,7 @@ import type {
   BoardAudience,
   NotificationType,
   AccountRequestType,
+  PayoutStatus,
 } from './database.types'
 
 export type AccountBundle = {
@@ -745,6 +746,144 @@ export async function submitAccountRequest(type: AccountRequestType): Promise<vo
   if (!me) throw new Error('ログインが必要です')
   const { error } = await sb.from('account_requests').insert({ user_id: me, type })
   if (error) throw error
+}
+
+/* ============================================================
+ * エスクロー予約決済・Stripe Connectによるホストへの実際の振込。
+ * schema: 0013_escrow_payouts。
+ * ・購入コイン(balance)と報酬コイン(earned_balance)は別会計。
+ *   換金できるのはearned_balanceのみ(不正対策・詳細はマイグレーション参照)。
+ * ============================================================ */
+
+export type BookingInfo = {
+  id: string
+  guestId: string
+  hostId: string
+  coins: number
+  status: string
+  scheduledAt: string
+}
+
+/** 指定promise(約束)に紐づく予約情報を取得する(booking由来のpromiseでなければnull)。 */
+export async function fetchBookingForPromise(promiseId: string): Promise<BookingInfo | null> {
+  const sb = requireSupabase()
+  const { data: promise, error } = await sb
+    .from('promises')
+    .select('booking_id')
+    .eq('id', promiseId)
+    .single()
+  if (error) throw error
+  if (!promise.booking_id) return null
+
+  const { data: booking, error: bErr } = await sb
+    .from('bookings')
+    .select('id, guest_id, host_id, coins, status, scheduled_at')
+    .eq('id', promise.booking_id)
+    .single()
+  if (bErr) throw bErr
+  return {
+    id: booking.id,
+    guestId: booking.guest_id,
+    hostId: booking.host_id,
+    coins: booking.coins,
+    status: booking.status,
+    scheduledAt: booking.scheduled_at,
+  }
+}
+
+/** 「プレイ完了」を確定する(ゲスト本人のみ)。ホストの報酬コインに反映される。 */
+export async function completeBooking(bookingId: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('complete_booking', { p_booking_id: bookingId })
+  if (error) throw error
+}
+
+export type EarningsSummary = {
+  /** 換金可能な報酬コイン残高。 */
+  earnedBalance: number
+  /** まだ「プレイ完了」されていない、確定済み予約に含まれるコイン(エスクロー中)。 */
+  escrowedCoins: number
+}
+
+/** ホストとしての収益サマリー(換金可能分・エスクロー中分)を取得する。 */
+export async function fetchEarnings(): Promise<EarningsSummary> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+
+  const [{ data: wallet, error: wErr }, { data: pending, error: pErr }] = await Promise.all([
+    sb.from('coin_wallets').select('earned_balance').eq('user_id', me).single(),
+    sb.from('bookings').select('coins').eq('host_id', me).eq('status', 'confirmed'),
+  ])
+  if (wErr) throw wErr
+  if (pErr) throw pErr
+  return {
+    earnedBalance: wallet.earned_balance,
+    escrowedCoins: (pending ?? []).reduce((sum, b) => sum + b.coins, 0),
+  }
+}
+
+export type PayoutAccountStatus = { hasAccount: boolean; payoutsEnabled: boolean }
+
+/** Stripe Connect(振込先)の設定状況を取得する。 */
+export async function fetchPayoutAccountStatus(): Promise<PayoutAccountStatus> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const { data, error } = await sb
+    .from('host_payout_accounts')
+    .select('payouts_enabled')
+    .eq('user_id', me)
+    .maybeSingle()
+  if (error) throw error
+  return { hasAccount: !!data, payoutsEnabled: data?.payouts_enabled ?? false }
+}
+
+/** Stripe Connectのオンボーディングを開始/再開する。遷移先URLを返す。 */
+export async function startConnectOnboarding(): Promise<string> {
+  const { data, error } = await requireSupabase().functions.invoke<{ url?: string; error?: string }>(
+    'create-connect-account',
+    { body: {} },
+  )
+  if (error) throw error
+  if (!data?.url) throw new Error(data?.error || '振込先の設定ページを開けませんでした')
+  return data.url
+}
+
+/** 報酬コインを換金(Stripe Connectへの実振込)を申請する。 */
+export async function requestPayout(coins: number): Promise<void> {
+  const { data, error } = await requireSupabase().functions.invoke<{ ok?: boolean; error?: string }>(
+    'request-payout',
+    { body: { coins } },
+  )
+  if (error) throw error
+  if (!data?.ok) throw new Error(data?.error || '換金に失敗しました')
+}
+
+export type PayoutRecord = {
+  id: string
+  coins: number
+  amountYen: number
+  status: PayoutStatus
+  createdAt: string
+}
+
+/** 換金履歴を新しい順に取得する。 */
+export async function fetchPayoutHistory(): Promise<PayoutRecord[]> {
+  const { data, error } = await requireSupabase()
+    .from('payouts')
+    .select('id, coins, amount_yen, status, created_at')
+    .order('created_at', { ascending: false })
+    .limit(30)
+  if (error) throw error
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    coins: p.coins,
+    amountYen: p.amount_yen,
+    status: p.status,
+    createdAt: p.created_at,
+  }))
 }
 
 export type PublicProfile = {

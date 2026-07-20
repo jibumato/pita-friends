@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
@@ -6,10 +7,42 @@ import { SubHeader, Toggle, Card, ListRow } from '../components/Ui'
 import { Coin, Shield } from '../components/Icon'
 import { GAMES } from '../flow'
 import { usePress } from '../hooks/usePress'
+import { isBackendConfigured } from '../lib/supabase'
+import { fetchPayoutAccountStatus, startConnectOnboarding, type PayoutAccountStatus } from '../lib/queries'
 
 export default function HostSettingsScreen({ flow }: { flow: Flow }) {
   const h = flow.hostSettings
   const save = usePress(`3px 3px 0 ${C.lavender}`)
+
+  const [payoutStatus, setPayoutStatus] = useState<PayoutAccountStatus | null>(null)
+  const [payoutError, setPayoutError] = useState<string | null>(null)
+  const [onboarding, setOnboarding] = useState(false)
+
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    let active = true
+    fetchPayoutAccountStatus()
+      .then((s) => active && setPayoutStatus(s))
+      .catch(() => {
+        /* 未取得でもホスト設定自体は表示する */
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  async function handleConnectSetup() {
+    if (onboarding) return
+    setOnboarding(true)
+    setPayoutError(null)
+    try {
+      const url = await startConnectOnboarding()
+      window.location.href = url
+    } catch (e) {
+      setPayoutError(e instanceof Error ? e.message : '振込先の設定に失敗しました')
+      setOnboarding(false)
+    }
+  }
 
   return (
     <Screen background={C.surface}>
@@ -132,6 +165,66 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
             )
           })}
         </div>
+
+        {isBackendConfigured && (
+          <>
+            <span style={{ fontSize: 12, color: C.muted }}>振込先(報酬の受け取り)</span>
+            <div
+              style={{
+                background: C.white,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 8,
+                padding: '13px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              {payoutStatus?.payoutsEnabled ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: C.ink,
+                      background: C.lime,
+                      border: `1.5px solid ${C.border}`,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    設定済み
+                  </span>
+                  <span style={{ fontSize: 11.5, color: C.body }}>報酬コインをいつでも換金できます</span>
+                </div>
+              ) : (
+                <>
+                  <span style={{ fontSize: 11.5, color: C.body, lineHeight: 1.6 }}>
+                    {payoutStatus?.hasAccount
+                      ? '振込先の設定が完了していません。手続きを再開してください。'
+                      : '完了した予約の報酬(コイン)を実際の振込として受け取るには、Stripeでの振込先設定が必要です。'}
+                  </span>
+                  <div
+                    onClick={handleConnectSetup}
+                    style={{
+                      cursor: onboarding ? 'not-allowed' : 'pointer',
+                      opacity: onboarding ? 0.6 : 1,
+                      textAlign: 'center',
+                      fontSize: 12.5,
+                      color: C.ink,
+                      background: C.lime,
+                      border: `1.5px solid ${C.border}`,
+                      borderRadius: 6,
+                      padding: '9px 0',
+                    }}
+                  >
+                    {onboarding ? '準備中…' : payoutStatus?.hasAccount ? '設定を再開する' : '振込先を設定する'}
+                  </div>
+                </>
+              )}
+              {payoutError && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{payoutError}</span>}
+            </div>
+          </>
+        )}
 
         <span style={{ fontSize: 12, color: C.muted }}>ひとことメッセージ</span>
         <textarea

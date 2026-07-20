@@ -257,8 +257,11 @@ export default function App() {
     if (!isBackendConfigured) return
     let active = true
     // Stripe決済からの戻り(success_url/cancel_url の ?checkout=...)を検出
-    const checkoutParam = new URLSearchParams(window.location.search).get('checkout')
-    if (checkoutParam) {
+    const params = new URLSearchParams(window.location.search)
+    const checkoutParam = params.get('checkout')
+    // Stripe Connect オンボーディングからの戻り(?connect=return/refresh)を検出
+    const connectParam = params.get('connect')
+    if (checkoutParam || connectParam) {
       // URLからパラメータを消す(リロードで二重処理されないように)
       window.history.replaceState({}, '', window.location.pathname)
     }
@@ -276,6 +279,10 @@ export default function App() {
                 if (active) void hydrateAccount(uid)
               }, 2500)
             }
+          } else if (connectParam) {
+            // オンボーディング完了はaccount.updated Webhookで反映されるため、
+            // ホスト設定画面に戻して(その画面が自分で状況を再取得する)
+            setState((p) => ({ ...p, screen: 'hostSettings' }))
           } else {
             setState((p) => ({ ...p, screen: 'home' }))
           }

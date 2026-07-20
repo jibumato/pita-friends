@@ -15,7 +15,8 @@
 export type Gender = 'female' | 'male' | 'na'
 export type ContactScope = 'verified' | 'sameGender' | 'all'
 export type VerificationStatus = 'pending' | 'verified' | 'rejected'
-export type CoinTxType = 'purchase' | 'booking_spend' | 'refund' | 'bonus'
+export type CoinTxType = 'purchase' | 'booking_spend' | 'refund' | 'bonus' | 'booking_earned' | 'payout'
+export type PayoutStatus = 'pending' | 'paid' | 'failed'
 export type BookingStatus =
   | 'confirmed'
   | 'completed'
@@ -124,7 +125,34 @@ export type Database = {
         Relationships: []
       }
       coin_wallets: {
-        Row: { user_id: string; balance: number; updated_at: string }
+        Row: { user_id: string; balance: number; earned_balance: number; updated_at: string }
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
+      }
+      host_payout_accounts: {
+        Row: {
+          user_id: string
+          stripe_account_id: string
+          payouts_enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
+      }
+      payouts: {
+        Row: {
+          id: string
+          user_id: string
+          coins: number
+          amount_yen: number
+          stripe_transfer_id: string | null
+          status: PayoutStatus
+          failure_reason: string | null
+          created_at: string
+        }
         Insert: Record<string, never>
         Update: Record<string, never>
         Relationships: []
@@ -433,6 +461,10 @@ export type Database = {
       }
       join_board_post: {
         Args: { p_post_id: string }
+        Returns: void
+      }
+      complete_booking: {
+        Args: { p_booking_id: string }
         Returns: void
       }
       approve_identity_verification: {

@@ -7,11 +7,14 @@ import { ChevronLeft, Shield, Send } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import {
+  completeBooking,
+  fetchBookingForPromise,
   fetchMessages,
   fetchThreadPartner,
   markThreadRead,
   sendMessage,
   subscribeToMessages,
+  type BookingInfo,
   type ChatMessage,
   type ThreadPartner,
 } from '../lib/queries'
@@ -45,6 +48,9 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   const [draft, setDraft] = useState('')
   const [warn, setWarn] = useState(false)
   const [sending, setSending] = useState(false)
+  const [booking, setBooking] = useState<BookingInfo | null>(null)
+  const [completing, setCompleting] = useState(false)
+  const [completeError, setCompleteError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -54,11 +60,12 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   useEffect(() => {
     let active = true
     setLoading(true)
-    Promise.all([fetchThreadPartner(promiseId), fetchMessages(promiseId)])
-      .then(([p, m]) => {
+    Promise.all([fetchThreadPartner(promiseId), fetchMessages(promiseId), fetchBookingForPromise(promiseId)])
+      .then(([p, m, b]) => {
         if (!active) return
         setPartner(p)
         setMessages(m)
+        setBooking(b)
         void markThreadRead(promiseId)
       })
       .catch((e) => active && setError(e instanceof Error ? e.message : '読み込みに失敗しました'))
@@ -101,6 +108,22 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
     }
     void doSend()
   }
+
+  async function handleComplete() {
+    if (!booking || completing) return
+    setCompleting(true)
+    setCompleteError(null)
+    try {
+      await completeBooking(booking.id)
+      setBooking({ ...booking, status: 'completed' })
+    } catch (e) {
+      setCompleteError(e instanceof Error ? e.message : '確定に失敗しました')
+    } finally {
+      setCompleting(false)
+    }
+  }
+
+  const isGuestOfBooking = booking && myId === booking.guestId
 
   return (
     <Screen background={C.surface}>
@@ -173,6 +196,60 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
         </span>
         <span style={{ fontSize: 10, color: C.lavender }}>通報 ›</span>
       </div>
+
+      {booking && booking.status === 'confirmed' && (
+        <div
+          style={{
+            margin: '10px 20px 0',
+            background: C.lavender,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 10,
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 12, color: '#fff' }}>
+            {booking.coins}コインの予約中です。プレイが終わったら、ゲストが「プレイ完了」を確定するとホストに報酬が届きます。
+          </span>
+          {isGuestOfBooking ? (
+            <div
+              onClick={handleComplete}
+              style={{
+                cursor: completing ? 'not-allowed' : 'pointer',
+                opacity: completing ? 0.6 : 1,
+                textAlign: 'center',
+                fontSize: 12.5,
+                color: C.ink,
+                background: C.lime,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 6,
+                padding: '9px 0',
+              }}
+            >
+              {completing ? '処理中…' : '✓ プレイ完了・支払いを確定する'}
+            </div>
+          ) : (
+            <span style={{ fontSize: 10.5, color: '#E3DCFF' }}>ゲスト側の確定をお待ちください</span>
+          )}
+          {completeError && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{completeError}</span>}
+        </div>
+      )}
+      {booking && booking.status === 'completed' && (
+        <div
+          style={{
+            margin: '10px 20px 0',
+            background: C.fill,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 10,
+            padding: '10px 14px',
+            textAlign: 'center',
+          }}
+        >
+          <span style={{ fontSize: 11.5, color: C.lime }}>✓ プレイ完了・お支払いが確定しました</span>
+        </div>
+      )}
 
       <div
         ref={scrollRef}

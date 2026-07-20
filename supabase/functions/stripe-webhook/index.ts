@@ -2,12 +2,20 @@
 // stripe-webhook
 // ------------------------------------------------------------
 // Stripe から呼ばれる(ユーザーのブラウザからではない)。
-// 署名を検証し、checkout.session.completed のときに
-// credit_coins_for_purchase(冪等)でコインを付与する。
+// 署名を検証し、次の2種類のイベントを処理する:
+//   ・checkout.session.completed → credit_coins_for_purchase(冪等)で
+//     コインを付与する(コイン購入)
+//   ・account.updated → Stripe Connect(Express)アカウントの
+//     オンボーディングが完了(payouts_enabled)したら
+//     host_payout_accounts.payouts_enabled を true にする
 //
 // このFunctionは JWT 検証を無効にしてデプロイすること:
 //   supabase functions deploy stripe-webhook --no-verify-jwt
 // (Stripe は Supabase の JWT を持たないため)
+//
+// Stripeダッシュボードで購読するイベント: checkout.session.completed,
+// account.updated (Connect の場合は「アカウント」タイプのWebhookとして
+// 別途登録が必要な場合がある。docs/payments-stripe-setup.md 参照)
 // ============================================================
 import Stripe from 'https://esm.sh/stripe@14.25.0?target=deno&no-check'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
@@ -72,6 +80,19 @@ Deno.serve(async (req) => {
       // 5xx を返すと Stripe が自動リトライする(冪等なので二重付与は起きない)
       console.error('[stripe-webhook] credit failed', error)
       return new Response('credit failed', { status: 500 })
+    }
+  }
+
+  if (event.type === 'account.updated') {
+    const account = event.data.object as Stripe.Account
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE)
+    const { error } = await admin
+      .from('host_payout_accounts')
+      .update({ payouts_enabled: !!account.payouts_enabled })
+      .eq('stripe_account_id', account.id)
+    if (error) {
+      console.error('[stripe-webhook] host_payout_accounts更新に失敗', error)
+      return new Response('update failed', { status: 500 })
     }
   }
 
