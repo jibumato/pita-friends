@@ -23,6 +23,7 @@ import { useIsMobile } from './hooks/useMediaQuery'
 import { loadPrefs, savePrefs } from './persist'
 import { isBackendConfigured } from './lib/supabase'
 import { getSession, signOut as supabaseSignOut } from './lib/auth'
+import { trackMyPresence } from './lib/presence'
 import {
   fetchAccountBundle,
   updateProfileRemote,
@@ -101,6 +102,7 @@ export type Flow = {
   profileUserId: string | null
   profileReturn: ScreenKey
   inviteTarget: { userId: string; name: string } | null
+  activeThreadId: string | null
   sendFailOpen: boolean
   gender: Gender
   safetyPrefs: SafetyPrefs
@@ -153,6 +155,8 @@ export type Flow = {
   openInvite: (userId: string, name: string) => void
   /** 誘いを実際に送信する(実データ)。成功でresolve。 */
   submitInvite: (game: string, whenText: string, message: string) => Promise<void>
+  /** 実データのトークルーム(約束/promise)を開く。 */
+  openThread: (promiseId: string) => void
   setGender: (g: Gender) => void
   setSafetyPref: <K extends keyof SafetyPrefs>(key: K, value: SafetyPrefs[K]) => void
   applyRecommendedFemalePrefs: () => void
@@ -174,6 +178,7 @@ const INITIAL = {
   profileUserId: null as string | null,
   profileReturn: 'search' as ScreenKey,
   inviteTarget: null as { userId: string; name: string } | null,
+  activeThreadId: null as string | null,
   sendFailOpen: false,
   reviewStars: 5,
   reviewTag: '時間ぴったり',
@@ -287,6 +292,19 @@ export default function App() {
     }
   }, [hydrateAccount])
 
+  // 「いま遊べる」オンライン表示: 安心設定でオンライン状態の公開をオンに
+  // している間だけ、自分の在席をRealtime Presenceでブロードキャストする。
+  useEffect(() => {
+    if (!isBackendConfigured || !state.userId || !state.safetyPrefs.showOnline) return
+    const stop = trackMyPresence({
+      userId: state.userId,
+      nickname: state.nickname,
+      avatarInitial: state.nickname.charAt(0) || '?',
+      avatarColor: '#B3E5F2',
+    })
+    return stop
+  }, [state.userId, state.safetyPrefs.showOnline, state.nickname])
+
   // テーマを <html data-theme> に反映(CSS変数が切替わる)
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme
@@ -330,7 +348,9 @@ export default function App() {
 
   const sendInvite = useCallback(() => {
     clearTimer()
-    setState((p) => ({ ...p, screen: 'sending' }))
+    // デモの誘いフロー: 前回の実データのトークルームが残っていると
+    // Talk画面がそれを表示してしまうため、ここで必ずクリアする
+    setState((p) => ({ ...p, screen: 'sending', activeThreadId: null }))
     timer.current = setTimeout(
       () => setState((p) => ({ ...p, screen: 'match' })),
       AUTO_ADVANCE_MS,
@@ -347,10 +367,10 @@ export default function App() {
     if (isBackendConfigured && host.userId && state.userId) {
       setState((p) => ({ ...p, bookingInsufficient: false, bookingError: null }))
       try {
-        await createBookingRemote(host.userId, state.bookingDuration)
+        const promiseId = await createBookingRemote(host.userId, state.bookingDuration)
         const cost = coinsForDuration(host.hourlyRate, state.bookingDuration)
         clearTimer()
-        setState((p) => ({ ...p, coinBalance: p.coinBalance - cost, screen: 'sending' }))
+        setState((p) => ({ ...p, coinBalance: p.coinBalance - cost, screen: 'sending', activeThreadId: promiseId }))
         timer.current = setTimeout(() => setState((p) => ({ ...p, screen: 'match' })), AUTO_ADVANCE_MS)
       } catch (err) {
         const message = err instanceof Error ? err.message : ''
@@ -380,6 +400,7 @@ export default function App() {
       coinBalance: p.coinBalance - cost,
       bookingInsufficient: false,
       screen: 'sending',
+      activeThreadId: null,
     }))
     // 決済成功後は、誘い送信と同じ自動遷移(返事待ち→マッチ)につなげる
     timer.current = setTimeout(() => setState((p) => ({ ...p, screen: 'match' })), AUTO_ADVANCE_MS)
@@ -439,6 +460,7 @@ export default function App() {
       if (!target) throw new Error('送信先が不明です')
       await createInviteRemote(target.userId, game, whenText, message)
     },
+    openThread: (promiseId) => setState((p) => ({ ...p, activeThreadId: promiseId, screen: 'talk' })),
     submitReport: async (category, alsoBlock) => {
       const target = state.reportTarget
       // 実データの相手(userIdあり)かつバックエンド接続時のみDBへ送信。

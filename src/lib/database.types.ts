@@ -35,6 +35,19 @@ export type ReportCategory =
   | 'other'
 export type ReportSeverity = 'low' | 'high' | 'critical'
 export type ReportStatus = 'open' | 'reviewing' | 'resolved'
+export type BoardMood = 'エンジョイ' | 'ランク上げ' | 'ガチ'
+export type BoardVc = '必須' | 'どちらでも' | 'なし'
+export type BoardAudience = '全員' | '同性のみ'
+export type BoardStatus = 'open' | 'closed' | 'cancelled'
+export type NotificationType =
+  | 'invite_received'
+  | 'invite_approved'
+  | 'message_received'
+  | 'verification_approved'
+  | 'verification_rejected'
+  | 'board_joined'
+export type AccountRequestType = 'data_export' | 'account_deletion'
+export type AccountRequestStatus = 'pending' | 'processing' | 'completed'
 
 export type Database = {
   public: {
@@ -229,6 +242,107 @@ export type Database = {
         Update: Record<string, never>
         Relationships: []
       }
+      messages: {
+        Row: {
+          id: string
+          promise_id: string
+          sender_id: string
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          promise_id: string
+          sender_id: string
+          body: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
+      message_reads: {
+        Row: { promise_id: string; user_id: string; last_read_at: string }
+        Insert: { promise_id: string; user_id: string; last_read_at?: string }
+        Update: { last_read_at?: string }
+        Relationships: []
+      }
+      board_posts: {
+        Row: {
+          id: string
+          creator_id: string
+          game: string
+          mood: BoardMood
+          when_text: string
+          capacity: number
+          vc: BoardVc
+          audience: BoardAudience
+          verified_only: boolean
+          note: string
+          status: BoardStatus
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          creator_id: string
+          game: string
+          mood?: BoardMood
+          when_text: string
+          capacity?: number
+          vc?: BoardVc
+          audience?: BoardAudience
+          verified_only?: boolean
+          note?: string
+        }
+        Update: { status?: BoardStatus }
+        Relationships: []
+      }
+      board_participants: {
+        Row: { post_id: string; user_id: string; joined_at: string }
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: NotificationType
+          title: string
+          body: string
+          related_id: string | null
+          read: boolean
+          created_at: string
+        }
+        Insert: Record<string, never>
+        Update: { read?: boolean }
+        Relationships: []
+      }
+      notification_prefs: {
+        Row: {
+          user_id: string
+          notify_invites: boolean
+          notify_online_friends: boolean
+          notify_recommendations: boolean
+        }
+        Insert: Record<string, never>
+        Update: {
+          notify_invites?: boolean
+          notify_online_friends?: boolean
+          notify_recommendations?: boolean
+        }
+        Relationships: []
+      }
+      account_requests: {
+        Row: {
+          id: string
+          user_id: string
+          type: AccountRequestType
+          status: AccountRequestStatus
+          created_at: string
+        }
+        Insert: { id?: string; user_id: string; type: AccountRequestType }
+        Update: Record<string, never>
+        Relationships: []
+      }
       reviews: {
         Row: {
           id: string
@@ -315,6 +429,10 @@ export type Database = {
       }
       decline_invite: {
         Args: { p_invite_id: string }
+        Returns: void
+      }
+      join_board_post: {
+        Args: { p_post_id: string }
         Returns: void
       }
       approve_identity_verification: {

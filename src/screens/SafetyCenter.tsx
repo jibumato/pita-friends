@@ -2,7 +2,7 @@ import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
-import { SubHeader, Card, ListRow } from '../components/Ui'
+import { SubHeader, Card } from '../components/Ui'
 
 const REPORTS = [
   '暴言・ハラスメント',
@@ -60,16 +60,29 @@ export default function SafetyCenter({ flow }: { flow: Flow }) {
           </span>
         </div>
 
-        <span style={{ fontSize: 13, color: C.ink }}>▶ 困ったことがありましたか?</span>
+        <span style={{ fontSize: 13, color: C.ink }}>▶ こんな時は、その相手を通報してください</span>
         <Card>
           {REPORTS.map((r, i) => (
-            <ListRow key={r} label={r} divider={i < REPORTS.length - 1} />
+            <div
+              key={r}
+              style={{
+                padding: '13px 14px',
+                borderBottom: i < REPORTS.length - 1 ? `1.5px solid ${C.divider}` : 'none',
+              }}
+            >
+              <span style={{ fontSize: 13, color: C.ink }}>{r}</span>
+            </div>
           ))}
         </Card>
+        <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6, marginTop: -6 }}>
+          通報はトーク画面やプロフィール画面の「通報」から、その相手を選んで行えます。
+        </span>
 
         <div style={{ display: 'flex', gap: 10 }}>
           <div
+            onClick={() => flow.go('blockList')}
             style={{
+              cursor: 'pointer',
               flex: 1,
               background: C.white,
               border: `1.5px solid ${C.border}`,
@@ -81,11 +94,13 @@ export default function SafetyCenter({ flow }: { flow: Flow }) {
               gap: 3,
             }}
           >
-            <span style={{ fontSize: 13, color: C.ink }}>ブロックする</span>
-            <span style={{ fontSize: 10, color: C.muted }}>相手に通知されません</span>
+            <span style={{ fontSize: 13, color: C.ink }}>ブロックリスト</span>
+            <span style={{ fontSize: 10, color: C.muted }}>ブロック中の相手を確認・解除</span>
           </div>
           <div
+            onClick={() => flow.openLegalDoc('mimamori')}
             style={{
+              cursor: 'pointer',
               flex: 1,
               background: C.white,
               border: `1.5px solid ${C.border}`,

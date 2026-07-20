@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
@@ -5,15 +6,34 @@ import StatusBar from '../components/StatusBar'
 import BottomTabs from '../components/BottomTabs'
 import { Card, ListRow } from '../components/Ui'
 import { Coin } from '../components/Icon'
+import { isBackendConfigured } from '../lib/supabase'
+import { fetchFriendCount, fetchPendingInviteCount } from '../lib/queries'
 
 export default function MyPage({ flow }: { flow: Flow }) {
+  const [friendCount, setFriendCount] = useState<number | null>(null)
+  const [pendingCount, setPendingCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    let active = true
+    fetchFriendCount()
+      .then((n) => active && setFriendCount(n))
+      .catch(() => active && setFriendCount(0))
+    fetchPendingInviteCount()
+      .then((n) => active && setPendingCount(n))
+      .catch(() => active && setPendingCount(0))
+    return () => {
+      active = false
+    }
+  }, [])
+
   const dotakyanRate =
     flow.confirmedCount >= 3 ? `${Math.round((flow.dotakyanCount / flow.confirmedCount) * 100)}%` : '—'
   const STATS = [
     { v: `★${flow.mannerScore.toFixed(1)}`, l: 'マナー', fg: C.lavender },
     { v: dotakyanRate, l: 'ドタキャン', fg: C.ink },
     { v: String(flow.confirmedCount), l: 'プレイ回数', fg: C.ink },
-    { v: '12', l: 'フレンド', fg: C.ink },
+    { v: isBackendConfigured ? (friendCount === null ? '…' : String(friendCount)) : '12', l: 'フレンド', fg: C.ink },
   ]
   return (
     <Screen background={C.surface}>
@@ -77,7 +97,9 @@ export default function MyPage({ flow }: { flow: Flow }) {
                   {flow.isVerified ? '✓ 本人確認済み' : '本人確認 未完了'}
                 </span>
               </div>
-              <span style={{ fontSize: 11, color: C.muted }}>Apex / マイクラ · 平日夜メイン</span>
+              <span style={{ fontSize: 11, color: C.muted }}>
+                {flow.hostSettings.games.length > 0 ? flow.hostSettings.games.join(' / ') : 'あそぶゲームを設定しよう'}
+              </span>
             </div>
             <span
               onClick={() => flow.go('setup')}
@@ -175,20 +197,22 @@ export default function MyPage({ flow }: { flow: Flow }) {
             sub="承認待ちのリクエスト"
             onClick={() => flow.go('requests')}
             right={
-              <span
-                style={{
-                  fontSize: 10,
-                  color: C.ink,
-                  background: C.lime,
-                  border: `1.5px solid ${C.border}`,
-                  borderRadius: 99,
-                  minWidth: 18,
-                  textAlign: 'center',
-                  padding: '1px 6px',
-                }}
-              >
-                2
-              </span>
+              (isBackendConfigured ? (pendingCount ?? 0) : 2) > 0 ? (
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: C.ink,
+                    background: C.lime,
+                    border: `1.5px solid ${C.border}`,
+                    borderRadius: 99,
+                    minWidth: 18,
+                    textAlign: 'center',
+                    padding: '1px 6px',
+                  }}
+                >
+                  {isBackendConfigured ? pendingCount : 2}
+                </span>
+              ) : undefined
             }
           />
           <ListRow
@@ -218,8 +242,8 @@ export default function MyPage({ flow }: { flow: Flow }) {
           <ListRow label="ブロックリスト" onClick={() => flow.go('blockList')} />
           <ListRow label="設定" onClick={() => flow.go('settings')} />
           <ListRow label="安全センター・ヘルプ" onClick={() => flow.go('safety')} />
-          <ListRow label="利用規約" />
-          <ListRow label="プライバシーポリシー" divider={false} />
+          <ListRow label="利用規約" onClick={() => flow.openLegalDoc('terms')} />
+          <ListRow label="プライバシーポリシー" divider={false} onClick={() => flow.openLegalDoc('privacy')} />
         </Card>
         <span
           onClick={flow.signOut}

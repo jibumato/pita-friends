@@ -1,21 +1,85 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader, SectionLabel, Card, ListRow, Toggle } from '../components/Ui'
-import { isBackendConfigured } from '../lib/supabase'
+import { isBackendConfigured, supabase } from '../lib/supabase'
+import {
+  fetchNotificationPrefs,
+  updateNotificationPrefs,
+  submitAccountRequest,
+  type NotificationPrefs,
+} from '../lib/queries'
 
 export default function Settings({ flow }: { flow: Flow }) {
-  const [sw, setSw] = useState<Record<string, boolean>>({
-    dark: false,
-    online: true,
-    notifDM: true,
-    notifOnline: true,
-    notifMatch: false,
-    verifiedOnly: true,
-  })
-  const toggle = (k: string) => setSw((s) => ({ ...s, [k]: !s[k] }))
+  const [email, setEmail] = useState<string | null>(null)
+  const [prefs, setPrefs] = useState<NotificationPrefs | null>(null)
+  const [prefsError, setPrefsError] = useState<string | null>(null)
+  const [requestBusy, setRequestBusy] = useState<'data_export' | 'account_deletion' | null>(null)
+  const [requestMessage, setRequestMessage] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  useEffect(() => {
+    if (!isBackendConfigured || !supabase) return
+    let active = true
+    supabase.auth.getUser().then(({ data }) => {
+      if (active) setEmail(data.user?.email ?? null)
+    })
+    fetchNotificationPrefs()
+      .then((p) => active && setPrefs(p))
+      .catch((e) => active && setPrefsError(e instanceof Error ? e.message : '取得に失敗しました'))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  async function togglePref(key: keyof NotificationPrefs) {
+    if (!prefs) return
+    const next = { ...prefs, [key]: !prefs[key] }
+    setPrefs(next)
+    try {
+      await updateNotificationPrefs({ [key]: next[key] })
+    } catch (e) {
+      setPrefs(prefs) // 失敗したら元に戻す
+      setPrefsError(e instanceof Error ? e.message : '更新に失敗しました')
+    }
+  }
+
+  async function handleDataExport() {
+    if (requestBusy) return
+    setRequestBusy('data_export')
+    setRequestMessage(null)
+    try {
+      await submitAccountRequest('data_export')
+      setRequestMessage('データのダウンロード請求を受け付けました。準備でき次第、登録メールアドレス宛にご連絡します。')
+    } catch (e) {
+      setRequestMessage(e instanceof Error ? e.message : '請求に失敗しました')
+    } finally {
+      setRequestBusy(null)
+    }
+  }
+
+  async function handleAccountDeletion() {
+    if (requestBusy) return
+    if (!confirmingDelete) {
+      setConfirmingDelete(true)
+      return
+    }
+    setRequestBusy('account_deletion')
+    setRequestMessage(null)
+    try {
+      await submitAccountRequest('account_deletion')
+      setRequestMessage('アカウント削除の請求を受け付けました。運営が確認のうえ対応します。')
+      setConfirmingDelete(false)
+    } catch (e) {
+      setRequestMessage(e instanceof Error ? e.message : '請求に失敗しました')
+    } finally {
+      setRequestBusy(null)
+    }
+  }
+
+  const verifiedOnlyOn = flow.safetyPrefs.contactScope === 'verified'
 
   return (
     <Screen background={C.surface}>
@@ -40,24 +104,49 @@ export default function Settings({ flow }: { flow: Flow }) {
           />
           <ListRow
             label="オンライン状態を表示"
+            sub="オンにすると「いま遊べる」に表示されます"
             divider={false}
-            right={<Toggle on={sw.online} onToggle={() => toggle('online')} />}
+            right={
+              <Toggle
+                on={flow.safetyPrefs.showOnline}
+                onToggle={() => flow.setSafetyPref('showOnline', !flow.safetyPrefs.showOnline)}
+              />
+            }
           />
         </Card>
 
         <SectionLabel>通知</SectionLabel>
         <Card>
-          <ListRow label="誘い・メッセージ" right={<Toggle on={sw.notifDM} onToggle={() => toggle('notifDM')} />} />
+          <ListRow
+            label="誘い・メッセージ"
+            right={
+              <Toggle
+                on={isBackendConfigured ? (prefs?.notifyInvites ?? true) : true}
+                onToggle={isBackendConfigured ? () => togglePref('notifyInvites') : undefined}
+              />
+            }
+          />
           <ListRow
             label="フレンドの「いま遊べる」"
-            right={<Toggle on={sw.notifOnline} onToggle={() => toggle('notifOnline')} />}
+            right={
+              <Toggle
+                on={isBackendConfigured ? (prefs?.notifyOnlineFriends ?? true) : true}
+                onToggle={isBackendConfigured ? () => togglePref('notifyOnlineFriends') : undefined}
+              />
+            }
           />
           <ListRow
             label="おすすめマッチ"
             divider={false}
-            right={<Toggle on={sw.notifMatch} onToggle={() => toggle('notifMatch')} />}
+            right={
+              <Toggle
+                on={isBackendConfigured ? (prefs?.notifyRecommendations ?? false) : false}
+                onToggle={isBackendConfigured ? () => togglePref('notifyRecommendations') : undefined}
+              />
+            }
           />
         </Card>
+        {prefsError && <span style={{ fontSize: 10.5, color: C.avatarPink, marginTop: -8 }}>{prefsError}</span>}
 
         <SectionLabel>プライバシー・安全</SectionLabel>
         <Card>
@@ -69,11 +158,21 @@ export default function Settings({ flow }: { flow: Flow }) {
           <ListRow
             label="本人確認済みのみから連絡を受ける"
             sub="推奨"
-            right={<Toggle on={sw.verifiedOnly} onToggle={() => toggle('verifiedOnly')} />}
+            right={
+              <Toggle
+                on={verifiedOnlyOn}
+                onToggle={() => flow.setSafetyPref('contactScope', verifiedOnlyOn ? 'all' : 'verified')}
+              />
+            }
           />
           <ListRow label="ブロックリスト" onClick={() => flow.go('blockList')} />
           <ListRow label="安全センター" onClick={() => flow.go('safety')} />
-          <ListRow label="データのダウンロード請求" divider={false} />
+          <ListRow
+            label="データのダウンロード請求"
+            divider={false}
+            onClick={isBackendConfigured ? handleDataExport : undefined}
+            right={requestBusy === 'data_export' ? <span style={{ fontSize: 10, color: C.muted }}>送信中…</span> : undefined}
+          />
         </Card>
 
         <SectionLabel>規約・ポリシー</SectionLabel>
@@ -91,10 +190,36 @@ export default function Settings({ flow }: { flow: Flow }) {
 
         <SectionLabel>アカウント</SectionLabel>
         <Card>
-          <ListRow label="メール・ログイン方法" />
+          <ListRow
+            label="メール・ログイン方法"
+            sub={isBackendConfigured ? email ?? undefined : undefined}
+            divider={isBackendConfigured}
+            right={<></>}
+          />
           {isBackendConfigured && <ListRow label="ログアウト" onClick={flow.signOut} />}
-          <ListRow label="アカウントを削除" danger divider={false} />
+          <ListRow
+            label={confirmingDelete ? 'もう一度タップで削除を請求' : 'アカウントを削除'}
+            danger
+            divider={false}
+            onClick={isBackendConfigured ? handleAccountDeletion : undefined}
+            right={requestBusy === 'account_deletion' ? <span style={{ fontSize: 10, color: C.muted }}>送信中…</span> : undefined}
+          />
         </Card>
+        {requestMessage && (
+          <div
+            style={{
+              background: C.surfaceLavender,
+              border: `1.5px solid ${C.lavender}`,
+              borderRadius: 8,
+              padding: '10px 12px',
+              fontSize: 11.5,
+              color: C.body,
+              lineHeight: 1.6,
+            }}
+          >
+            {requestMessage}
+          </div>
+        )}
 
         {isBackendConfigured && flow.isAdmin && (
           <>

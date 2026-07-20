@@ -1,16 +1,294 @@
+import { useEffect, useRef, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
-import { ChevronLeft, Shield, Phone, Send } from '../components/Icon'
+import { ChevronLeft, Shield, Send } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
+import { isBackendConfigured } from '../lib/supabase'
+import {
+  fetchMessages,
+  fetchThreadPartner,
+  markThreadRead,
+  sendMessage,
+  subscribeToMessages,
+  type ChatMessage,
+  type ThreadPartner,
+} from '../lib/queries'
+import { containsWarningPattern } from '../lib/ngWords'
 
-export default function Talk({ flow }: { flow: Flow }) {
+function Bubble({ side, children }: { side: 'left' | 'right'; children: React.ReactNode }) {
+  const left = side === 'left'
+  return (
+    <div
+      style={{
+        alignSelf: left ? 'flex-start' : 'flex-end',
+        maxWidth: '75%',
+        background: left ? C.white : C.lime,
+        border: `1.5px solid ${C.border}`,
+        borderRadius: left ? '2px 10px 10px 10px' : '10px 2px 10px 10px',
+        padding: '10px 13px',
+      }}
+    >
+      <span style={{ fontSize: 12.5, lineHeight: 1.6, color: C.ink }}>{children}</span>
+    </div>
+  )
+}
+
+/** 実データのトークルーム(promise)。 */
+function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
+  const [partner, setPartner] = useState<ThreadPartner | null>(null)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [myId, setMyId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [warn, setWarn] = useState(false)
+  const [sending, setSending] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setMyId(flow.userId ?? null)
+  }, [flow.userId])
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    Promise.all([fetchThreadPartner(promiseId), fetchMessages(promiseId)])
+      .then(([p, m]) => {
+        if (!active) return
+        setPartner(p)
+        setMessages(m)
+        void markThreadRead(promiseId)
+      })
+      .catch((e) => active && setError(e instanceof Error ? e.message : '読み込みに失敗しました'))
+      .finally(() => active && setLoading(false))
+    const unsubscribe = subscribeToMessages(promiseId, (m) => {
+      setMessages((xs) => (xs.some((x) => x.id === m.id) ? xs : [...xs, m]))
+      void markThreadRead(promiseId)
+    })
+    return () => {
+      active = false
+      unsubscribe()
+    }
+  }, [promiseId])
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
+  }, [messages])
+
+  async function doSend() {
+    const body = draft.trim()
+    if (!body || sending) return
+    setSending(true)
+    setError(null)
+    try {
+      await sendMessage(promiseId, body)
+      setDraft('')
+      setWarn(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '送信に失敗しました')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  function handleSendClick() {
+    if (!draft.trim()) return
+    if (!warn && containsWarningPattern(draft)) {
+      setWarn(true)
+      return
+    }
+    void doSend()
+  }
+
+  return (
+    <Screen background={C.surface}>
+      <StatusBar time="21:49" />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '10px 20px',
+          borderBottom: `1.5px solid ${C.border}`,
+          background: C.white,
+        }}
+      >
+        <div onClick={() => flow.go('talkList')} style={{ cursor: 'pointer' }}>
+          <ChevronLeft />
+        </div>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: partner?.color ?? C.avatarAqua,
+            border: `1.5px solid ${C.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 15,
+            color: C.ink,
+          }}
+        >
+          {partner?.initial ?? '?'}
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 14, color: C.ink }}>{partner?.name ?? '読み込み中…'}</span>
+            {partner?.verified && (
+              <span
+                style={{
+                  fontSize: 9,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.border}`,
+                  padding: '1px 5px',
+                  borderRadius: 4,
+                }}
+              >
+                ✓
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div
+        onClick={() => partner && flow.openReport({ userId: partner.userId, nickname: partner.name })}
+        style={{
+          cursor: 'pointer',
+          background: C.surfaceLavender,
+          borderBottom: `1.5px solid ${C.lavender}`,
+          padding: '8px 20px',
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+        }}
+      >
+        <Shield size={13} style={{ flex: 'none' }} />
+        <span style={{ flex: 1, fontSize: 10, color: C.body }}>
+          やり取りはアプリ内が安全です。外部アプリへの誘導・直接の金銭要求が出たら通報してください。
+        </span>
+        <span style={{ fontSize: 10, color: C.lavender }}>通報 ›</span>
+      </div>
+
+      <div
+        ref={scrollRef}
+        className="pita-scroll"
+        style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}
+      >
+        {loading ? (
+          <span style={{ fontSize: 12, color: C.muted, textAlign: 'center' }}>読み込み中…</span>
+        ) : messages.length === 0 ? (
+          <span style={{ fontSize: 12, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
+            まだメッセージはありません。あいさつしてみましょう
+          </span>
+        ) : (
+          messages.map((m) => (
+            <Bubble key={m.id} side={m.senderId === myId ? 'right' : 'left'}>
+              {m.body}
+            </Bubble>
+          ))
+        )}
+      </div>
+
+      <div style={{ padding: '0 20px', background: C.surface }}>
+        {error && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{error}</span>}
+        {warn && (
+          <div
+            style={{
+              background: C.avatarPink,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 8,
+              padding: '9px 12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+              marginBottom: 8,
+            }}
+          >
+            <span style={{ fontSize: 11, color: C.ink, lineHeight: 1.6 }}>
+              外部への連絡先交換や金銭のやり取りはアプリ内で完結させてください。それでも送信しますか?
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span
+                onClick={() => setWarn(false)}
+                style={{ flex: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11.5, color: C.ink, background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 0' }}
+              >
+                やめる
+              </span>
+              <span
+                onClick={() => void doSend()}
+                style={{ flex: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11.5, color: C.ink, background: C.lime, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 0' }}
+              >
+                送信する
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          padding: '12px 16px 26px',
+          background: C.white,
+          borderTop: `1.5px solid ${C.border}`,
+          alignItems: 'center',
+        }}
+      >
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSendClick()
+          }}
+          placeholder="メッセージを入力"
+          maxLength={2000}
+          style={{
+            flex: 1,
+            background: C.surface,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 8,
+            padding: '11px 14px',
+            fontSize: 12.5,
+            color: C.ink,
+            outline: 'none',
+            fontFamily: 'inherit',
+          }}
+        />
+        <div
+          onClick={handleSendClick}
+          style={{
+            cursor: draft.trim() && !sending ? 'pointer' : 'not-allowed',
+            opacity: draft.trim() && !sending ? 1 : 0.5,
+            width: 44,
+            height: 44,
+            flex: 'none',
+            borderRadius: 8,
+            background: C.fill,
+            boxShadow: `2px 2px 0 ${C.lavender}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Send />
+        </div>
+      </div>
+    </Screen>
+  )
+}
+
+/** デモの演出フロー(マッチングのオンボーディング体験)。 */
+function DemoTalk({ flow }: { flow: Flow }) {
   const goDay = usePress(`3px 3px 0 ${C.shadowCol}`)
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:49" />
-      {/* 相手ヘッダー */}
       <div
         style={{
           display: 'flex',
@@ -58,23 +336,7 @@ export default function Talk({ flow }: { flow: Flow }) {
           </div>
           <span style={{ fontSize: 10, color: C.lavender }}>オンライン</span>
         </div>
-        <div
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 8,
-            background: C.lime,
-            border: `1.5px solid ${C.border}`,
-            boxShadow: `2px 2px 0 ${C.shadowCol}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Phone />
-        </div>
       </div>
-      {/* 安全性の帯(通報起動) */}
       <div
         onClick={() => flow.openReport({ userId: null, nickname: 'みなと' })}
         style={{
@@ -93,22 +355,13 @@ export default function Talk({ flow }: { flow: Flow }) {
         </span>
         <span style={{ fontSize: 10, color: C.lavender }}>通報 ›</span>
       </div>
-      {/* メッセージ */}
       <div
         className="pita-scroll"
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '16px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-        }}
+        style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}
       >
         <Bubble side="left">はじめまして！誘いありがとうございます。今夜22時から大丈夫です🙌</Bubble>
         <Bubble side="right">よろしくお願いします！ゴールド帯でランク回しましょ〜</Bubble>
 
-        {/* あそぶ約束カード */}
         <div
           style={{
             alignSelf: 'center',
@@ -159,20 +412,6 @@ export default function Talk({ flow }: { flow: Flow }) {
               >
                 ✓ 確定する
               </span>
-              <span
-                style={{
-                  flex: 1,
-                  textAlign: 'center',
-                  fontSize: 12,
-                  color: '#fff',
-                  background: 'transparent',
-                  border: '1.5px solid #fff',
-                  padding: '9px 0',
-                  borderRadius: 4,
-                }}
-              >
-                変更を提案
-              </span>
             </div>
           )}
           {flow.dealDone && (
@@ -192,7 +431,6 @@ export default function Talk({ flow }: { flow: Flow }) {
           )}
         </div>
 
-        {/* 確定後の追加表示 */}
         {flow.dealDone && (
           <>
             <div style={{ animation: 'scrIn .3s ease both' }}>
@@ -207,9 +445,7 @@ export default function Talk({ flow }: { flow: Flow }) {
                 animation: 'scrIn .3s .15s ease both',
               }}
             >
-              <span style={{ fontSize: 10.5, color: C.lime }}>
-                🔓 フレンドコード交換が解放されました
-              </span>
+              <span style={{ fontSize: 10.5, color: C.lime }}>🔓 フレンドコード交換が解放されました</span>
             </div>
             <div
               className="pita-press"
@@ -236,7 +472,6 @@ export default function Talk({ flow }: { flow: Flow }) {
           </>
         )}
       </div>
-      {/* 入力バー */}
       <div
         style={{
           display: 'flex',
@@ -277,20 +512,9 @@ export default function Talk({ flow }: { flow: Flow }) {
   )
 }
 
-function Bubble({ side, children }: { side: 'left' | 'right'; children: React.ReactNode }) {
-  const left = side === 'left'
-  return (
-    <div
-      style={{
-        alignSelf: left ? 'flex-start' : 'flex-end',
-        maxWidth: '75%',
-        background: left ? C.white : C.lime,
-        border: `1.5px solid ${C.border}`,
-        borderRadius: left ? '2px 10px 10px 10px' : '10px 2px 10px 10px',
-        padding: '10px 13px',
-      }}
-    >
-      <span style={{ fontSize: 12.5, lineHeight: 1.6, color: C.ink }}>{children}</span>
-    </div>
-  )
+export default function Talk({ flow }: { flow: Flow }) {
+  if (isBackendConfigured && flow.activeThreadId) {
+    return <RealTalk flow={flow} promiseId={flow.activeThreadId} />
+  }
+  return <DemoTalk flow={flow} />
 }

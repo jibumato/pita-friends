@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
@@ -8,6 +8,8 @@ import { Bell, Sun, MoonSmall, Moon } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
+import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
+import { fetchDiscoverableHosts, fetchPendingInviteCount, type DiscoverableHost } from '../lib/queries'
 
 const ONLINE = [
   { initial: 'る', name: 'るか', color: C.avatarOrange },
@@ -20,6 +22,35 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
   const card = usePress(`4px 4px 0 ${C.shadowCol}`)
   // 深夜オフライン状態(状態網羅 C1)のデモ切替
   const [night, setNight] = useState(false)
+
+  const [pendingCount, setPendingCount] = useState<number | null>(null)
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
+  const [recommended, setRecommended] = useState<DiscoverableHost | null>(null)
+
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    let active = true
+    fetchPendingInviteCount()
+      .then((n) => active && setPendingCount(n))
+      .catch(() => active && setPendingCount(0))
+    fetchDiscoverableHosts(flow.userId)
+      .then((hosts) => {
+        if (!active || hosts.length === 0) return
+        const best = [...hosts].sort((a, b) => b.mannerScore - a.mannerScore)[0]
+        setRecommended(best)
+      })
+      .catch(() => {
+        /* おすすめが取れなくてもホーム自体は表示する */
+      })
+    const unsubscribe = subscribeOnlineUsers(flow.userId, setOnlineUsers)
+    return () => {
+      active = false
+      unsubscribe()
+    }
+    // 初回マウント時のみ実行
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <Screen background={C.surface}>
       <StatusBar time={night ? '03:12' : '21:47'} />
@@ -146,7 +177,13 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
         >
           <span style={{ fontSize: 16 }}>🙌</span>
           <span style={{ flex: 1, fontSize: 12, color: C.ink }}>
-            2件の誘いが承認待ちです
+            {isBackendConfigured
+              ? pendingCount === null
+                ? '確認中…'
+                : pendingCount > 0
+                  ? `${pendingCount}件の誘いが承認待ちです`
+                  : '承認待ちの誘いはありません'
+              : '2件の誘いが承認待ちです'}
           </span>
           <span style={{ fontSize: 11, color: C.ink }}>確認する ›</span>
         </div>
@@ -180,141 +217,199 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                 borderRadius: 4,
               }}
             >
-              18人 ONLINE
+              {isBackendConfigured ? onlineUsers.length : 18}人 ONLINE
             </span>
           </div>
-          <div style={{ display: 'flex', gap: 9 }}>
-            {ONLINE.map((u) => (
-              <div
-                key={u.name}
-                style={{
-                  flex: 1,
-                  background: C.white,
-                  border: `1.5px solid ${C.border}`,
-                  borderRadius: 8,
-                  padding: '9px 6px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
+          {isBackendConfigured ? (
+            onlineUsers.length === 0 ? (
+              <span style={{ fontSize: 11, color: '#E3DCFF', padding: '4px 0' }}>
+                いま公開中のフレンドはいません(安心設定「オンライン状態を公開」がオンの人だけ表示されます)
+              </span>
+            ) : (
+              <div style={{ display: 'flex', gap: 9, overflowX: 'auto' }}>
+                {onlineUsers.slice(0, 6).map((u) => (
+                  <div
+                    key={u.userId}
+                    onClick={() => flow.openProfile(u.userId)}
+                    style={{
+                      cursor: 'pointer',
+                      flex: 'none',
+                      width: 74,
+                      background: C.white,
+                      border: `1.5px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: '9px 6px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: 8,
+                        background: u.avatarColor,
+                        border: `1.5px solid ${C.border}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 17,
+                        color: C.ink,
+                      }}
+                    >
+                      {u.avatarInitial}
+                    </div>
+                    <span style={{ fontSize: 11.5, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                      {u.nickname}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : (
+            <div style={{ display: 'flex', gap: 9 }}>
+              {ONLINE.map((u) => (
+                <div
+                  key={u.name}
+                  style={{
+                    flex: 1,
+                    background: C.white,
+                    border: `1.5px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: '9px 6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 8,
+                      background: u.color,
+                      border: `1.5px solid ${C.border}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 17,
+                      color: C.ink,
+                    }}
+                  >
+                    {u.initial}
+                  </div>
+                  <span style={{ fontSize: 11.5, color: C.ink }}>{u.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* 今夜のおすすめマッチ */}
+        {(!isBackendConfigured || recommended) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span style={{ fontSize: 15, color: C.ink }}>▶ 今夜のおすすめマッチ</span>
+              <span style={{ fontSize: 10, color: C.lavender }}>タップでプロフィール →</span>
+            </div>
+            <div
+              className="pita-press"
+              onClick={() => (isBackendConfigured && recommended ? flow.openProfile(recommended.userId) : flow.go('profile'))}
+              {...card.handlers}
+              style={{
+                cursor: 'pointer',
+                background: C.white,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 12,
+                padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                ...card.style,
+              }}
+            >
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <div
                   style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 8,
-                    background: u.color,
+                    width: 56,
+                    height: 56,
+                    borderRadius: 10,
+                    background: isBackendConfigured && recommended ? recommended.avatarColor : C.avatarAqua,
                     border: `1.5px solid ${C.border}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 17,
+                    fontSize: 23,
                     color: C.ink,
                   }}
                 >
-                  {u.initial}
+                  {isBackendConfigured && recommended ? recommended.avatarInitial : 'み'}
                 </div>
-                <span style={{ fontSize: 11.5, color: C.ink }}>{u.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* 今夜のおすすめマッチ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}
-          >
-            <span style={{ fontSize: 15, color: C.ink }}>▶ 今夜のおすすめマッチ</span>
-            <span style={{ fontSize: 10, color: C.lavender }}>タップでプロフィール →</span>
-          </div>
-          <div
-            className="pita-press"
-            onClick={() => flow.go('profile')}
-            {...card.handlers}
-            style={{
-              cursor: 'pointer',
-              background: C.white,
-              border: `1.5px solid ${C.border}`,
-              borderRadius: 12,
-              padding: 16,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              ...card.style,
-            }}
-          >
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 10,
-                  background: C.avatarAqua,
-                  border: `1.5px solid ${C.border}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 23,
-                  color: C.ink,
-                }}
-              >
-                み
-              </div>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 16, color: C.ink }}>みなと</span>
-                  <span
-                    style={{
-                      fontSize: 9.5,
-                      color: C.ink,
-                      background: C.lime,
-                      border: `1.5px solid ${C.border}`,
-                      padding: '2px 7px',
-                      borderRadius: 4,
-                    }}
-                  >
-                    ✓ 本人確認済み
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 16, color: C.ink }}>
+                      {isBackendConfigured && recommended ? recommended.nickname : 'みなと'}
+                    </span>
+                    {(!isBackendConfigured || recommended?.isVerified) && (
+                      <span
+                        style={{
+                          fontSize: 9.5,
+                          color: C.ink,
+                          background: C.lime,
+                          border: `1.5px solid ${C.border}`,
+                          padding: '2px 7px',
+                          borderRadius: 4,
+                        }}
+                      >
+                        ✓ 本人確認済み
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 11, color: C.muted }}>
+                    {isBackendConfigured && recommended
+                      ? recommended.bio || `1時間 ${recommended.hourlyRate} コイン`
+                      : '社会人 / 平日21時〜 / エンジョイ寄り'}
                   </span>
                 </div>
-                <span style={{ fontSize: 11, color: C.muted }}>
-                  社会人 / 平日21時〜 / エンジョイ寄り
-                </span>
+                {!isBackendConfigured && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      background: C.lavender,
+                      border: `1.5px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: '6px 9px',
+                    }}
+                  >
+                    <span style={{ fontSize: 18, color: C.lime }}>{flow.score}%</span>
+                    <span style={{ fontSize: 8.5, color: '#fff' }}>相性</span>
+                  </div>
+                )}
               </div>
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  background: C.lavender,
-                  border: `1.5px solid ${C.border}`,
-                  borderRadius: 8,
-                  padding: '6px 9px',
-                }}
-              >
-                <span style={{ fontSize: 18, color: C.lime }}>{flow.score}%</span>
-                <span style={{ fontSize: 8.5, color: '#fff' }}>相性</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(isBackendConfigured && recommended ? recommended.games : ['Apex ゴールドⅡ', '今夜 22時〜']).map((t) => (
+                  <span
+                    key={t}
+                    style={{
+                      fontSize: 11,
+                      color: C.ink,
+                      background: C.surfaceLavender,
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      border: `1.5px solid ${C.border}`,
+                    }}
+                  >
+                    {t}
+                  </span>
+                ))}
               </div>
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {['Apex ゴールドⅡ', '今夜 22時〜'].map((t) => (
-                <span
-                  key={t}
-                  style={{
-                    fontSize: 11,
-                    color: C.ink,
-                    background: C.surfaceLavender,
-                    padding: '4px 10px',
-                    borderRadius: 4,
-                    border: `1.5px solid ${C.border}`,
-                  }}
-                >
-                  {t}
-                </span>
-              ))}
             </div>
           </div>
-        </div>
+        )}
         </>
         )}
       </div>

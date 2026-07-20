@@ -237,8 +237,9 @@ export default function Requests({ flow }: { flow: Flow }) {
 
   const approve = (r: CardData) => async () => {
     if (isBackendConfigured) {
-      await approveInvite(r.id)
+      const promiseId = await approveInvite(r.id)
       remove(r.id)
+      flow.openThread(promiseId)
     } else {
       flow.go('talk')
     }

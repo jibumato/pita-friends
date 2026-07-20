@@ -9,9 +9,12 @@ import { EmptyState, ErrorState, SkeletonCard } from '../components/States'
 import { searchUsers } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchDiscoverableHosts } from '../lib/queries'
+import { GAMES } from '../flow'
 
 type Phase = 'loading' | 'results' | 'empty' | 'error'
-const FILTERS = ['今夜あそべる', 'Apex', 'ゴールド帯', 'エンジョイ', '✓ 本人確認済みのみ']
+const DEMO_FILTERS = ['今夜あそべる', 'Apex', 'ゴールド帯', 'エンジョイ', '✓ 本人確認済みのみ']
+const VERIFIED_FILTER = '✓ 本人確認済みのみ'
+const REAL_FILTERS = [...GAMES, VERIFIED_FILTER]
 
 /** デモのモックユーザーと実データのホストを、カード表示用の共通形に正規化する。 */
 type DisplayCard = {
@@ -47,11 +50,10 @@ function fromMock(u: (typeof searchUsers)[number]): DisplayCard {
 
 export default function Search({ flow }: { flow: Flow }) {
   const [phase, setPhase] = useState<Phase>('loading')
-  const [selected, setSelected] = useState<Record<string, boolean>>({
-    今夜あそべる: true,
-    Apex: true,
-    '✓ 本人確認済みのみ': true,
-  })
+  const [selected, setSelected] = useState<Record<string, boolean>>(
+    isBackendConfigured ? {} : { 今夜あそべる: true, Apex: true, [VERIFIED_FILTER]: true },
+  )
+  const [query, setQuery] = useState('')
   const [realCards, setRealCards] = useState<DisplayCard[] | null>(null)
 
   // 初回マウント: バックエンド接続時は実際のホスト一覧を取得、
@@ -98,7 +100,22 @@ export default function Search({ flow }: { flow: Flow }) {
     // 初回マウント時のみ実行(flow.userIdの変化では再実行しない)
   }, [])
 
-  const cards = isBackendConfigured ? (realCards ?? []) : searchUsers.map(fromMock)
+  const allCards = isBackendConfigured ? (realCards ?? []) : searchUsers.map(fromMock)
+
+  // 実データ時のみ、検索語・ゲーム・本人確認済みで実際に絞り込む
+  const cards = isBackendConfigured
+    ? allCards.filter((c) => {
+        if (selected[VERIFIED_FILTER] && !c.verified) return false
+        const activeGames = GAMES.filter((g) => selected[g])
+        if (activeGames.length > 0 && !activeGames.some((g) => c.tags.includes(g))) return false
+        const q = query.trim().toLowerCase()
+        if (q) {
+          const hay = `${c.name} ${c.meta} ${c.tags.join(' ')}`.toLowerCase()
+          if (!hay.includes(q)) return false
+        }
+        return true
+      })
+    : allCards
 
   return (
     <Screen background={C.surface}>
@@ -149,10 +166,27 @@ export default function Search({ flow }: { flow: Flow }) {
           }}
         >
           <SearchIcon size={16} color={C.ink} strokeWidth={2.4} />
-          <span style={{ fontSize: 13, color: C.placeholder }}>ゲーム名・プレイスタイルで検索</span>
+          {isBackendConfigured ? (
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ゲーム名・プレイスタイルで検索"
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                background: 'transparent',
+                fontSize: 13,
+                color: C.ink,
+                fontFamily: 'inherit',
+              }}
+            />
+          ) : (
+            <span style={{ fontSize: 13, color: C.placeholder }}>ゲーム名・プレイスタイルで検索</span>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          {FILTERS.map((f) => {
+          {(isBackendConfigured ? REAL_FILTERS : DEMO_FILTERS).map((f) => {
             const sel = !!selected[f]
             const isVerify = f.startsWith('✓')
             return (
@@ -207,6 +241,11 @@ export default function Search({ flow }: { flow: Flow }) {
               「安心設定」で受け身にしている人は表示されません。誘いは相手の設定により承認制になります。
             </span>
           </div>
+          {isBackendConfigured && allCards.length > 0 && cards.length === 0 && (
+            <span style={{ fontSize: 12, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
+              条件に合うホストが見つかりませんでした
+            </span>
+          )}
           {cards.map((u) => (
             <div
               key={u.key}

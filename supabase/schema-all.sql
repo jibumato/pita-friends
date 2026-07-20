@@ -1,7 +1,7 @@
--- ピタフレ 全スキーマ結合版 (0001〜0009)
+-- ピタフレ 全スキーマ結合版 (0001〜0012)
 -- Supabase ダッシュボードの SQL Editor に、このファイルの中身をそのまま貼り付けて一括実行できます。
 -- (個別ファイルは supabase/migrations/ にあります。CLIを使う場合は supabase db push でも可)
--- 既に0001〜0008を適用済みの場合は、追加分の 0009 だけを実行すればOKです。
+-- 既に0001〜0009を適用済みの場合は、追加分の 0010〜0012 だけを実行すればOKです。
 
 
 -- ============================================================================
@@ -1350,3 +1350,609 @@ $$;
 
 -- authenticated には付与関数を公開しない(サーバーのservice_role専用)。
 revoke all on function public.credit_coins_for_purchase(uuid, text, int, int, text, text) from public;
+
+-- ============================================================================
+-- 0010_messaging.sql
+-- ============================================================================
+-- ============================================================
+-- チャット(トーク): promise(約束)の当事者間だけがやり取りできる
+-- ------------------------------------------------------------
+-- 「約束」は invite承認(0004) または コイン予約(0003)から成立する。
+-- 0003のcreate_bookingは当初promiseを作っていなかった(promisesの
+-- チェック制約は booking_id 経由も許容していたが未実装)ため、
+-- ここで実装を完成させ、予約からも実際にトークルームに入れるようにする。
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- messages
+-- ------------------------------------------------------------
+create table public.messages (
+  id uuid primary key default gen_random_uuid(),
+  promise_id uuid not null references public.promises (id) on delete cascade,
+  sender_id uuid not null references auth.users (id) on delete cascade,
+  body text not null check (char_length(body) between 1 and 2000),
+  created_at timestamptz not null default now()
+);
+
+alter table public.messages enable row level security;
+
+create policy "messages_select_participant"
+  on public.messages for select
+  to authenticated
+  using (
+    exists (
+      select 1 from public.promises pr
+      where pr.id = promise_id and (pr.user_a = auth.uid() or pr.user_b = auth.uid())
+    )
+  );
+
+create policy "messages_insert_participant"
+  on public.messages for insert
+  to authenticated
+  with check (
+    sender_id = auth.uid()
+    and exists (
+      select 1 from public.promises pr
+      where pr.id = promise_id and (pr.user_a = auth.uid() or pr.user_b = auth.uid())
+    )
+  );
+
+-- UPDATE/DELETEポリシーは意図的に作らない(送信取り消し・編集は未対応)。
+
+create index messages_promise_created_idx on public.messages (promise_id, created_at);
+
+-- ------------------------------------------------------------
+-- message_reads: 相手のトークルームをどこまで読んだか(promise単位)
+-- ------------------------------------------------------------
+create table public.message_reads (
+  promise_id uuid not null references public.promises (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  last_read_at timestamptz not null default now(),
+  primary key (promise_id, user_id)
+);
+
+alter table public.message_reads enable row level security;
+
+create policy "message_reads_select_own"
+  on public.message_reads for select
+  to authenticated
+  using (user_id = auth.uid());
+
+create policy "message_reads_upsert_own"
+  on public.message_reads for insert
+  to authenticated
+  with check (
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.promises pr
+      where pr.id = promise_id and (pr.user_a = auth.uid() or pr.user_b = auth.uid())
+    )
+  );
+
+create policy "message_reads_update_own"
+  on public.message_reads for update
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- Realtime配信を有効化(トーク画面が postgres_changes を購読して即時反映する)
+alter publication supabase_realtime add table public.messages;
+
+-- ------------------------------------------------------------
+-- create_booking を修正: 予約確定時にも promise(約束) を作成する。
+-- これにより、コイン予約からも実際のトークルームに入れるようになる
+-- (これまでは invite承認からのpromiseしか実装されていなかった)。
+-- 戻り値は booking_id ではなく promise_id に変更する
+-- (旧戻り値はフロント側で未使用だった。トーク画面への遷移に使う)。
+-- ------------------------------------------------------------
+create or replace function public.create_booking(p_host_id uuid, p_duration_minutes int)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_guest_id uuid := auth.uid();
+  v_hourly_rate int;
+  v_is_host boolean;
+  v_coins int;
+  v_balance int;
+  v_booking_id uuid;
+  v_promise_id uuid;
+begin
+  if v_guest_id is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if p_duration_minutes not in (30, 60, 120) then
+    raise exception 'INVALID_DURATION';
+  end if;
+
+  select hourly_rate, is_host into v_hourly_rate, v_is_host
+  from public.host_settings
+  where user_id = p_host_id
+  for share;
+
+  if v_hourly_rate is null or not v_is_host then
+    raise exception 'HOST_NOT_AVAILABLE';
+  end if;
+
+  v_coins := round(v_hourly_rate * p_duration_minutes / 60.0);
+
+  select balance into v_balance
+  from public.coin_wallets
+  where user_id = v_guest_id
+  for update;
+
+  if v_balance is null or v_balance < v_coins then
+    raise exception 'INSUFFICIENT_COINS';
+  end if;
+
+  update public.coin_wallets set balance = balance - v_coins where user_id = v_guest_id;
+
+  insert into public.bookings (guest_id, host_id, duration_minutes, coins)
+  values (v_guest_id, p_host_id, p_duration_minutes, v_coins)
+  returning id into v_booking_id;
+
+  insert into public.coin_transactions (user_id, amount, type, related_booking_id)
+  values (v_guest_id, -v_coins, 'booking_spend', v_booking_id);
+
+  insert into public.promises (booking_id, user_a, user_b)
+  values (v_booking_id, v_guest_id, p_host_id)
+  returning id into v_promise_id;
+
+  return v_promise_id;
+end;
+$$;
+
+-- ============================================================================
+-- 0011_board.sql
+-- ============================================================================
+-- ============================================================
+-- 募集板: 実際に募集を作成・一覧・参加できるようにする
+-- ============================================================
+
+create table public.board_posts (
+  id uuid primary key default gen_random_uuid(),
+  creator_id uuid not null references auth.users (id) on delete cascade,
+  game text not null,
+  mood text not null default 'エンジョイ' check (mood in ('エンジョイ', 'ランク上げ', 'ガチ')),
+  when_text text not null,
+  capacity int not null default 2 check (capacity between 1 and 4),
+  vc text not null default 'どちらでも' check (vc in ('必須', 'どちらでも', 'なし')),
+  audience text not null default '全員' check (audience in ('全員', '同性のみ')),
+  verified_only boolean not null default true,
+  note text not null default '',
+  status text not null default 'open' check (status in ('open', 'closed', 'cancelled')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.board_posts enable row level security;
+
+-- 一覧はブロック関係にない相手の募集のみ見える(0005のprofiles方針と揃える)。
+create policy "board_posts_select_not_blocked"
+  on public.board_posts for select
+  to authenticated
+  using (
+    creator_id = auth.uid()
+    or not exists (
+      select 1 from public.blocks b
+      where (b.blocker_id = auth.uid() and b.blocked_id = board_posts.creator_id)
+         or (b.blocker_id = board_posts.creator_id and b.blocked_id = auth.uid())
+    )
+  );
+
+create policy "board_posts_insert_own"
+  on public.board_posts for insert
+  to authenticated
+  with check (creator_id = auth.uid());
+
+-- 作成者は自分の募集を閉じる(キャンセル)ことができる。定員等の直接改変は不可。
+create policy "board_posts_update_own_status"
+  on public.board_posts for update
+  to authenticated
+  using (creator_id = auth.uid())
+  with check (creator_id = auth.uid());
+
+create index board_posts_status_created_idx on public.board_posts (status, created_at desc);
+
+-- ------------------------------------------------------------
+-- board_participants: 参加者(作成者本人は含めない)
+-- ------------------------------------------------------------
+create table public.board_participants (
+  post_id uuid not null references public.board_posts (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  joined_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+
+alter table public.board_participants enable row level security;
+
+create policy "board_participants_select_related"
+  on public.board_participants for select
+  to authenticated
+  using (
+    user_id = auth.uid()
+    or exists (select 1 from public.board_posts bp where bp.id = post_id and bp.creator_id = auth.uid())
+  );
+
+-- INSERTは join_board_post 関数経由のみ(定員・条件チェックをアトミックに行うため)。
+
+-- ------------------------------------------------------------
+-- join_board_post: 参加表明。定員・本人確認要件・同性のみ要件・
+-- ブロック関係をサーバー側でアトミックに検証してから参加者を追加する。
+-- ------------------------------------------------------------
+create function public.join_board_post(p_post_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_post public.board_posts;
+  v_me uuid := auth.uid();
+  v_me_verified boolean;
+  v_me_gender text;
+  v_creator_gender text;
+  v_joined_count int;
+begin
+  if v_me is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
+  select * into v_post from public.board_posts where id = p_post_id for update;
+  if v_post.id is null then
+    raise exception 'POST_NOT_FOUND';
+  end if;
+  if v_post.status <> 'open' then
+    raise exception 'POST_NOT_OPEN';
+  end if;
+  if v_post.creator_id = v_me then
+    raise exception 'CANNOT_JOIN_OWN_POST';
+  end if;
+  if exists (select 1 from public.board_participants where post_id = p_post_id and user_id = v_me) then
+    raise exception 'ALREADY_JOINED';
+  end if;
+  if exists (
+    select 1 from public.blocks b
+    where (b.blocker_id = v_me and b.blocked_id = v_post.creator_id)
+       or (b.blocker_id = v_post.creator_id and b.blocked_id = v_me)
+  ) then
+    raise exception 'BLOCKED';
+  end if;
+
+  select count(*) into v_joined_count from public.board_participants where post_id = p_post_id;
+  if v_joined_count >= v_post.capacity then
+    raise exception 'POST_FULL';
+  end if;
+
+  if v_post.verified_only then
+    select is_verified into v_me_verified from public.profile_trust_stats where user_id = v_me;
+    if not coalesce(v_me_verified, false) then
+      raise exception 'VERIFICATION_REQUIRED';
+    end if;
+  end if;
+
+  if v_post.audience = '同性のみ' then
+    select gender into v_me_gender from public.profiles where id = v_me;
+    select gender into v_creator_gender from public.profiles where id = v_post.creator_id;
+    if v_me_gender is distinct from v_creator_gender then
+      raise exception 'AUDIENCE_RESTRICTED';
+    end if;
+  end if;
+
+  insert into public.board_participants (post_id, user_id) values (p_post_id, v_me);
+
+  -- 定員に達したら自動的にクローズする
+  if v_joined_count + 1 >= v_post.capacity then
+    update public.board_posts set status = 'closed' where id = p_post_id;
+  end if;
+end;
+$$;
+
+revoke all on function public.join_board_post(uuid) from public;
+grant execute on function public.join_board_post(uuid) to authenticated;
+
+-- ============================================================================
+-- 0012_notifications.sql
+-- ============================================================================
+-- ============================================================
+-- 通知: 誘い受信/承認・新着メッセージ・本人確認結果・募集参加を
+-- 実際にDBへ記録し、通知画面で表示できるようにする。
+-- ============================================================
+
+create table public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  type text not null check (type in (
+    'invite_received', 'invite_approved', 'message_received',
+    'verification_approved', 'verification_rejected', 'board_joined'
+  )),
+  title text not null,
+  body text not null default '',
+  related_id uuid,
+  read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+alter table public.notifications enable row level security;
+
+create policy "notifications_select_own"
+  on public.notifications for select
+  to authenticated
+  using (user_id = auth.uid());
+
+create policy "notifications_update_own"
+  on public.notifications for update
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- INSERTポリシーは意図的に作らない(下記のSECURITY DEFINERトリガー/関数経由のみ)。
+
+create index notifications_user_created_idx on public.notifications (user_id, created_at desc);
+
+alter publication supabase_realtime add table public.notifications;
+
+-- ------------------------------------------------------------
+-- 誘いを受け取った時に通知する
+-- ------------------------------------------------------------
+create function public.notify_invite_received()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_name text;
+begin
+  select nickname into v_name from public.profiles where id = new.from_user;
+  insert into public.notifications (user_id, type, title, body, related_id)
+  values (
+    new.to_user,
+    'invite_received',
+    coalesce(nullif(v_name, ''), '誰か') || 'さんから誘いが届きました',
+    new.game || ' · ' || new.when_text,
+    new.id
+  );
+  return new;
+end;
+$$;
+
+create trigger invites_notify_received
+  after insert on public.invites
+  for each row execute function public.notify_invite_received();
+
+-- ------------------------------------------------------------
+-- 誘いが承認された時に、送った側へ通知する
+-- ------------------------------------------------------------
+create function public.notify_invite_approved()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_name text;
+begin
+  if new.status = 'approved' and old.status <> 'approved' then
+    select nickname into v_name from public.profiles where id = new.to_user;
+    insert into public.notifications (user_id, type, title, body, related_id)
+    values (
+      new.from_user,
+      'invite_approved',
+      coalesce(nullif(v_name, ''), '相手') || 'さんが誘いを承認しました',
+      new.game || ' · ' || new.when_text,
+      new.id
+    );
+  end if;
+  return new;
+end;
+$$;
+
+create trigger invites_notify_approved
+  after update on public.invites
+  for each row execute function public.notify_invite_approved();
+
+-- ------------------------------------------------------------
+-- 新着メッセージをトーク相手に通知する
+-- ------------------------------------------------------------
+create function public.notify_message_received()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_promise public.promises;
+  v_recipient uuid;
+  v_name text;
+begin
+  select * into v_promise from public.promises where id = new.promise_id;
+  v_recipient := case when v_promise.user_a = new.sender_id then v_promise.user_b else v_promise.user_a end;
+  select nickname into v_name from public.profiles where id = new.sender_id;
+  insert into public.notifications (user_id, type, title, body, related_id)
+  values (
+    v_recipient,
+    'message_received',
+    coalesce(nullif(v_name, ''), '相手') || 'さんからメッセージ',
+    left(new.body, 60),
+    new.promise_id
+  );
+  return new;
+end;
+$$;
+
+create trigger messages_notify_received
+  after insert on public.messages
+  for each row execute function public.notify_message_received();
+
+-- ------------------------------------------------------------
+-- 募集への参加を、募集の作成者に通知する
+-- ------------------------------------------------------------
+create function public.notify_board_joined()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_post public.board_posts;
+  v_name text;
+begin
+  select * into v_post from public.board_posts where id = new.post_id;
+  select nickname into v_name from public.profiles where id = new.user_id;
+  insert into public.notifications (user_id, type, title, body, related_id)
+  values (
+    v_post.creator_id,
+    'board_joined',
+    coalesce(nullif(v_name, ''), '誰か') || 'さんが募集に参加しました',
+    v_post.game || ' · ' || v_post.when_text,
+    new.post_id
+  );
+  return new;
+end;
+$$;
+
+create trigger board_participants_notify_joined
+  after insert on public.board_participants
+  for each row execute function public.notify_board_joined();
+
+-- ------------------------------------------------------------
+-- 本人確認の承認/却下でも通知する(0008の関数にnotifications挿入を追加)。
+-- それ以外のロジックは0008から変更しない。
+-- ------------------------------------------------------------
+create or replace function public.approve_identity_verification(p_verification_id uuid, p_is_adult boolean default true)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.identity_verifications;
+begin
+  if not exists (select 1 from public.admins where user_id = auth.uid()) then
+    raise exception 'NOT_ADMIN';
+  end if;
+
+  select * into v_row from public.identity_verifications where id = p_verification_id;
+  if v_row.id is null then
+    raise exception 'VERIFICATION_NOT_FOUND';
+  end if;
+  if v_row.status <> 'pending' then
+    raise exception 'VERIFICATION_NOT_PENDING';
+  end if;
+
+  update public.identity_verifications
+    set status = 'verified', is_adult = p_is_adult, verified_at = now()
+    where id = p_verification_id;
+
+  update public.profile_trust_stats
+    set is_verified = true, updated_at = now()
+    where user_id = v_row.user_id;
+
+  insert into public.notifications (user_id, type, title, body, related_id)
+  values (v_row.user_id, 'verification_approved', '本人確認が完了しました', 'プロフィールに確認済みバッジが表示されます', p_verification_id);
+end;
+$$;
+
+create or replace function public.reject_identity_verification(p_verification_id uuid, p_reason text default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.identity_verifications;
+begin
+  if not exists (select 1 from public.admins where user_id = auth.uid()) then
+    raise exception 'NOT_ADMIN';
+  end if;
+
+  select * into v_row from public.identity_verifications where id = p_verification_id;
+  if v_row.id is null then
+    raise exception 'VERIFICATION_NOT_FOUND';
+  end if;
+  if v_row.status <> 'pending' then
+    raise exception 'VERIFICATION_NOT_PENDING';
+  end if;
+
+  update public.identity_verifications
+    set status = 'rejected', rejected_reason = p_reason
+    where id = p_verification_id;
+
+  insert into public.notifications (user_id, type, title, body, related_id)
+  values (v_row.user_id, 'verification_rejected', '本人確認が承認されませんでした', '書類・写真を選び直して再提出してください', p_verification_id);
+end;
+$$;
+
+grant execute on function public.approve_identity_verification(uuid, boolean) to authenticated;
+grant execute on function public.reject_identity_verification(uuid, text) to authenticated;
+
+-- ------------------------------------------------------------
+-- notification_prefs: 通知の受け取り設定(設定画面のトグルを実データに)
+-- ------------------------------------------------------------
+create table public.notification_prefs (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  notify_invites boolean not null default true,
+  notify_online_friends boolean not null default true,
+  notify_recommendations boolean not null default false
+);
+
+alter table public.notification_prefs enable row level security;
+
+create policy "notification_prefs_select_own"
+  on public.notification_prefs for select
+  to authenticated
+  using (user_id = auth.uid());
+
+create policy "notification_prefs_update_own"
+  on public.notification_prefs for update
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- INSERTポリシーは意図的に作らない(新規ユーザー作成時のトリガーのみが作成する)。
+
+create function public.handle_new_user_notification_prefs()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.notification_prefs (user_id) values (new.id);
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created_notification_prefs
+  after insert on auth.users
+  for each row execute function public.handle_new_user_notification_prefs();
+
+-- ------------------------------------------------------------
+-- account_requests: アカウント削除・データダウンロード請求
+-- 実際の削除/エクスポート処理は運営が手動で行う(初期フェーズ、
+-- docs/manual-verification-review.md と同様の運用)。ここではまず
+-- 「実際にリクエストが記録される」ことを保証する。
+-- ------------------------------------------------------------
+create table public.account_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  type text not null check (type in ('data_export', 'account_deletion')),
+  status text not null default 'pending' check (status in ('pending', 'processing', 'completed')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.account_requests enable row level security;
+
+create policy "account_requests_select_own"
+  on public.account_requests for select
+  to authenticated
+  using (user_id = auth.uid());
+
+create policy "account_requests_insert_own"
+  on public.account_requests for insert
+  to authenticated
+  with check (user_id = auth.uid());
+
+-- ステータス更新(処理完了)は運営(service_role)のみ。authenticatedへのUPDATEポリシーは作らない。

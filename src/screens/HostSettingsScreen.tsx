@@ -134,19 +134,24 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
         </div>
 
         <span style={{ fontSize: 12, color: C.muted }}>ひとことメッセージ</span>
-        <div
+        <textarea
+          value={h.bio}
+          onChange={(e) => flow.setHostPref('bio', e.target.value)}
+          maxLength={200}
+          placeholder="ゴールド帯でまったり回してます。初心者さんも歓迎です！"
           style={{
             background: C.white,
             border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '12px 14px',
             minHeight: 60,
+            fontSize: 12.5,
+            color: C.ink,
+            resize: 'none',
+            fontFamily: 'inherit',
+            outline: 'none',
           }}
-        >
-          <span style={{ fontSize: 12.5, color: h.bio ? C.ink : C.placeholder }}>
-            {h.bio || 'ゴールド帯でまったり回してます。初心者さんも歓迎です！'}
-          </span>
-        </div>
+        />
 
         <div
           style={{

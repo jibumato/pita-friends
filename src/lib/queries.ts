@@ -5,7 +5,14 @@
  */
 import { requireSupabase } from './supabase'
 import type { ContactScope, Gender, CoinPack } from '../flow'
-import type { ReportCategory } from './database.types'
+import type {
+  ReportCategory,
+  BoardMood,
+  BoardVc,
+  BoardAudience,
+  NotificationType,
+  AccountRequestType,
+} from './database.types'
 
 export type AccountBundle = {
   profile: { nickname: string; gender: Gender }
@@ -282,15 +289,461 @@ export async function fetchIncomingInvites(): Promise<IncomingInvite[]> {
   })
 }
 
-/** 誘いを承認する(約束が成立する)。 */
-export async function approveInvite(inviteId: string): Promise<void> {
-  const { error } = await requireSupabase().rpc('approve_invite', { p_invite_id: inviteId })
+/** 誘いを承認する(約束が成立する)。成立した約束(promise)のIDを返す(トークルームを開くのに使う)。 */
+export async function approveInvite(inviteId: string): Promise<string> {
+  const { data, error } = await requireSupabase().rpc('approve_invite', { p_invite_id: inviteId })
   if (error) throw error
+  return data as string
 }
 
 /** 誘いを辞退する。 */
 export async function declineInvite(inviteId: string): Promise<void> {
   const { error } = await requireSupabase().rpc('decline_invite', { p_invite_id: inviteId })
+  if (error) throw error
+}
+
+/* ============================================================
+ * チャット(トーク)。promise(約束)の当事者間だけがやり取りできる。
+ * schema: 0010_messaging。
+ * ============================================================ */
+
+export type ChatThread = {
+  promiseId: string
+  partnerId: string
+  partnerName: string
+  partnerInitial: string
+  partnerColor: string
+  partnerVerified: boolean
+  lastMessage: string | null
+  lastMessageAt: string | null
+  unreadCount: number
+}
+
+/** 自分が参加している約束(promise)を、トークルーム一覧として取得する。 */
+export async function fetchChatThreads(): Promise<ChatThread[]> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+
+  const { data: promises, error } = await sb
+    .from('promises')
+    .select('id, user_a, user_b, created_at')
+    .or(`user_a.eq.${me},user_b.eq.${me}`)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  if (!promises || promises.length === 0) return []
+
+  const partnerIds = promises.map((p) => (p.user_a === me ? p.user_b : p.user_a))
+  const promiseIds = promises.map((p) => p.id)
+
+  const [{ data: profiles }, { data: stats }, { data: lastMsgs }, { data: reads }] = await Promise.all([
+    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color').in('id', partnerIds),
+    sb.from('profile_trust_stats').select('user_id, is_verified').in('user_id', partnerIds),
+    sb
+      .from('messages')
+      .select('promise_id, body, created_at, sender_id')
+      .in('promise_id', promiseIds)
+      .order('created_at', { ascending: false }),
+    sb.from('message_reads').select('promise_id, last_read_at').eq('user_id', me).in('promise_id', promiseIds),
+  ])
+  const pMap = new Map((profiles ?? []).map((p) => [p.id, p]))
+  const sMap = new Map((stats ?? []).map((s) => [s.user_id, s]))
+  const readMap = new Map((reads ?? []).map((r) => [r.promise_id, r.last_read_at]))
+
+  // 各promiseの最新メッセージ(降順で取得済みなので最初の1件)
+  const lastByPromise = new Map<string, { body: string; created_at: string }>()
+  for (const m of lastMsgs ?? []) {
+    if (!lastByPromise.has(m.promise_id)) lastByPromise.set(m.promise_id, m)
+  }
+  // 未読数(自分が送っていない、last_read_at以降のメッセージ数)をカウント
+  const unreadByPromise = new Map<string, number>()
+  for (const m of lastMsgs ?? []) {
+    if (m.sender_id === me) continue
+    const lastRead = readMap.get(m.promise_id)
+    if (!lastRead || new Date(m.created_at) > new Date(lastRead)) {
+      unreadByPromise.set(m.promise_id, (unreadByPromise.get(m.promise_id) ?? 0) + 1)
+    }
+  }
+
+  return promises.map((p) => {
+    const partnerId = p.user_a === me ? p.user_b : p.user_a
+    const partner = pMap.get(partnerId)
+    const last = lastByPromise.get(p.id)
+    return {
+      promiseId: p.id,
+      partnerId,
+      partnerName: partner?.nickname || '(名前未設定)',
+      partnerInitial: partner?.avatar_initial || partner?.nickname?.charAt(0) || '?',
+      partnerColor: partner?.avatar_color || '#B3E5F2',
+      partnerVerified: sMap.get(partnerId)?.is_verified ?? false,
+      lastMessage: last?.body ?? null,
+      lastMessageAt: last?.created_at ?? p.created_at,
+      unreadCount: unreadByPromise.get(p.id) ?? 0,
+    }
+  })
+}
+
+export type ThreadPartner = {
+  userId: string
+  name: string
+  initial: string
+  color: string
+  verified: boolean
+}
+
+/** トークルーム(約束)の相手の情報を取得する(ヘッダー表示用)。 */
+export async function fetchThreadPartner(promiseId: string): Promise<ThreadPartner | null> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+
+  const { data: promise, error } = await sb
+    .from('promises')
+    .select('user_a, user_b')
+    .eq('id', promiseId)
+    .single()
+  if (error) throw error
+  if (!promise) return null
+  const partnerId = promise.user_a === me ? promise.user_b : promise.user_a
+
+  const [{ data: profile }, { data: stats }] = await Promise.all([
+    sb.from('profiles').select('nickname, avatar_initial, avatar_color').eq('id', partnerId).maybeSingle(),
+    sb.from('profile_trust_stats').select('is_verified').eq('user_id', partnerId).maybeSingle(),
+  ])
+  return {
+    userId: partnerId,
+    name: profile?.nickname || '(名前未設定)',
+    initial: profile?.avatar_initial || profile?.nickname?.charAt(0) || '?',
+    color: profile?.avatar_color || '#B3E5F2',
+    verified: stats?.is_verified ?? false,
+  }
+}
+
+export type ChatMessage = {
+  id: string
+  promiseId: string
+  senderId: string
+  body: string
+  createdAt: string
+}
+
+/** 指定promiseのメッセージを古い順に取得する。 */
+export async function fetchMessages(promiseId: string): Promise<ChatMessage[]> {
+  const { data, error } = await requireSupabase()
+    .from('messages')
+    .select('id, promise_id, sender_id, body, created_at')
+    .eq('promise_id', promiseId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []).map((m) => ({
+    id: m.id,
+    promiseId: m.promise_id,
+    senderId: m.sender_id,
+    body: m.body,
+    createdAt: m.created_at,
+  }))
+}
+
+/** メッセージを送信する。 */
+export async function sendMessage(promiseId: string, body: string): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const { error } = await sb.from('messages').insert({ promise_id: promiseId, sender_id: me, body })
+  if (error) throw error
+}
+
+/** このpromiseを既読にする(自分の既読位置を今に更新)。 */
+export async function markThreadRead(promiseId: string): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) return
+  const { error } = await sb
+    .from('message_reads')
+    .upsert({ promise_id: promiseId, user_id: me, last_read_at: new Date().toISOString() }, { onConflict: 'promise_id,user_id' })
+  if (error) throw error
+}
+
+/** 指定promiseの新着メッセージをリアルタイム購読する。戻り値の関数で解除する。 */
+export function subscribeToMessages(promiseId: string, onInsert: (m: ChatMessage) => void): () => void {
+  const sb = requireSupabase()
+  const channel = sb
+    .channel(`messages:${promiseId}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: `promise_id=eq.${promiseId}` },
+      (payload) => {
+        const m = payload.new as { id: string; promise_id: string; sender_id: string; body: string; created_at: string }
+        onInsert({ id: m.id, promiseId: m.promise_id, senderId: m.sender_id, body: m.body, createdAt: m.created_at })
+      },
+    )
+    .subscribe()
+  return () => {
+    sb.removeChannel(channel)
+  }
+}
+
+/* ============================================================
+ * 募集板。schema: 0011_board。
+ * ============================================================ */
+
+export type BoardPostItem = {
+  id: string
+  game: string
+  mood: BoardMood
+  whenText: string
+  vc: BoardVc
+  capacity: number
+  joinedCount: number
+  audience: BoardAudience
+  verifiedOnly: boolean
+  note: string
+  creatorId: string
+  creatorName: string
+  creatorInitial: string
+  creatorColor: string
+  creatorManner: number
+  hasJoined: boolean
+  isMine: boolean
+}
+
+/** 募集中(status='open')の投稿を新しい順に取得する。 */
+export async function fetchBoardPosts(): Promise<BoardPostItem[]> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+
+  const { data: posts, error } = await sb
+    .from('board_posts')
+    .select('id, creator_id, game, mood, when_text, capacity, vc, audience, verified_only, note, created_at')
+    .eq('status', 'open')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  if (!posts || posts.length === 0) return []
+
+  const postIds = posts.map((p) => p.id)
+  const creatorIds = posts.map((p) => p.creator_id)
+  const [{ data: profiles }, { data: stats }, { data: participants }] = await Promise.all([
+    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color').in('id', creatorIds),
+    sb.from('profile_trust_stats').select('user_id, manner_score').in('user_id', creatorIds),
+    sb.from('board_participants').select('post_id, user_id').in('post_id', postIds),
+  ])
+  const pMap = new Map((profiles ?? []).map((p) => [p.id, p]))
+  const sMap = new Map((stats ?? []).map((s) => [s.user_id, s]))
+  const countByPost = new Map<string, number>()
+  const joinedByMe = new Set<string>()
+  for (const pp of participants ?? []) {
+    countByPost.set(pp.post_id, (countByPost.get(pp.post_id) ?? 0) + 1)
+    if (pp.user_id === me) joinedByMe.add(pp.post_id)
+  }
+
+  return posts.map((p) => {
+    const creator = pMap.get(p.creator_id)
+    return {
+      id: p.id,
+      game: p.game,
+      mood: p.mood,
+      whenText: p.when_text,
+      vc: p.vc,
+      capacity: p.capacity,
+      joinedCount: countByPost.get(p.id) ?? 0,
+      audience: p.audience,
+      verifiedOnly: p.verified_only,
+      note: p.note,
+      creatorId: p.creator_id,
+      creatorName: creator?.nickname || '(名前未設定)',
+      creatorInitial: creator?.avatar_initial || creator?.nickname?.charAt(0) || '?',
+      creatorColor: creator?.avatar_color || '#B3E5F2',
+      creatorManner: sMap.get(p.creator_id)?.manner_score ?? 4.5,
+      hasJoined: joinedByMe.has(p.id),
+      isMine: p.creator_id === me,
+    }
+  })
+}
+
+/** 募集を作成する。 */
+export async function createBoardPost(input: {
+  game: string
+  mood: BoardMood
+  whenText: string
+  capacity: number
+  vc: BoardVc
+  audience: BoardAudience
+  verifiedOnly: boolean
+  note: string
+}): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const { error } = await sb.from('board_posts').insert({
+    creator_id: me,
+    game: input.game,
+    mood: input.mood,
+    when_text: input.whenText,
+    capacity: input.capacity,
+    vc: input.vc,
+    audience: input.audience,
+    verified_only: input.verifiedOnly,
+    note: input.note,
+  })
+  if (error) throw error
+}
+
+/** 募集に参加する。定員・本人確認要件等はDB側(join_board_post RPC)でアトミックに検証される。 */
+export async function joinBoardPost(postId: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('join_board_post', { p_post_id: postId })
+  if (!error) return
+  const msg = error.message
+  if (msg.includes('VERIFICATION_REQUIRED')) throw new Error('本人確認済みの方のみ参加できます')
+  if (msg.includes('AUDIENCE_RESTRICTED')) throw new Error('参加条件（同性のみ）を満たしていません')
+  if (msg.includes('POST_FULL')) throw new Error('定員に達しました')
+  if (msg.includes('ALREADY_JOINED')) throw new Error('すでに参加しています')
+  if (msg.includes('BLOCKED')) throw new Error('参加できません')
+  if (msg.includes('CANNOT_JOIN_OWN_POST')) throw new Error('自分の募集には参加できません')
+  if (msg.includes('POST_NOT_OPEN')) throw new Error('この募集は締め切られました')
+  throw error
+}
+
+/* ============================================================
+ * 通知。schema: 0012_notifications(DBトリガーで自動生成される)。
+ * ============================================================ */
+
+export type AppNotification = {
+  id: string
+  type: NotificationType
+  title: string
+  body: string
+  relatedId: string | null
+  read: boolean
+  createdAt: string
+}
+
+/** 自分宛の通知を新しい順に取得する(直近50件)。 */
+export async function fetchNotifications(): Promise<AppNotification[]> {
+  const { data, error } = await requireSupabase()
+    .from('notifications')
+    .select('id, type, title, body, related_id, read, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return (data ?? []).map((n) => ({
+    id: n.id,
+    type: n.type,
+    title: n.title,
+    body: n.body,
+    relatedId: n.related_id,
+    read: n.read,
+    createdAt: n.created_at,
+  }))
+}
+
+/** 未読の通知をすべて既読にする。 */
+export async function markAllNotificationsRead(): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) return
+  const { error } = await sb.from('notifications').update({ read: true }).eq('user_id', me).eq('read', false)
+  if (error) throw error
+}
+
+/** 承認された誘い(invite)から成立した約束(promise)のIDを引く(通知タップでトークを開くのに使う)。 */
+export async function resolvePromiseIdForInvite(inviteId: string): Promise<string | null> {
+  const { data, error } = await requireSupabase()
+    .from('promises')
+    .select('id')
+    .eq('invite_id', inviteId)
+    .maybeSingle()
+  if (error) throw error
+  return data?.id ?? null
+}
+
+/** 自分宛の承認待ちの誘い件数(ホームのバッジ表示用の軽量版)。 */
+export async function fetchPendingInviteCount(): Promise<number> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) return 0
+  const { count, error } = await sb
+    .from('invites')
+    .select('id', { count: 'exact', head: true })
+    .eq('to_user', me)
+    .eq('status', 'pending')
+  if (error) throw error
+  return count ?? 0
+}
+
+/** これまでに約束(promise)が成立した相手の人数(マイページの「フレンド」表示用)。 */
+export async function fetchFriendCount(): Promise<number> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) return 0
+  const { data, error } = await sb.from('promises').select('user_a, user_b').or(`user_a.eq.${me},user_b.eq.${me}`)
+  if (error) throw error
+  const partners = new Set((data ?? []).map((p) => (p.user_a === me ? p.user_b : p.user_a)))
+  return partners.size
+}
+
+/* ============================================================
+ * 通知設定・アカウント請求。schema: 0012_notifications。
+ * ============================================================ */
+
+export type NotificationPrefs = {
+  notifyInvites: boolean
+  notifyOnlineFriends: boolean
+  notifyRecommendations: boolean
+}
+
+/** 通知の受け取り設定を取得する。 */
+export async function fetchNotificationPrefs(): Promise<NotificationPrefs> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const { data, error } = await sb
+    .from('notification_prefs')
+    .select('notify_invites, notify_online_friends, notify_recommendations')
+    .eq('user_id', me)
+    .single()
+  if (error) throw error
+  return {
+    notifyInvites: data.notify_invites,
+    notifyOnlineFriends: data.notify_online_friends,
+    notifyRecommendations: data.notify_recommendations,
+  }
+}
+
+/** 通知の受け取り設定を更新する。 */
+export async function updateNotificationPrefs(patch: Partial<NotificationPrefs>): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const { error } = await sb
+    .from('notification_prefs')
+    .update({
+      notify_invites: patch.notifyInvites,
+      notify_online_friends: patch.notifyOnlineFriends,
+      notify_recommendations: patch.notifyRecommendations,
+    })
+    .eq('user_id', me)
+  if (error) throw error
+}
+
+/** アカウント削除・データダウンロードの請求を記録する(運営が手動で対応)。 */
+export async function submitAccountRequest(type: AccountRequestType): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const { error } = await sb.from('account_requests').insert({ user_id: me, type })
   if (error) throw error
 }
 
@@ -366,7 +819,11 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
   }
 }
 
-/** ホスト予約を確定し、コインをアトミックに消費する(create_booking RPC)。予約IDを返す。 */
+/**
+ * ホスト予約を確定し、コインをアトミックに消費する(create_booking RPC)。
+ * 予約と同時に約束(promise)も作成され、そのpromise_idを返す
+ * (トークルームを開くのに使う)。
+ */
 export async function createBookingRemote(hostId: string, durationMinutes: 30 | 60 | 120): Promise<string> {
   const { data, error } = await requireSupabase().rpc('create_booking', {
     p_host_id: hostId,
