@@ -7,6 +7,7 @@ import { SubHeader } from '../components/Ui'
 import { Shield } from '../components/Icon'
 import {
   approveVerification,
+  deleteVerificationImages,
   fetchPendingVerifications,
   getSignedVerificationImageUrl,
   rejectVerification,
@@ -99,6 +100,8 @@ function VerificationCard({
     setError(null)
     try {
       await approveVerification(v.id, true)
+      // 審査確定後に提出画像を削除(best-effort・失敗しても審査は確定済み)
+      await deleteVerificationImages([v.documentPath, v.selfiePath])
       onDecide(v.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '承認に失敗しました')
@@ -113,6 +116,7 @@ function VerificationCard({
     setError(null)
     try {
       await rejectVerification(v.id, reason)
+      await deleteVerificationImages([v.documentPath, v.selfiePath])
       onDecide(v.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '却下に失敗しました')

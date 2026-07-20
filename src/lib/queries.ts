@@ -268,7 +268,7 @@ export async function getSignedVerificationImageUrl(path: string): Promise<strin
   return data.signedUrl
 }
 
-/** 本人確認を承認する。判定後、画像はサーバー側で自動削除される。 */
+/** 本人確認を承認する(DB更新のみ)。画像削除は deleteVerificationImages で別途行う。 */
 export async function approveVerification(verificationId: string, isAdult: boolean): Promise<void> {
   const { error } = await requireSupabase().rpc('approve_identity_verification', {
     p_verification_id: verificationId,
@@ -277,11 +277,26 @@ export async function approveVerification(verificationId: string, isAdult: boole
   if (error) throw error
 }
 
-/** 本人確認を却下する。判定後、画像はサーバー側で自動削除される。 */
+/** 本人確認を却下する(DB更新のみ)。画像削除は deleteVerificationImages で別途行う。 */
 export async function rejectVerification(verificationId: string, reason: string): Promise<void> {
   const { error } = await requireSupabase().rpc('reject_identity_verification', {
     p_verification_id: verificationId,
     p_reason: reason,
   })
   if (error) throw error
+}
+
+/**
+ * 審査完了後、提出画像をStorageから削除する(管理者のみ、best-effort)。
+ * 法務レビュー(operations-legal-qa.md Q6)の「審査後は速やかに削除」に対応。
+ * 削除に失敗しても審査結果自体は確定済みなので、例外は投げず握りつぶす。
+ */
+export async function deleteVerificationImages(paths: (string | null)[]): Promise<void> {
+  const targets = paths.filter((p): p is string => !!p)
+  if (targets.length === 0) return
+  try {
+    await requireSupabase().storage.from('identity-documents').remove(targets)
+  } catch (err) {
+    console.warn('[pita-friends] 本人確認画像の削除に失敗(審査結果は確定済み):', err)
+  }
 }
