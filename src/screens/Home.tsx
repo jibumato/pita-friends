@@ -7,6 +7,7 @@ import BottomTabs from '../components/BottomTabs'
 import { Bell, Sun, MoonSmall, Moon } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
+import { isBackendConfigured } from '../lib/supabase'
 
 const ONLINE = [
   { initial: 'る', name: 'るか', color: C.avatarOrange },
@@ -99,32 +100,34 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '14px 20px 0',
         }}
       >
-        {/* デモ: 通常 / 深夜オフライン 状態の切替 */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, marginBottom: -8 }}>
-          {(
-            [
-              [false, '通常'],
-              [true, '深夜'],
-            ] as [boolean, string][]
-          ).map(([v, label]) => (
-            <span
-              key={label}
-              onClick={() => setNight(v)}
-              {...clickable(() => setNight(v), `${label}状態を表示`)}
-              style={{
-                cursor: 'pointer',
-                fontSize: 9,
-                color: night === v ? C.lime : C.muted,
-                background: night === v ? C.fill : 'transparent',
-                border: `1.5px solid ${night === v ? C.border : C.placeholder}`,
-                padding: '2px 8px',
-                borderRadius: 4,
-              }}
-            >
-              {label}
-            </span>
-          ))}
-        </div>
+        {/* デモ: 通常 / 深夜オフライン 状態の切替。実データ接続時は非表示。 */}
+        {!isBackendConfigured && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, marginBottom: -8 }}>
+            {(
+              [
+                [false, '通常'],
+                [true, '深夜'],
+              ] as [boolean, string][]
+            ).map(([v, label]) => (
+              <span
+                key={label}
+                onClick={() => setNight(v)}
+                {...clickable(() => setNight(v), `${label}状態を表示`)}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 9,
+                  color: night === v ? C.lime : C.muted,
+                  background: night === v ? C.fill : 'transparent',
+                  border: `1.5px solid ${night === v ? C.border : C.placeholder}`,
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* 受け取った誘い(承認制) */}
         <div

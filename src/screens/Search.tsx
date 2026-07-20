@@ -106,33 +106,35 @@ export default function Search({ flow }: { flow: Flow }) {
       <div style={{ padding: '12px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 21, color: C.ink }}>▶ さがす</span>
-          {/* デモ状態スイッチャ(ハーネス上での状態網羅プレビュー) */}
-          <div style={{ display: 'flex', gap: 4 }}>
-            {(
-              [
-                ['results', '結果'],
-                ['loading', '検索中'],
-                ['empty', '0件'],
-                ['error', 'エラー'],
-              ] as [Phase, string][]
-            ).map(([p, label]) => (
-              <span
-                key={p}
-                onClick={() => setPhase(p)}
-                style={{
-                  cursor: 'pointer',
-                  fontSize: 9,
-                  color: phase === p ? C.lime : C.muted,
-                  background: phase === p ? C.fill : 'transparent',
-                  border: `1.5px solid ${phase === p ? C.ink : C.placeholder}`,
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                }}
-              >
-                {label}
-              </span>
-            ))}
-          </div>
+          {/* デモ状態スイッチャ(ハーネス上での状態網羅プレビュー)。実データ接続時は非表示。 */}
+          {!isBackendConfigured && (
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(
+                [
+                  ['results', '結果'],
+                  ['loading', '検索中'],
+                  ['empty', '0件'],
+                  ['error', 'エラー'],
+                ] as [Phase, string][]
+              ).map(([p, label]) => (
+                <span
+                  key={p}
+                  onClick={() => setPhase(p)}
+                  style={{
+                    cursor: 'pointer',
+                    fontSize: 9,
+                    color: phase === p ? C.lime : C.muted,
+                    background: phase === p ? C.fill : 'transparent',
+                    border: `1.5px solid ${phase === p ? C.ink : C.placeholder}`,
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                  }}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div
           style={{

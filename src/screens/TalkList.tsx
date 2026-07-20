@@ -7,11 +7,13 @@ import BottomTabs from '../components/BottomTabs'
 import { Chat } from '../components/Icon'
 import { EmptyState } from '../components/States'
 import { talkThreads } from '../data/mock'
+import { isBackendConfigured } from '../lib/supabase'
 
 export default function TalkList({ flow }: { flow: Flow }) {
   // デモ: トークが無い状態(状態網羅 B1)も確認できるように
   const [cleared, setCleared] = useState(false)
-  const threads = cleared ? [] : talkThreads
+  // 実データ接続時はトークはまだ未実装のため空状態を表示(モックの会話は出さない)
+  const threads = isBackendConfigured || cleared ? [] : talkThreads
 
   return (
     <Screen background={C.surface}>
@@ -25,12 +27,14 @@ export default function TalkList({ flow }: { flow: Flow }) {
         }}
       >
         <span style={{ fontSize: 21, color: C.ink }}>▶ トーク</span>
-        <span
-          onClick={() => setCleared((v) => !v)}
-          style={{ cursor: 'pointer', fontSize: 10, color: C.muted }}
-        >
-          {cleared ? '例を表示' : '空の状態'}
-        </span>
+        {!isBackendConfigured && (
+          <span
+            onClick={() => setCleared((v) => !v)}
+            style={{ cursor: 'pointer', fontSize: 10, color: C.muted }}
+          >
+            {cleared ? '例を表示' : '空の状態'}
+          </span>
+        )}
       </div>
 
       {threads.length === 0 ? (
