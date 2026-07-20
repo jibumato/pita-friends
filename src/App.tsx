@@ -97,6 +97,8 @@ export type Flow = {
   reportTarget: ReportTarget | null
   legalDocKey: LegalDocKey | null
   legalDocReturn: ScreenKey
+  profileUserId: string | null
+  profileReturn: ScreenKey
   sendFailOpen: boolean
   gender: Gender
   safetyPrefs: SafetyPrefs
@@ -143,6 +145,8 @@ export type Flow = {
   submitReport: (category: ReportCategory, alsoBlock: boolean) => Promise<void>
   /** 規約・ポリシー画面を開く。 */
   openLegalDoc: (key: LegalDocKey) => void
+  /** 指定ユーザーの公開プロフィールを開く(実データ)。 */
+  openProfile: (userId: string) => void
   setGender: (g: Gender) => void
   setSafetyPref: <K extends keyof SafetyPrefs>(key: K, value: SafetyPrefs[K]) => void
   applyRecommendedFemalePrefs: () => void
@@ -161,6 +165,8 @@ const INITIAL = {
   reportTarget: null as ReportTarget | null,
   legalDocKey: null as LegalDocKey | null,
   legalDocReturn: 'settings' as ScreenKey,
+  profileUserId: null as string | null,
+  profileReturn: 'search' as ScreenKey,
   sendFailOpen: false,
   reviewStars: 5,
   reviewTag: '時間ぴったり',
@@ -302,7 +308,14 @@ export default function App() {
   const go = useCallback(
     (s: ScreenKey) => {
       clearTimer()
-      setState((p) => ({ ...p, screen: s, reportTarget: null, sendFailOpen: false }))
+      // openProfile 以外(plain go)でプロフィールへ来た場合は実データ対象を持たない=デモ表示
+      setState((p) => ({
+        ...p,
+        screen: s,
+        reportTarget: null,
+        sendFailOpen: false,
+        profileUserId: s === 'profile' ? null : p.profileUserId,
+      }))
     },
     [clearTimer],
   )
@@ -409,6 +422,8 @@ export default function App() {
     closeReport: () => setState((p) => ({ ...p, reportTarget: null })),
     openLegalDoc: (key) =>
       setState((p) => ({ ...p, legalDocKey: key, legalDocReturn: p.screen, screen: 'legalDoc' })),
+    openProfile: (userId) =>
+      setState((p) => ({ ...p, profileUserId: userId, profileReturn: p.screen, screen: 'profile' })),
     submitReport: async (category, alsoBlock) => {
       const target = state.reportTarget
       // 実データの相手(userIdあり)かつバックエンド接続時のみDBへ送信。

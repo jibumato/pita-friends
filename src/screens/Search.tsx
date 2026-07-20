@@ -210,7 +210,11 @@ export default function Search({ flow }: { flow: Flow }) {
           {cards.map((u) => (
             <div
               key={u.key}
-              onClick={() => flow.go('profile')}
+              onClick={() =>
+                isBackendConfigured && u.bookingHost?.userId
+                  ? flow.openProfile(u.bookingHost.userId)
+                  : flow.go('profile')
+              }
               style={{
                 cursor: 'pointer',
                 background: C.white,

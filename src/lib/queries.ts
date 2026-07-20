@@ -184,6 +184,78 @@ export async function createCheckoutSession(packId: string): Promise<string> {
   return data.url
 }
 
+export type PublicProfile = {
+  userId: string
+  nickname: string
+  avatarInitial: string
+  avatarColor: string
+  isVerified: boolean
+  mannerScore: number
+  dotakyanRate: number
+  confirmedCount: number
+  isHost: boolean
+  hourlyRate: number
+  games: string[]
+  bio: string
+  latestReview: { stars: number; tags: string[]; reviewerName: string } | null
+}
+
+/** 他ユーザーの公開プロフィールを取得する(さがす/ホーム等から個別に表示)。 */
+export async function fetchPublicProfile(userId: string): Promise<PublicProfile | null> {
+  const sb = requireSupabase()
+  const [profileRes, trustRes, hostRes, reviewRes] = await Promise.all([
+    sb.from('profiles').select('nickname, avatar_initial, avatar_color').eq('id', userId).single(),
+    sb
+      .from('profile_trust_stats')
+      .select('manner_score, dotakyan_count, confirmed_count, is_verified')
+      .eq('user_id', userId)
+      .single(),
+    sb.from('host_settings').select('is_host, hourly_rate, games, bio').eq('user_id', userId).single(),
+    sb
+      .from('reviews')
+      .select('stars, tags, reviewer_id')
+      .eq('reviewee_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+  if (profileRes.error) throw profileRes.error
+  if (!profileRes.data) return null
+  const trust = trustRes.data
+  const host = hostRes.data
+  const confirmed = trust?.confirmed_count ?? 0
+  const dotakyan = trust?.dotakyan_count ?? 0
+  const denom = confirmed + dotakyan
+
+  let latestReview: PublicProfile['latestReview'] = null
+  if (reviewRes.data) {
+    let reviewerName = 'フレンド'
+    const { data: reviewer } = await sb
+      .from('profiles')
+      .select('nickname')
+      .eq('id', reviewRes.data.reviewer_id)
+      .maybeSingle()
+    if (reviewer?.nickname) reviewerName = reviewer.nickname
+    latestReview = { stars: reviewRes.data.stars, tags: reviewRes.data.tags, reviewerName }
+  }
+
+  return {
+    userId,
+    nickname: profileRes.data.nickname || '(名前未設定)',
+    avatarInitial: profileRes.data.avatar_initial || profileRes.data.nickname?.charAt(0) || '?',
+    avatarColor: profileRes.data.avatar_color || '#B3E5F2',
+    isVerified: trust?.is_verified ?? false,
+    mannerScore: trust?.manner_score ?? 4.5,
+    dotakyanRate: denom > 0 ? Math.round((dotakyan / denom) * 100) : 0,
+    confirmedCount: confirmed,
+    isHost: host?.is_host ?? false,
+    hourlyRate: host?.hourly_rate ?? 0,
+    games: host?.games ?? [],
+    bio: host?.bio ?? '',
+    latestReview,
+  }
+}
+
 /** ホスト予約を確定し、コインをアトミックに消費する(create_booking RPC)。予約IDを返す。 */
 export async function createBookingRemote(hostId: string, durationMinutes: 30 | 60 | 120): Promise<string> {
   const { data, error } = await requireSupabase().rpc('create_booking', {
