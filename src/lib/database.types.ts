@@ -130,6 +130,34 @@ export type Database = {
         Update: Record<string, never>
         Relationships: []
       }
+      coin_packs: {
+        Row: {
+          id: string
+          coins: number
+          bonus_coins: number
+          price_yen: number
+          sort: number
+          active: boolean
+        }
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
+      }
+      coin_purchases: {
+        Row: {
+          id: string
+          user_id: string
+          pack_id: string | null
+          coins_credited: number
+          price_yen: number
+          stripe_session_id: string
+          stripe_payment_intent: string | null
+          created_at: string
+        }
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
+      }
       host_settings: {
         Row: {
           user_id: string

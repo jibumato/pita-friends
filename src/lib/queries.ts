@@ -4,7 +4,7 @@
  * を確認する、または requireSupabase() が例外を投げる)。
  */
 import { requireSupabase } from './supabase'
-import type { ContactScope, Gender } from '../flow'
+import type { ContactScope, Gender, CoinPack } from '../flow'
 import type { ReportCategory } from './database.types'
 
 export type AccountBundle = {
@@ -147,6 +147,41 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
         isVerified: stat?.is_verified ?? false,
       }
     })
+}
+
+/* ============================================================
+ * 決済(Stripe)。コインの付与はサーバー(webhook)でのみ行うため、
+ * ここでできるのは「パック一覧の取得」と「Checkoutセッションの発行要求」まで。
+ * ============================================================ */
+
+/** 販売中のコインパックをサーバー(coin_packs)から取得する。 */
+export async function fetchCoinPacks(): Promise<CoinPack[]> {
+  const { data, error } = await requireSupabase()
+    .from('coin_packs')
+    .select('id, coins, bonus_coins, price_yen')
+    .eq('active', true)
+    .order('sort', { ascending: true })
+  if (error) throw error
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    coins: p.coins,
+    bonusCoins: p.bonus_coins,
+    priceYen: p.price_yen,
+  }))
+}
+
+/**
+ * Stripe Checkout セッションを発行し、決済ページのURLを返す。
+ * 呼び出し側はこのURLへ遷移する。付与は決済完了後にwebhookが行う。
+ */
+export async function createCheckoutSession(packId: string): Promise<string> {
+  const { data, error } = await requireSupabase().functions.invoke<{ url?: string; error?: string }>(
+    'create-checkout-session',
+    { body: { packId } },
+  )
+  if (error) throw error
+  if (!data?.url) throw new Error(data?.error || '決済ページの準備に失敗しました')
+  return data.url
 }
 
 /** ホスト予約を確定し、コインをアトミックに消費する(create_booking RPC)。予約IDを返す。 */

@@ -230,11 +230,29 @@ export default function App() {
   useEffect(() => {
     if (!isBackendConfigured) return
     let active = true
+    // Stripe決済からの戻り(success_url/cancel_url の ?checkout=...)を検出
+    const checkoutParam = new URLSearchParams(window.location.search).get('checkout')
+    if (checkoutParam) {
+      // URLからパラメータを消す(リロードで二重処理されないように)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
     getSession()
       .then(async (session) => {
         if (active && session) {
           await hydrateAccount(session.user.id)
-          if (active) setState((p) => ({ ...p, screen: 'home' }))
+          if (!active) return
+          if (checkoutParam) {
+            // 決済後はウォレットに着地。付与はwebhookで非同期なので少し遅れて再取得する。
+            setState((p) => ({ ...p, screen: 'wallet' }))
+            if (checkoutParam === 'success') {
+              const uid = session.user.id
+              setTimeout(() => {
+                if (active) void hydrateAccount(uid)
+              }, 2500)
+            }
+          } else {
+            setState((p) => ({ ...p, screen: 'home' }))
+          }
         }
       })
       .catch(() => {

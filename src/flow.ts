@@ -128,16 +128,28 @@ export const recommendedFemalePrefs: SafetyPrefs = {
  * アプリ外・直接の金銭要求は引き続き禁止・通報対象。
  */
 export type CoinPack = {
+  /** Stripe/DB連携用の安定ID。サーバー(coin_packs)がこのIDで価格・付与数を確定する。 */
+  id: string
   coins: number
+  /** おまけコイン。付与総数 = coins + bonusCoins。 */
+  bonusCoins: number
   priceYen: number
-  bonus?: string
 }
 
+/** 表示用のボーナス文言(例: "+50コイン")。0なら空。 */
+export function packBonusLabel(pack: CoinPack): string {
+  return pack.bonusCoins > 0 ? `+${pack.bonusCoins}コイン` : ''
+}
+
+/**
+ * デモ表示・フォールバック用のパック定義。バックエンド接続時は
+ * coin_packs テーブル(サーバー権威)を参照するが、IDと数量はこれと一致させる。
+ */
 export const COIN_PACKS: CoinPack[] = [
-  { coins: 300, priceYen: 300 },
-  { coins: 1000, priceYen: 1000, bonus: '+50コイン' },
-  { coins: 3000, priceYen: 3000, bonus: '+300コイン' },
-  { coins: 6000, priceYen: 6000, bonus: '+900コイン' },
+  { id: 'pack_300', coins: 300, bonusCoins: 0, priceYen: 300 },
+  { id: 'pack_1000', coins: 1000, bonusCoins: 50, priceYen: 1000 },
+  { id: 'pack_3000', coins: 3000, bonusCoins: 300, priceYen: 3000 },
+  { id: 'pack_6000', coins: 6000, bonusCoins: 900, priceYen: 6000 },
 ]
 
 /** ホスト設定(一緒に遊ぶ時間を時給コインで提供する)。 */

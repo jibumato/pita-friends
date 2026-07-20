@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader } from '../components/Ui'
 import { Coin, Shield } from '../components/Icon'
-import { COIN_PACKS } from '../flow'
+import { COIN_PACKS, packBonusLabel, type CoinPack } from '../flow'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
+import { createCheckoutSession, fetchCoinPacks } from '../lib/queries'
 
 function PackCard({
   coins,
@@ -83,11 +84,45 @@ function PackCard({
 
 export default function Wallet({ flow }: { flow: Flow }) {
   const [justBought, setJustBought] = useState<number | null>(null)
+  // バックエンド接続時はサーバーのパック定義を使う。未取得のうちはコード側の定義で表示。
+  const [packs, setPacks] = useState<CoinPack[]>(COIN_PACKS)
+  const [redirecting, setRedirecting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const buy = (coins: number) => {
-    flow.buyCoins(coins)
-    setJustBought(coins)
-    setTimeout(() => setJustBought(null), 1800)
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    let active = true
+    fetchCoinPacks()
+      .then((data) => {
+        if (active && data.length > 0) setPacks(data)
+      })
+      .catch(() => {
+        /* 取得失敗時はコード側の定義のまま表示する */
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  // デモ: ローカル加算。バックエンド: Stripe Checkout へ遷移(付与は決済後にwebhook)。
+  const buy = async (pack: CoinPack) => {
+    if (redirecting) return
+    if (!isBackendConfigured) {
+      const total = pack.coins + pack.bonusCoins
+      flow.buyCoins(total)
+      setJustBought(total)
+      setTimeout(() => setJustBought(null), 1800)
+      return
+    }
+    setRedirecting(true)
+    setError(null)
+    try {
+      const url = await createCheckoutSession(pack.id)
+      window.location.href = url
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '決済ページの準備に失敗しました')
+      setRedirecting(false)
+    }
   }
 
   return (
@@ -130,30 +165,43 @@ export default function Wallet({ flow }: { flow: Flow }) {
         </div>
 
         <span style={{ fontSize: 13, color: C.ink }}>▶ コインを購入</span>
-        {isBackendConfigured && (
+        {redirecting && (
           <div
             style={{
-              background: C.disabledBg,
-              border: `1.5px solid ${C.disabledBorder}`,
+              background: C.surfaceLavender,
+              border: `1.5px solid ${C.lavender}`,
               borderRadius: 8,
               padding: '10px 12px',
               fontSize: 11,
-              color: C.disabledFg,
-              lineHeight: 1.7,
+              color: C.body,
             }}
           >
-            決済連携は準備中です。現在コインの購入はできません(実際の決済代行事業者は未選定のため)。
+            決済ページへ移動しています…
+          </div>
+        )}
+        {error && (
+          <div
+            style={{
+              background: C.avatarPink,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 8,
+              padding: '10px 12px',
+              fontSize: 11.5,
+              color: C.ink,
+            }}
+          >
+            {error}
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {COIN_PACKS.map((p) => (
+          {packs.map((p) => (
             <PackCard
-              key={p.coins}
+              key={p.id}
               coins={p.coins}
               priceYen={p.priceYen}
-              bonus={p.bonus}
-              disabled={isBackendConfigured}
-              onBuy={() => buy(p.coins)}
+              bonus={packBonusLabel(p)}
+              disabled={redirecting}
+              onBuy={() => buy(p)}
             />
           ))}
         </div>
