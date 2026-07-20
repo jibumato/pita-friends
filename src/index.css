@@ -226,6 +226,16 @@ a:hover {
   scrollbar-width: thin;
   scrollbar-color: #d8d3e4 transparent;
 }
+/*
+ * スクロール領域(flex column)の直下要素は縮まないようにする。
+ * これが無いと、内容が画面高を超えたときにflexが各カードを本来の
+ * 高さ未満に押し潰し(overflow:hidden で行が見切れる=「枠が崩れる」)、
+ * スクロールも発生しない。意図的に伸ばしたい要素は inline の flex:1
+ * (= flex-shrink:1)がこの指定に優先するため影響を受けない。
+ */
+.pita-scroll > * {
+  flex-shrink: 0;
+}
 .pita-scroll::-webkit-scrollbar {
   width: 5px;
 }
