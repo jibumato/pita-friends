@@ -256,7 +256,7 @@ export default function Requests({ flow }: { flow: Flow }) {
               r={r}
               onApprove={() => flow.go('talk')}
               onDecline={() => remove(r.id)}
-              onReport={flow.openReport}
+              onReport={() => flow.openReport({ userId: null, nickname: r.name })}
             />
           ))}
         </div>

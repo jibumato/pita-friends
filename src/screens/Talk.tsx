@@ -76,7 +76,7 @@ export default function Talk({ flow }: { flow: Flow }) {
       </div>
       {/* 安全性の帯(通報起動) */}
       <div
-        onClick={flow.openReport}
+        onClick={() => flow.openReport({ userId: null, nickname: 'みなと' })}
         style={{
           cursor: 'pointer',
           background: C.surfaceLavender,

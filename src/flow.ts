@@ -35,6 +35,7 @@ export type ScreenKey =
   | 'hostSettings'
   | 'booking'
   | 'adminVerifications'
+  | 'blockList'
 
 export const screenNames: Record<ScreenKey, string> = {
   welcome: 'ようこそ',
@@ -68,6 +69,7 @@ export const screenNames: Record<ScreenKey, string> = {
   hostSettings: 'ホスト設定',
   booking: '予約する',
   adminVerifications: '本人確認の審査(管理)',
+  blockList: 'ブロックリスト',
 }
 
 /** 性別(任意公開)。 */
@@ -202,6 +204,7 @@ export const stepOf: Record<ScreenKey, number> = {
   hostSettings: -1,
   booking: -1,
   adminVerifications: -1,
+  blockList: -1,
 }
 
 /** 下部タブと画面キーの対応。 */
@@ -235,11 +238,25 @@ export function activeTabOf(screen: ScreenKey): TabKey | null {
     case 'requests':
     case 'wallet':
     case 'hostSettings':
+    case 'blockList':
       return 'mypage'
     default:
       return null
   }
 }
+
+/** 通報シートが対象とするユーザー。userIdがある場合のみ実データで通報/ブロックできる。 */
+export type ReportTarget = { userId: string | null; nickname: string }
+
+/** 通報理由の選択肢。value はDBの reports.category(enum)に対応。 */
+export const REPORT_CATEGORIES: { value: import('./lib/database.types').ReportCategory; label: string }[] = [
+  { value: 'external_invite', label: '外部アプリ(LINE等)への誘導' },
+  { value: 'money_request', label: 'アプリ外での直接の金銭・RMTの要求' },
+  { value: 'dating_solicitation', label: '出会い・恋愛目的の勧誘' },
+  { value: 'harassment', label: '暴言・ハラスメント' },
+  { value: 'impersonation', label: 'なりすまし・年齢詐称' },
+  { value: 'other', label: 'その他' },
+]
 
 export const GAMES = ['Apex', 'VALORANT', 'マイクラ'] as const
 export const WHENS = ['今夜 22:00〜', '明日 21:00〜', '日時を指定'] as const

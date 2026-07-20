@@ -5,6 +5,7 @@
  */
 import { requireSupabase } from './supabase'
 import type { ContactScope, Gender } from '../flow'
+import type { ReportCategory } from './database.types'
 
 export type AccountBundle = {
   profile: { nickname: string; gender: Gender }
@@ -299,4 +300,88 @@ export async function deleteVerificationImages(paths: (string | null)[]): Promis
   } catch (err) {
     console.warn('[pita-friends] 本人確認画像の削除に失敗(審査結果は確定済み):', err)
   }
+}
+
+/* ============================================================
+ * 通報・ブロック(docs/trust-safety-spec.md §3)
+ * ・reports は insert のみ(閲覧は自分の通報のみ、審査は運営)
+ * ・blocks は片方向。RLSで blocker_id = auth.uid() を強制
+ * ============================================================ */
+
+/** 通報を作成する。severityはDBトリガーがカテゴリから自動付与する。 */
+export async function submitReport(reportedId: string, category: ReportCategory): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const reporterId = auth.user?.id
+  if (!reporterId) throw new Error('ログインが必要です')
+  const { error } = await sb.from('reports').insert({
+    reporter_id: reporterId,
+    reported_id: reportedId,
+    category,
+  })
+  if (error) throw error
+}
+
+/** 相手をブロックする。既にブロック済みでも成功扱い(冪等)。 */
+export async function blockUser(blockedId: string, reason?: string): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const blockerId = auth.user?.id
+  if (!blockerId) throw new Error('ログインが必要です')
+  const { error } = await sb
+    .from('blocks')
+    .upsert({ blocker_id: blockerId, blocked_id: blockedId, reason: reason ?? null }, { onConflict: 'blocker_id,blocked_id' })
+  if (error) throw error
+}
+
+export type BlockedUser = {
+  userId: string
+  nickname: string
+  avatarInitial: string
+  avatarColor: string
+  createdAt: string
+}
+
+/** 自分がブロックしているユーザーの一覧(新しい順)。 */
+export async function fetchBlockedUsers(): Promise<BlockedUser[]> {
+  const sb = requireSupabase()
+  const { data: blocks, error } = await sb
+    .from('blocks')
+    .select('blocked_id, created_at')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  if (!blocks || blocks.length === 0) return []
+
+  const ids = blocks.map((b) => b.blocked_id)
+  const { data: profiles, error: pErr } = await sb
+    .from('profiles')
+    .select('id, nickname, avatar_initial, avatar_color')
+    .in('id', ids)
+  if (pErr) throw pErr
+  const map = new Map((profiles ?? []).map((p) => [p.id, p]))
+
+  return blocks.map((b) => {
+    const p = map.get(b.blocked_id)
+    return {
+      userId: b.blocked_id,
+      nickname: p?.nickname || '(不明なユーザー)',
+      avatarInitial: p?.avatar_initial || p?.nickname?.charAt(0) || '?',
+      avatarColor: p?.avatar_color || '#B3E5F2',
+      createdAt: b.created_at,
+    }
+  })
+}
+
+/** ブロックを解除する。 */
+export async function unblockUser(blockedId: string): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const blockerId = auth.user?.id
+  if (!blockerId) throw new Error('ログインが必要です')
+  const { error } = await sb
+    .from('blocks')
+    .delete()
+    .eq('blocker_id', blockerId)
+    .eq('blocked_id', blockedId)
+  if (error) throw error
 }

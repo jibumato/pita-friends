@@ -12,7 +12,9 @@ import {
   type SafetyPrefs,
   type HostSettings,
   type BookingDuration,
+  type ReportTarget,
 } from './flow'
+import type { ReportCategory } from './lib/database.types'
 import FlowRail from './components/FlowRail'
 import PhoneFrame from './components/PhoneFrame'
 import { usePress } from './hooks/usePress'
@@ -27,6 +29,8 @@ import {
   updateHostSettingsRemote,
   createBookingRemote,
   checkIsAdmin,
+  submitReport as submitReportRemote,
+  blockUser as blockUserRemote,
 } from './lib/queries'
 
 import Welcome from './screens/Welcome'
@@ -62,6 +66,7 @@ import Wallet from './screens/Wallet'
 import HostSettingsScreen from './screens/HostSettingsScreen'
 import Booking from './screens/Booking'
 import AdminVerifications from './screens/AdminVerifications'
+import BlockList from './screens/BlockList'
 
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
@@ -87,7 +92,7 @@ export type Flow = {
   reviewStars: number
   reviewTag: string
   score: number
-  reportOpen: boolean
+  reportTarget: ReportTarget | null
   sendFailOpen: boolean
   gender: Gender
   safetyPrefs: SafetyPrefs
@@ -128,8 +133,10 @@ export type Flow = {
   setReviewStars: (n: number) => void
   setReviewTag: (t: string) => void
   confirmDeal: () => void
-  openReport: () => void
+  openReport: (target: ReportTarget) => void
   closeReport: () => void
+  /** 通報(+任意でブロック)を送信する。実データ対象(userIdあり)ならDBへ、デモなら擬似成功。 */
+  submitReport: (category: ReportCategory, alsoBlock: boolean) => Promise<void>
   setGender: (g: Gender) => void
   setSafetyPref: <K extends keyof SafetyPrefs>(key: K, value: SafetyPrefs[K]) => void
   applyRecommendedFemalePrefs: () => void
@@ -145,7 +152,7 @@ const INITIAL = {
   game: 'Apex',
   when: '今夜 22:00〜',
   dealDone: false,
-  reportOpen: false,
+  reportTarget: null as ReportTarget | null,
   sendFailOpen: false,
   reviewStars: 5,
   reviewTag: '時間ぴったり',
@@ -269,7 +276,7 @@ export default function App() {
   const go = useCallback(
     (s: ScreenKey) => {
       clearTimer()
-      setState((p) => ({ ...p, screen: s, reportOpen: false, sendFailOpen: false }))
+      setState((p) => ({ ...p, screen: s, reportTarget: null, sendFailOpen: false }))
     },
     [clearTimer],
   )
@@ -372,8 +379,17 @@ export default function App() {
     setReviewStars: (n) => setState((p) => ({ ...p, reviewStars: n })),
     setReviewTag: (t) => setState((p) => ({ ...p, reviewTag: t })),
     confirmDeal: () => setState((p) => ({ ...p, dealDone: true })),
-    openReport: () => setState((p) => ({ ...p, reportOpen: true })),
-    closeReport: () => setState((p) => ({ ...p, reportOpen: false })),
+    openReport: (target) => setState((p) => ({ ...p, reportTarget: target })),
+    closeReport: () => setState((p) => ({ ...p, reportTarget: null })),
+    submitReport: async (category, alsoBlock) => {
+      const target = state.reportTarget
+      // 実データの相手(userIdあり)かつバックエンド接続時のみDBへ送信。
+      // デモのモック相手(userId=null)は擬似成功にしてUXを確認できるようにする。
+      if (isBackendConfigured && target?.userId) {
+        await submitReportRemote(target.userId, category)
+        if (alsoBlock) await blockUserRemote(target.userId)
+      }
+    },
     setGender: (g) => {
       setState((p) => ({ ...p, gender: g }))
       if (isBackendConfigured && state.userId) {
@@ -613,7 +629,8 @@ export default function App() {
         {state.screen === 'hostSettings' && <HostSettingsScreen flow={flow} />}
         {state.screen === 'booking' && <Booking flow={flow} />}
         {state.screen === 'adminVerifications' && <AdminVerifications flow={flow} />}
-        {flow.reportOpen && <ReportSheet flow={flow} />}
+        {state.screen === 'blockList' && <BlockList flow={flow} />}
+        {flow.reportTarget && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
           </>
         )}

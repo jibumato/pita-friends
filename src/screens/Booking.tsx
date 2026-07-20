@@ -199,6 +199,20 @@ export default function Booking({ flow }: { flow: Flow }) {
             トラブル時はいつでも通報・相談ができます。
           </span>
         </div>
+
+        <div
+          onClick={() => flow.openReport({ userId: host.userId ?? null, nickname: host.name })}
+          style={{
+            cursor: 'pointer',
+            textAlign: 'center',
+            fontSize: 11.5,
+            color: C.muted,
+            textDecoration: 'underline',
+            padding: '2px 0 6px',
+          }}
+        >
+          {host.name} さんを通報・ブロックする
+        </div>
       </div>
       <div style={{ padding: '12px 20px 26px', background: C.white, borderTop: `1.5px solid ${C.border}` }}>
         <div

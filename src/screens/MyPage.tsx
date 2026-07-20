@@ -215,7 +215,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
               </span>
             }
           />
-          <ListRow label="ブロックリスト" />
+          <ListRow label="ブロックリスト" onClick={() => flow.go('blockList')} />
           <ListRow label="設定" onClick={() => flow.go('settings')} />
           <ListRow label="安全センター・ヘルプ" onClick={() => flow.go('safety')} />
           <ListRow label="利用規約" />

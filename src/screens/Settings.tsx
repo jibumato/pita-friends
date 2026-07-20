@@ -71,7 +71,7 @@ export default function Settings({ flow }: { flow: Flow }) {
             sub="推奨"
             right={<Toggle on={sw.verifiedOnly} onToggle={() => toggle('verifiedOnly')} />}
           />
-          <ListRow label="ブロックリスト" />
+          <ListRow label="ブロックリスト" onClick={() => flow.go('blockList')} />
           <ListRow label="安全センター" onClick={() => flow.go('safety')} />
           <ListRow label="データのダウンロード請求" divider={false} />
         </Card>
