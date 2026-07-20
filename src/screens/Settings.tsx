@@ -78,10 +78,15 @@ export default function Settings({ flow }: { flow: Flow }) {
 
         <SectionLabel>規約・ポリシー</SectionLabel>
         <Card>
-          <ListRow label="利用規約" />
-          <ListRow label="プライバシーポリシー" />
-          <ListRow label="特定商取引法に基づく表記" />
-          <ListRow label="みまもり（監視）について" divider={false} />
+          <ListRow label="利用規約" onClick={() => flow.openLegalDoc('terms')} />
+          <ListRow label="プライバシーポリシー" onClick={() => flow.openLegalDoc('privacy')} />
+          <ListRow label="特定商取引法に基づく表記" onClick={() => flow.openLegalDoc('tokushoho')} />
+          <ListRow label="資金決済法に基づく表示" onClick={() => flow.openLegalDoc('shikin')} />
+          <ListRow
+            label="みまもり（監視）について"
+            divider={false}
+            onClick={() => flow.openLegalDoc('mimamori')}
+          />
         </Card>
 
         <SectionLabel>アカウント</SectionLabel>

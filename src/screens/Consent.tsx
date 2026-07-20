@@ -135,7 +135,14 @@ export default function Consent({ flow }: { flow: Flow }) {
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', paddingBottom: 8 }}>
           <Shield size={13} style={{ flex: 'none', marginTop: 2 }} />
           <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
-            この同意はピタフレの利用に必要です。詳細はプライバシーポリシーをご覧ください。
+            この同意はピタフレの利用に必要です。詳細は
+            <span
+              onClick={() => flow.openLegalDoc('privacy')}
+              style={{ color: C.lavenderText, textDecoration: 'underline', cursor: 'pointer' }}
+            >
+              プライバシーポリシー
+            </span>
+            をご覧ください。
           </span>
         </div>
       </div>

@@ -15,6 +15,7 @@ import {
   type ReportTarget,
 } from './flow'
 import type { ReportCategory } from './lib/database.types'
+import type { LegalDocKey } from './content/legalDocs'
 import FlowRail from './components/FlowRail'
 import PhoneFrame from './components/PhoneFrame'
 import { usePress } from './hooks/usePress'
@@ -67,6 +68,7 @@ import HostSettingsScreen from './screens/HostSettingsScreen'
 import Booking from './screens/Booking'
 import AdminVerifications from './screens/AdminVerifications'
 import BlockList from './screens/BlockList'
+import LegalDoc from './screens/LegalDoc'
 
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
@@ -93,6 +95,8 @@ export type Flow = {
   reviewTag: string
   score: number
   reportTarget: ReportTarget | null
+  legalDocKey: LegalDocKey | null
+  legalDocReturn: ScreenKey
   sendFailOpen: boolean
   gender: Gender
   safetyPrefs: SafetyPrefs
@@ -137,6 +141,8 @@ export type Flow = {
   closeReport: () => void
   /** 通報(+任意でブロック)を送信する。実データ対象(userIdあり)ならDBへ、デモなら擬似成功。 */
   submitReport: (category: ReportCategory, alsoBlock: boolean) => Promise<void>
+  /** 規約・ポリシー画面を開く。 */
+  openLegalDoc: (key: LegalDocKey) => void
   setGender: (g: Gender) => void
   setSafetyPref: <K extends keyof SafetyPrefs>(key: K, value: SafetyPrefs[K]) => void
   applyRecommendedFemalePrefs: () => void
@@ -153,6 +159,8 @@ const INITIAL = {
   when: '今夜 22:00〜',
   dealDone: false,
   reportTarget: null as ReportTarget | null,
+  legalDocKey: null as LegalDocKey | null,
+  legalDocReturn: 'settings' as ScreenKey,
   sendFailOpen: false,
   reviewStars: 5,
   reviewTag: '時間ぴったり',
@@ -399,6 +407,8 @@ export default function App() {
     confirmDeal: () => setState((p) => ({ ...p, dealDone: true })),
     openReport: (target) => setState((p) => ({ ...p, reportTarget: target })),
     closeReport: () => setState((p) => ({ ...p, reportTarget: null })),
+    openLegalDoc: (key) =>
+      setState((p) => ({ ...p, legalDocKey: key, legalDocReturn: p.screen, screen: 'legalDoc' })),
     submitReport: async (category, alsoBlock) => {
       const target = state.reportTarget
       // 実データの相手(userIdあり)かつバックエンド接続時のみDBへ送信。
@@ -648,6 +658,7 @@ export default function App() {
         {state.screen === 'booking' && <Booking flow={flow} />}
         {state.screen === 'adminVerifications' && <AdminVerifications flow={flow} />}
         {state.screen === 'blockList' && <BlockList flow={flow} />}
+        {state.screen === 'legalDoc' && <LegalDoc flow={flow} />}
         {flow.reportTarget && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
           </>
