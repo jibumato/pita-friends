@@ -264,6 +264,12 @@ export type Database = {
         Update: Record<string, never>
         Relationships: []
       }
+      admins: {
+        Row: { user_id: string; created_at: string }
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -281,6 +287,14 @@ export type Database = {
       }
       decline_invite: {
         Args: { p_invite_id: string }
+        Returns: void
+      }
+      approve_identity_verification: {
+        Args: { p_verification_id: string; p_is_adult?: boolean }
+        Returns: void
+      }
+      reject_identity_verification: {
+        Args: { p_verification_id: string; p_reason?: string | null }
         Returns: void
       }
     }

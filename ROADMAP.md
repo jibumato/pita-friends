@@ -91,7 +91,7 @@
 - ✅ プロフィール・安心設定・ホスト設定・コイン残高・信頼スタッツの実データ配線 — サインイン/サインアップ時とアプリ起動時のセッション復元時に`hydrateAccount()`でSupabaseから取得し、ローカル状態を上書き。ニックネーム・性別・安心設定・ホスト設定の変更はSupabaseへ書き込み（楽観的更新+失敗時ロールバック）。マイページの「ログアウト」（従来無反応だった）も結線
 - ✅ コイン購入・ホスト掲載の未実装ガード — コイン購入は決済代行未選定のため`purchase_coins`をクライアントから呼べない設計。バックエンド接続時はウォレット画面で「決済連携は準備中です」を表示しパックを無効化。ホスト掲載は本人確認必須（DBトリガーで強制）のため、失敗時は分かりやすい日本語メッセージを表示しローカル状態をロールバック
 - ✅ さがす画面・予約の実データ化 — バックエンド接続時、`fetchDiscoverableHosts()`で`host_settings`(`is_host=true`)+`profiles`+`profile_trust_stats`を取得し実際のホスト一覧を表示。予約確定は`create_booking` RPCを呼び、コイン消費・残高チェックをサーバー側でアトミックに実行（残高不足/ホスト無効時のエラーも表示）。相性スコアは未設計のためマナースコア表示に置き換え
-- ✅ 本人確認（初期は運営による手動審査） — eKYCベンダーは未選定のため、**当面は運営が目視で審査する運用**を採用。`Verify.tsx`で書類・顔写真を撮影/選択してSupabase Storage（非公開バケット`identity-documents`、本人のみ読み書き可）にアップロードし、`identity_verifications`に審査待ち行を作成。運営はSupabaseダッシュボードで画像を確認し、SQLで承認/却下する（手順は[`docs/manual-verification-review.md`](docs/manual-verification-review.md)）。承認されると`profile_trust_stats.is_verified`が立ち、ホスト掲載や「さがす」画面への表示が可能になる
+- ✅ 本人確認（初期は運営による手動審査、アプリ内管理画面） — eKYCベンダーは未選定のため、**当面は運営が目視で審査する運用**を採用。`Verify.tsx`で書類・顔写真を撮影/選択してSupabase Storage（非公開バケット`identity-documents`、本人のみ読み書き可）にアップロードし、`identity_verifications`に審査待ち行を作成。`admins`テーブルに登録された運営アカウントは、設定画面の「管理者メニュー」→`AdminVerifications.tsx`で画像を確認し、その場で承認/却下できる（承認・却下と同時に画像を自動削除）。承認されると`profile_trust_stats.is_verified`が立ち、ホスト掲載や「さがす」画面への表示が可能になる。初回の管理者登録のみSupabaseダッシュボードでの手動SQLが必要（手順は[`docs/manual-verification-review.md`](docs/manual-verification-review.md)）
 - ⬜ よく遊ぶゲーム・プレイスタイル（`profiles.favorite_games`/`play_style`）の実データ配線 — セッション内の「今回選択中のゲーム」(`state.game`)と概念が異なるため、今回は意図的に見送り
 - ⬜ eKYCベンダー導入（手動審査からの移行） — 審査件数が増えた場合の次のステップ。`identity_verifications.provider`/`provider_reference`列は導入時用に用意済み
 - ⬜ セッション管理の高度化（トークン自動更新はSupabase任せだが、ログアウト時のリアルタイム購読解除等は未検証）

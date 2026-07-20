@@ -34,6 +34,7 @@ export type ScreenKey =
   | 'wallet'
   | 'hostSettings'
   | 'booking'
+  | 'adminVerifications'
 
 export const screenNames: Record<ScreenKey, string> = {
   welcome: 'ようこそ',
@@ -66,6 +67,7 @@ export const screenNames: Record<ScreenKey, string> = {
   wallet: 'コインウォレット',
   hostSettings: 'ホスト設定',
   booking: '予約する',
+  adminVerifications: '本人確認の審査(管理)',
 }
 
 /** 性別(任意公開)。 */
@@ -199,6 +201,7 @@ export const stepOf: Record<ScreenKey, number> = {
   wallet: -1,
   hostSettings: -1,
   booking: -1,
+  adminVerifications: -1,
 }
 
 /** 下部タブと画面キーの対応。 */

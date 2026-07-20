@@ -90,6 +90,20 @@ export default function Settings({ flow }: { flow: Flow }) {
           {isBackendConfigured && <ListRow label="ログアウト" onClick={flow.signOut} />}
           <ListRow label="アカウントを削除" danger divider={false} />
         </Card>
+
+        {isBackendConfigured && flow.isAdmin && (
+          <>
+            <SectionLabel>管理者メニュー</SectionLabel>
+            <Card>
+              <ListRow
+                label="本人確認の審査"
+                sub="提出された書類・顔写真を確認して承認/却下"
+                divider={false}
+                onClick={() => flow.go('adminVerifications')}
+              />
+            </Card>
+          </>
+        )}
       </div>
     </Screen>
   )

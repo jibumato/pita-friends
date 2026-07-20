@@ -26,6 +26,7 @@ import {
   updateSafetyPrefsRemote,
   updateHostSettingsRemote,
   createBookingRemote,
+  checkIsAdmin,
 } from './lib/queries'
 
 import Welcome from './screens/Welcome'
@@ -60,6 +61,7 @@ import SendFailDialog from './screens/SendFailDialog'
 import Wallet from './screens/Wallet'
 import HostSettingsScreen from './screens/HostSettingsScreen'
 import Booking from './screens/Booking'
+import AdminVerifications from './screens/AdminVerifications'
 
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
@@ -104,6 +106,8 @@ export type Flow = {
   dotakyanCount: number
   confirmedCount: number
   isVerified: boolean
+  /** admins テーブルに登録された運営アカウントか(本人確認の審査画面へのアクセス可否)。 */
+  isAdmin: boolean
   /** ホスト設定の直近の書き込みエラー(本人確認未完了等)。表示専用、次の操作で上書きされる。 */
   hostSettingsError: string | null
   setNickname: (n: string) => void
@@ -160,6 +164,7 @@ const INITIAL = {
   dotakyanCount: 0,
   confirmedCount: 47,
   isVerified: true,
+  isAdmin: false,
   hostSettingsError: null as string | null,
 }
 
@@ -206,6 +211,12 @@ export default function App() {
       }))
     } catch (err) {
       console.warn('[pita-friends] アカウントデータの取得に失敗しました:', err)
+    }
+    try {
+      const isAdmin = await checkIsAdmin(userId)
+      setState((p) => ({ ...p, isAdmin }))
+    } catch (err) {
+      console.warn('[pita-friends] 管理者判定の取得に失敗しました:', err)
     }
   }, [])
 
@@ -601,6 +612,7 @@ export default function App() {
         {state.screen === 'wallet' && <Wallet flow={flow} />}
         {state.screen === 'hostSettings' && <HostSettingsScreen flow={flow} />}
         {state.screen === 'booking' && <Booking flow={flow} />}
+        {state.screen === 'adminVerifications' && <AdminVerifications flow={flow} />}
         {flow.reportOpen && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
           </>

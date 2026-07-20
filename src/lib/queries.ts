@@ -213,3 +213,75 @@ export async function fetchLatestVerificationStatus(userId: string): Promise<Ver
   if (!data) return null
   return { status: data.status, rejectedReason: data.rejected_reason }
 }
+
+/** 本人確認の審査(管理画面)向けAPI。admins テーブルに登録されたユーザーのみ実際に操作できる(RLS/RPC側で強制)。 */
+
+export async function checkIsAdmin(userId: string): Promise<boolean> {
+  const { data, error } = await requireSupabase()
+    .from('admins')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return !!data
+}
+
+export type PendingVerification = {
+  id: string
+  userId: string
+  nickname: string
+  createdAt: string
+  documentPath: string | null
+  selfiePath: string | null
+}
+
+/** 審査待ち(status='pending')の本人確認申請を、申請の古い順に取得する。 */
+export async function fetchPendingVerifications(): Promise<PendingVerification[]> {
+  const sb = requireSupabase()
+  const { data, error } = await sb
+    .from('identity_verifications')
+    .select('id, user_id, created_at, document_path, selfie_path')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  if (!data || data.length === 0) return []
+
+  const userIds = data.map((d) => d.user_id)
+  const { data: profiles, error: profilesError } = await sb.from('profiles').select('id, nickname').in('id', userIds)
+  if (profilesError) throw profilesError
+  const nameMap = new Map((profiles ?? []).map((p) => [p.id, p.nickname]))
+
+  return data.map((d) => ({
+    id: d.id,
+    userId: d.user_id,
+    nickname: nameMap.get(d.user_id) || '(名前未設定)',
+    createdAt: d.created_at,
+    documentPath: d.document_path,
+    selfiePath: d.selfie_path,
+  }))
+}
+
+/** 非公開バケット内の画像を、審査担当が一時的に閲覧するための署名付きURL(5分間有効)。 */
+export async function getSignedVerificationImageUrl(path: string): Promise<string> {
+  const { data, error } = await requireSupabase().storage.from('identity-documents').createSignedUrl(path, 300)
+  if (error) throw error
+  return data.signedUrl
+}
+
+/** 本人確認を承認する。判定後、画像はサーバー側で自動削除される。 */
+export async function approveVerification(verificationId: string, isAdult: boolean): Promise<void> {
+  const { error } = await requireSupabase().rpc('approve_identity_verification', {
+    p_verification_id: verificationId,
+    p_is_adult: isAdult,
+  })
+  if (error) throw error
+}
+
+/** 本人確認を却下する。判定後、画像はサーバー側で自動削除される。 */
+export async function rejectVerification(verificationId: string, reason: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('reject_identity_verification', {
+    p_verification_id: verificationId,
+    p_reason: reason,
+  })
+  if (error) throw error
+}

@@ -88,7 +88,7 @@ npm run dev
 - **コインの購入はできません。** `purchase_coins` 関数はクライアント(`authenticated`ロール)に実行権限を与えていないため（決済確認前提の設計）、バックエンド接続時はウォレット画面で「決済連携は準備中です」と表示し、購入ボタンを無効化します
 - **ホストとして掲載するには本人確認が必要です。** `check_host_requires_verification` トリガーにより、`profile_trust_stats.is_verified = true` でないと `is_host = true` への更新が拒否されます。本人確認は下記のとおり運営の手動審査で完了させられます
 - **さがす画面・予約は実データに接続済みです。** `fetchDiscoverableHosts()` が `host_settings`（`is_host=true`）＋`profiles`＋`profile_trust_stats` を取得して一覧表示し、予約確定は `create_booking` RPCを呼びます（コイン消費・残高チェックはサーバー側でアトミックに実行）。本人確認が完了したホストがいなければ一覧は空になります。埋め込みリレーション（`select`内のネスト構文）は手書きDatabase型が`Relationships`メタデータを持たないため使わず、3テーブルを個別に取得してJS側で結合しています
-- **本人確認は運営の手動審査です（初期フェーズ）。** `Verify.tsx` で書類・顔写真を撮影/選択すると、非公開のSupabase Storageバケット `identity-documents`（本人のみ読み書き可）にアップロードし、`identity_verifications` に審査待ち行を作成します。運営はSupabaseダッシュボードで内容を確認し、SQLで承認/却下します。手順は [`docs/manual-verification-review.md`](manual-verification-review.md) を参照してください
+- **本人確認は運営の手動審査です（初期フェーズ）、審査はアプリ内の管理画面から行えます。** `Verify.tsx` で書類・顔写真を撮影/選択すると、非公開のSupabase Storageバケット `identity-documents`（本人のみ読み書き可）にアップロードし、`identity_verifications` に審査待ち行を作成します。`admins` テーブルに登録された運営アカウントには設定画面に「管理者メニュー」が表示され、`AdminVerifications.tsx` から画像を見て承認/却下できます（判断と同時に画像は自動削除）。**初回の管理者登録だけはSupabaseダッシュボードでの手動SQLが必要**です。手順は [`docs/manual-verification-review.md`](manual-verification-review.md) を参照してください
 
 ## まだ設計・実装していないもの
 
@@ -98,7 +98,7 @@ npm run dev
 - リアルタイムチャット（トークルーム）— Supabase Realtimeの利用を想定しているが未実装
 - 決済代行事業者との連携（`purchase_coins` を呼ぶWebhook/Edge Function）
 - eKYCベンダーとの連携（審査件数が増えた場合の、手動審査からの移行先）
-- 運営の審査オペレーション画面（`resolve_report` を呼ぶ管理画面。本人確認の審査は`manual-verification-review.md`のSQL運用で当面代替）
+- 通報の運営審査オペレーション画面（`resolve_report` を呼ぶ管理画面。本人確認の審査画面とは別。現状はQ&A文書のSQL運用で当面代替）
 
 これらはこのドキュメントとROADMAPのPhase 3〜5に追って反映していきます。
 
