@@ -184,6 +184,116 @@ export async function createCheckoutSession(packId: string): Promise<string> {
   return data.url
 }
 
+/* ============================================================
+ * マッチング(誘う → 承認 → 約束)。schema: 0004_matching。
+ * ・誘いの送信可否(contact_scope)は invites の RLS で強制される。
+ * ・承認/辞退は approve_invite / decline_invite RPC 経由。
+ * ============================================================ */
+
+/** 誘いを送る。相手の安心設定(contact_scope)を満たさない場合はRLSで弾かれる。 */
+export async function createInvite(
+  toUserId: string,
+  game: string,
+  whenText: string,
+  message: string,
+): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const fromUser = auth.user?.id
+  if (!fromUser) throw new Error('ログインが必要です')
+  const { error } = await sb.from('invites').insert({
+    from_user: fromUser,
+    to_user: toUserId,
+    game,
+    when_text: whenText,
+    message,
+  })
+  if (error) {
+    // RLS(contact_scope)違反は 403。ユーザー向けに言い換える。
+    if (error.code === '42501' || /row-level security/i.test(error.message)) {
+      throw new Error('相手の安心設定により、いまは誘いを送れません（本人確認や同性のみ等の条件）。')
+    }
+    throw error
+  }
+}
+
+export type IncomingInvite = {
+  id: string
+  fromUserId: string
+  name: string
+  initial: string
+  color: string
+  verified: boolean
+  manner: string
+  dotakyan: string
+  plays: number
+  game: string
+  when: string
+  message: string
+}
+
+/** 自分宛の承認待ちの誘いを、送信者の信頼情報つきで取得する。 */
+export async function fetchIncomingInvites(): Promise<IncomingInvite[]> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+
+  const { data: invites, error } = await sb
+    .from('invites')
+    .select('id, from_user, game, when_text, message, created_at')
+    .eq('to_user', me)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  if (!invites || invites.length === 0) return []
+
+  const fromIds = invites.map((i) => i.from_user)
+  const [{ data: profiles }, { data: stats }] = await Promise.all([
+    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color').in('id', fromIds),
+    sb
+      .from('profile_trust_stats')
+      .select('user_id, manner_score, dotakyan_count, confirmed_count, is_verified')
+      .in('user_id', fromIds),
+  ])
+  const pMap = new Map((profiles ?? []).map((p) => [p.id, p]))
+  const sMap = new Map((stats ?? []).map((s) => [s.user_id, s]))
+
+  return invites.map((i) => {
+    const p = pMap.get(i.from_user)
+    const s = sMap.get(i.from_user)
+    const confirmed = s?.confirmed_count ?? 0
+    const dotakyan = s?.dotakyan_count ?? 0
+    const denom = confirmed + dotakyan
+    return {
+      id: i.id,
+      fromUserId: i.from_user,
+      name: p?.nickname || '(名前未設定)',
+      initial: p?.avatar_initial || p?.nickname?.charAt(0) || '?',
+      color: p?.avatar_color || '#B3E5F2',
+      verified: s?.is_verified ?? false,
+      manner: `★${(s?.manner_score ?? 4.5).toFixed(1)}`,
+      dotakyan: `${denom > 0 ? Math.round((dotakyan / denom) * 100) : 0}%`,
+      plays: confirmed,
+      game: i.game,
+      when: i.when_text,
+      message: i.message,
+    }
+  })
+}
+
+/** 誘いを承認する(約束が成立する)。 */
+export async function approveInvite(inviteId: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('approve_invite', { p_invite_id: inviteId })
+  if (error) throw error
+}
+
+/** 誘いを辞退する。 */
+export async function declineInvite(inviteId: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('decline_invite', { p_invite_id: inviteId })
+  if (error) throw error
+}
+
 export type PublicProfile = {
   userId: string
   nickname: string

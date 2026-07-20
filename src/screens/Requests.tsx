@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
@@ -6,9 +6,27 @@ import StatusBar from '../components/StatusBar'
 import { SubHeader } from '../components/Ui'
 import { Shield } from '../components/Icon'
 import { EmptyState } from '../components/States'
-import { inviteRequests, type InviteRequest } from '../data/mock'
+import { inviteRequests } from '../data/mock'
+import { isBackendConfigured } from '../lib/supabase'
+import { approveInvite, declineInvite, fetchIncomingInvites, type IncomingInvite } from '../lib/queries'
 
-/** 相手の信頼情報タイル。 */
+/** カード表示に必要な共通形(モック InviteRequest / 実データ IncomingInvite の両対応)。 */
+type CardData = {
+  id: string
+  fromUserId?: string
+  name: string
+  initial: string
+  color: string
+  verified: boolean
+  manner: string
+  dotakyan: string
+  plays: number
+  game: string
+  when: string
+  message: string
+  common?: string[]
+}
+
 function TrustStat({ value, label }: { value: string; label: string }) {
   return (
     <div
@@ -36,11 +54,25 @@ function RequestCard({
   onDecline,
   onReport,
 }: {
-  r: InviteRequest
-  onApprove: () => void
-  onDecline: () => void
+  r: CardData
+  onApprove: () => Promise<void> | void
+  onDecline: () => Promise<void> | void
   onReport: () => void
 }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const run = (fn: () => Promise<void> | void) => async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      await fn()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '処理に失敗しました')
+      setBusy(false)
+    }
+  }
+
   return (
     <div
       style={{
@@ -54,7 +86,6 @@ function RequestCard({
         gap: 11,
       }}
     >
-      {/* 相手 + 通報 */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <div
           style={{
@@ -90,85 +121,70 @@ function RequestCard({
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {r.common.map((t) => (
-              <span
-                key={t}
-                style={{
-                  fontSize: 10,
-                  color: C.ink,
-                  background: C.surfaceLavender,
-                  padding: '2px 8px',
-                  borderRadius: 4,
-                  border: `1.5px solid ${C.border}`,
-                }}
-              >
-                共通: {t}
-              </span>
-            ))}
-          </div>
+          {r.common && r.common.length > 0 && (
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {r.common.map((t) => (
+                <span
+                  key={t}
+                  style={{
+                    fontSize: 10,
+                    color: C.ink,
+                    background: C.surfaceLavender,
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    border: `1.5px solid ${C.border}`,
+                  }}
+                >
+                  共通: {t}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-        <span
-          onClick={onReport}
-          style={{ cursor: 'pointer', fontSize: 10, color: C.lavender, flex: 'none' }}
-        >
+        <span onClick={onReport} style={{ cursor: 'pointer', fontSize: 10, color: C.lavender, flex: 'none' }}>
           通報 ›
         </span>
       </div>
 
-      {/* 信頼情報 */}
       <div style={{ display: 'flex', gap: 8 }}>
         <TrustStat value={r.manner} label="マナー" />
         <TrustStat value={r.dotakyan} label="ドタキャン" />
         <TrustStat value={String(r.plays)} label="プレイ回数" />
       </div>
 
-      {/* 誘い内容 */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        <span
-          style={{
-            fontSize: 11,
-            color: C.ink,
-            background: C.surfaceLavender,
-            padding: '4px 10px',
-            borderRadius: 4,
-            border: `1.5px solid ${C.border}`,
-          }}
-        >
-          {r.game}
-        </span>
-        <span
-          style={{
-            fontSize: 11,
-            color: C.ink,
-            background: C.surfaceLavender,
-            padding: '4px 10px',
-            borderRadius: 4,
-            border: `1.5px solid ${C.border}`,
-          }}
-        >
-          {r.when}
-        </span>
+        {[r.game, r.when].map((t, i) => (
+          <span
+            key={i}
+            style={{
+              fontSize: 11,
+              color: C.ink,
+              background: C.surfaceLavender,
+              padding: '4px 10px',
+              borderRadius: 4,
+              border: `1.5px solid ${C.border}`,
+            }}
+          >
+            {t}
+          </span>
+        ))}
       </div>
-      <div
-        style={{
-          background: C.surface,
-          border: `1.5px solid ${C.divider}`,
-          borderRadius: 8,
-          padding: '9px 12px',
-        }}
-      >
-        <span style={{ fontSize: 11.5, color: C.body, lineHeight: 1.6 }}>{r.message}</span>
-      </div>
+      {r.message && (
+        <div style={{ background: C.surface, border: `1.5px solid ${C.divider}`, borderRadius: 8, padding: '9px 12px' }}>
+          <span style={{ fontSize: 11.5, color: C.body, lineHeight: 1.6 }}>{r.message}</span>
+        </div>
+      )}
 
-      {/* アクション: 承認 / 辞退 */}
+      {error && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{error}</span>}
+
       <div style={{ display: 'flex', gap: 8 }}>
         <span
-          onClick={onDecline}
+          onClick={run(onDecline)}
           style={{
             flex: 1,
             textAlign: 'center',
-            cursor: 'pointer',
+            cursor: busy ? 'not-allowed' : 'pointer',
+            opacity: busy ? 0.6 : 1,
             fontSize: 12.5,
             color: C.ink,
             background: C.white,
@@ -180,11 +196,12 @@ function RequestCard({
           辞退
         </span>
         <span
-          onClick={onApprove}
+          onClick={run(onApprove)}
           style={{
             flex: 1.6,
             textAlign: 'center',
-            cursor: 'pointer',
+            cursor: busy ? 'not-allowed' : 'pointer',
+            opacity: busy ? 0.6 : 1,
             fontSize: 12.5,
             color: C.ink,
             background: C.lime,
@@ -194,7 +211,7 @@ function RequestCard({
             boxShadow: `2px 2px 0 ${C.shadowCol}`,
           }}
         >
-          ✓ 承認してトークへ
+          {busy ? '処理中…' : '✓ 承認する'}
         </span>
       </div>
     </div>
@@ -202,14 +219,51 @@ function RequestCard({
 }
 
 export default function Requests({ flow }: { flow: Flow }) {
-  const [items, setItems] = useState<InviteRequest[]>(inviteRequests)
-  const remove = (id: string) => setItems((xs) => xs.filter((x) => x.id !== id))
+  const [items, setItems] = useState<CardData[] | null>(isBackendConfigured ? null : inviteRequests)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    let active = true
+    fetchIncomingInvites()
+      .then((data: IncomingInvite[]) => active && setItems(data))
+      .catch((e) => active && setError(e instanceof Error ? e.message : '取得に失敗しました'))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const remove = (id: string) => setItems((xs) => (xs ? xs.filter((x) => x.id !== id) : xs))
+
+  const approve = (r: CardData) => async () => {
+    if (isBackendConfigured) {
+      await approveInvite(r.id)
+      remove(r.id)
+    } else {
+      flow.go('talk')
+    }
+  }
+  const decline = (r: CardData) => async () => {
+    if (isBackendConfigured) await declineInvite(r.id)
+    remove(r.id)
+  }
 
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:47" />
       <SubHeader title="受け取った誘い" onBack={() => flow.go('mypage')} />
-      {items.length === 0 ? (
+
+      {error && (
+        <div style={{ margin: '10px 20px 0', background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: '11px 13px', fontSize: 12, color: C.ink }}>
+          {error}
+        </div>
+      )}
+
+      {items === null && !error ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 12, color: C.muted }}>読み込み中…</span>
+        </div>
+      ) : items && items.length === 0 ? (
         <EmptyState
           tileColor={C.avatarAqua}
           icon={<Shield size={42} color={C.ink} strokeWidth={2.2} />}
@@ -225,14 +279,7 @@ export default function Requests({ flow }: { flow: Flow }) {
       ) : (
         <div
           className="pita-scroll"
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '10px 20px 20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-          }}
+          style={{ flex: 1, overflowY: 'auto', padding: '10px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}
         >
           <div
             style={{
@@ -250,13 +297,13 @@ export default function Requests({ flow }: { flow: Flow }) {
               承認するまで、相手にトークや連絡先は開きません。相手の信頼情報を見て、あなたが決められます。
             </span>
           </div>
-          {items.map((r) => (
+          {items?.map((r) => (
             <RequestCard
               key={r.id}
               r={r}
-              onApprove={() => flow.go('talk')}
-              onDecline={() => remove(r.id)}
-              onReport={() => flow.openReport({ userId: null, nickname: r.name })}
+              onApprove={approve(r)}
+              onDecline={decline(r)}
+              onReport={() => flow.openReport({ userId: r.fromUserId ?? null, nickname: r.name })}
             />
           ))}
         </div>

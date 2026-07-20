@@ -32,6 +32,7 @@ import {
   checkIsAdmin,
   submitReport as submitReportRemote,
   blockUser as blockUserRemote,
+  createInvite as createInviteRemote,
 } from './lib/queries'
 
 import Welcome from './screens/Welcome'
@@ -99,6 +100,7 @@ export type Flow = {
   legalDocReturn: ScreenKey
   profileUserId: string | null
   profileReturn: ScreenKey
+  inviteTarget: { userId: string; name: string } | null
   sendFailOpen: boolean
   gender: Gender
   safetyPrefs: SafetyPrefs
@@ -147,6 +149,10 @@ export type Flow = {
   openLegalDoc: (key: LegalDocKey) => void
   /** 指定ユーザーの公開プロフィールを開く(実データ)。 */
   openProfile: (userId: string) => void
+  /** 指定ユーザーへの誘いシートを開く(実データ)。 */
+  openInvite: (userId: string, name: string) => void
+  /** 誘いを実際に送信する(実データ)。成功でresolve。 */
+  submitInvite: (game: string, whenText: string, message: string) => Promise<void>
   setGender: (g: Gender) => void
   setSafetyPref: <K extends keyof SafetyPrefs>(key: K, value: SafetyPrefs[K]) => void
   applyRecommendedFemalePrefs: () => void
@@ -167,6 +173,7 @@ const INITIAL = {
   legalDocReturn: 'settings' as ScreenKey,
   profileUserId: null as string | null,
   profileReturn: 'search' as ScreenKey,
+  inviteTarget: null as { userId: string; name: string } | null,
   sendFailOpen: false,
   reviewStars: 5,
   reviewTag: '時間ぴったり',
@@ -315,6 +322,7 @@ export default function App() {
         reportTarget: null,
         sendFailOpen: false,
         profileUserId: s === 'profile' ? null : p.profileUserId,
+        inviteTarget: s === 'invite' ? null : p.inviteTarget,
       }))
     },
     [clearTimer],
@@ -424,6 +432,13 @@ export default function App() {
       setState((p) => ({ ...p, legalDocKey: key, legalDocReturn: p.screen, screen: 'legalDoc' })),
     openProfile: (userId) =>
       setState((p) => ({ ...p, profileUserId: userId, profileReturn: p.screen, screen: 'profile' })),
+    openInvite: (userId, name) =>
+      setState((p) => ({ ...p, inviteTarget: { userId, name }, screen: 'invite' })),
+    submitInvite: async (game, whenText, message) => {
+      const target = state.inviteTarget
+      if (!target) throw new Error('送信先が不明です')
+      await createInviteRemote(target.userId, game, whenText, message)
+    },
     submitReport: async (category, alsoBlock) => {
       const target = state.reportTarget
       // 実データの相手(userIdあり)かつバックエンド接続時のみDBへ送信。

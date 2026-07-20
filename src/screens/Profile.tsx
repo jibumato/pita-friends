@@ -94,14 +94,18 @@ export default function Profile({ flow }: { flow: Flow }) {
   const stats = useReal ? realStats : MOCK_STATS
 
   const onCta = () => {
-    if (useReal && data?.isHost) {
-      flow.startBooking({
-        name: data.nickname,
-        initial: data.avatarInitial,
-        color: data.avatarColor,
-        hourlyRate: data.hourlyRate,
-        userId: data.userId,
-      })
+    if (useReal && data) {
+      if (data.isHost) {
+        flow.startBooking({
+          name: data.nickname,
+          initial: data.avatarInitial,
+          color: data.avatarColor,
+          hourlyRate: data.hourlyRate,
+          userId: data.userId,
+        })
+      } else {
+        flow.openInvite(data.userId, data.nickname)
+      }
     } else {
       flow.go('invite')
     }
