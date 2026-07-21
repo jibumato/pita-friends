@@ -8,41 +8,237 @@ import { Coin, Shield } from '../components/Icon'
 import { GAMES } from '../flow'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
-import { fetchPayoutAccountStatus, startConnectOnboarding, type PayoutAccountStatus } from '../lib/queries'
+import { fetchBankAccount, saveBankAccount, normalizeKanaName, type BankAccount } from '../lib/queries'
 
-export default function HostSettingsScreen({ flow }: { flow: Flow }) {
-  const h = flow.hostSettings
-  const save = usePress(`3px 3px 0 ${C.lavender}`)
+const EMPTY_ACCOUNT: BankAccount = {
+  bankName: '',
+  bankCode: '',
+  branchName: '',
+  branchCode: '',
+  accountType: '普通',
+  accountNumber: '',
+  accountHolderKana: '',
+}
 
-  const [payoutStatus, setPayoutStatus] = useState<PayoutAccountStatus | null>(null)
-  const [payoutError, setPayoutError] = useState<string | null>(null)
-  const [onboarding, setOnboarding] = useState(false)
+/** 保存前のクライアント側チェック。問題があればメッセージを返す。 */
+function validateAccount(a: BankAccount): string | null {
+  if (!a.bankName.trim()) return '銀行名を入力してください'
+  if (!/^[0-9]{4}$/.test(a.bankCode)) return '銀行コードは数字4桁で入力してください'
+  if (!a.branchName.trim()) return '支店名を入力してください'
+  if (!/^[0-9]{3}$/.test(a.branchCode)) return '支店コードは数字3桁で入力してください'
+  if (!/^[0-9]{7}$/.test(a.accountNumber)) return '口座番号は数字7桁で入力してください(7桁未満は先頭に0を付けてください)'
+  const kana = normalizeKanaName(a.accountHolderKana)
+  if (!kana) return '口座名義(カナ)を入力してください'
+  if (!/^[ァ-ヶー0-9A-Z()（）./\- 　]+$/.test(kana)) return '口座名義はカタカナで入力してください'
+  return null
+}
+
+/** 振込先口座の登録フォーム。振込エラー(名義相違等)を防ぐため入力時に検証する。 */
+function BankAccountSection() {
+  const [account, setAccount] = useState<BankAccount>(EMPTY_ACCOUNT)
+  const [registered, setRegistered] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!isBackendConfigured) return
     let active = true
-    fetchPayoutAccountStatus()
-      .then((s) => active && setPayoutStatus(s))
-      .catch(() => {
-        /* 未取得でもホスト設定自体は表示する */
+    fetchBankAccount()
+      .then((a) => {
+        if (!active) return
+        if (a) {
+          setAccount(a)
+          setRegistered(true)
+        } else {
+          setEditing(true)
+        }
       })
+      .catch(() => active && setEditing(true))
     return () => {
       active = false
     }
   }, [])
 
-  async function handleConnectSetup() {
-    if (onboarding) return
-    setOnboarding(true)
-    setPayoutError(null)
+  const set = (patch: Partial<BankAccount>) => setAccount((a) => ({ ...a, ...patch }))
+
+  async function handleSave() {
+    if (busy) return
+    const problem = validateAccount(account)
+    if (problem) {
+      setError(problem)
+      return
+    }
+    setBusy(true)
+    setError(null)
+    setMessage(null)
     try {
-      const url = await startConnectOnboarding()
-      window.location.href = url
+      await saveBankAccount(account)
+      setAccount((a) => ({ ...a, accountHolderKana: normalizeKanaName(a.accountHolderKana) }))
+      setRegistered(true)
+      setEditing(false)
+      setMessage('振込先を保存しました')
     } catch (e) {
-      setPayoutError(e instanceof Error ? e.message : '振込先の設定に失敗しました')
-      setOnboarding(false)
+      setError(e instanceof Error ? e.message : '振込先の保存に失敗しました')
+    } finally {
+      setBusy(false)
     }
   }
+
+  const inputStyle = {
+    background: C.surface,
+    border: `1.5px solid ${C.border}`,
+    borderRadius: 6,
+    padding: '9px 12px',
+    fontSize: 12.5,
+    color: C.ink,
+    outline: 'none',
+    fontFamily: 'inherit',
+    minWidth: 0,
+  } as const
+
+  return (
+    <>
+      <span style={{ fontSize: 12, color: C.muted }}>振込先口座(報酬の受け取り)</span>
+      <div
+        style={{
+          background: C.white,
+          border: `1.5px solid ${C.border}`,
+          borderRadius: 8,
+          padding: '13px 14px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+        }}
+      >
+        {registered && !editing ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.border}`,
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                }}
+              >
+                登録済み
+              </span>
+              <span style={{ fontSize: 11.5, color: C.body }}>
+                {account.bankName} {account.branchName} {account.accountType} •••{account.accountNumber.slice(-3)}
+              </span>
+            </div>
+            <span
+              onClick={() => {
+                setEditing(true)
+                setMessage(null)
+              }}
+              style={{ cursor: 'pointer', fontSize: 11.5, color: C.lavenderText, textDecoration: 'underline' }}
+            >
+              口座情報を変更する
+            </span>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: 11, color: C.body, lineHeight: 1.6 }}>
+              報酬コインの換金(銀行振込)に使う口座です。名義はご本人のものに限ります。
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={account.bankName}
+                onChange={(e) => set({ bankName: e.target.value })}
+                placeholder="銀行名"
+                style={{ ...inputStyle, flex: 2 }}
+              />
+              <input
+                value={account.bankCode}
+                onChange={(e) => set({ bankCode: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
+                placeholder="コード4桁"
+                inputMode="numeric"
+                style={{ ...inputStyle, flex: 1 }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={account.branchName}
+                onChange={(e) => set({ branchName: e.target.value })}
+                placeholder="支店名"
+                style={{ ...inputStyle, flex: 2 }}
+              />
+              <input
+                value={account.branchCode}
+                onChange={(e) => set({ branchCode: e.target.value.replace(/[^0-9]/g, '').slice(0, 3) })}
+                placeholder="コード3桁"
+                inputMode="numeric"
+                style={{ ...inputStyle, flex: 1 }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1, display: 'flex', gap: 6 }}>
+                {(['普通', '当座'] as const).map((t) => (
+                  <span
+                    key={t}
+                    onClick={() => set({ accountType: t })}
+                    style={{
+                      cursor: 'pointer',
+                      flex: 1,
+                      textAlign: 'center',
+                      fontSize: 11.5,
+                      padding: '9px 0',
+                      borderRadius: 6,
+                      border: `1.5px solid ${C.border}`,
+                      color: account.accountType === t ? C.lime : C.ink,
+                      background: account.accountType === t ? C.fill : C.white,
+                    }}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <input
+                value={account.accountNumber}
+                onChange={(e) => set({ accountNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, 7) })}
+                placeholder="口座番号7桁"
+                inputMode="numeric"
+                style={{ ...inputStyle, flex: 1.4 }}
+              />
+            </div>
+            <input
+              value={account.accountHolderKana}
+              onChange={(e) => set({ accountHolderKana: e.target.value })}
+              placeholder="口座名義(カナ) 例: ヤマダ ハナコ"
+              style={inputStyle}
+            />
+            <div
+              onClick={handleSave}
+              style={{
+                cursor: busy ? 'not-allowed' : 'pointer',
+                opacity: busy ? 0.6 : 1,
+                textAlign: 'center',
+                fontSize: 12.5,
+                color: C.ink,
+                background: C.lime,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 6,
+                padding: '9px 0',
+              }}
+            >
+              {busy ? '保存中…' : 'この口座を保存する'}
+            </div>
+          </>
+        )}
+        {error && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{error}</span>}
+        {message && <span style={{ fontSize: 10.5, color: C.lavenderText }}>{message}</span>}
+      </div>
+    </>
+  )
+}
+
+export default function HostSettingsScreen({ flow }: { flow: Flow }) {
+  const h = flow.hostSettings
+  const save = usePress(`3px 3px 0 ${C.lavender}`)
 
   return (
     <Screen background={C.surface}>
@@ -166,65 +362,7 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
           })}
         </div>
 
-        {isBackendConfigured && (
-          <>
-            <span style={{ fontSize: 12, color: C.muted }}>振込先(報酬の受け取り)</span>
-            <div
-              style={{
-                background: C.white,
-                border: `1.5px solid ${C.border}`,
-                borderRadius: 8,
-                padding: '13px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}
-            >
-              {payoutStatus?.payoutsEnabled ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: C.ink,
-                      background: C.lime,
-                      border: `1.5px solid ${C.border}`,
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                    }}
-                  >
-                    設定済み
-                  </span>
-                  <span style={{ fontSize: 11.5, color: C.body }}>報酬コインをいつでも換金できます</span>
-                </div>
-              ) : (
-                <>
-                  <span style={{ fontSize: 11.5, color: C.body, lineHeight: 1.6 }}>
-                    {payoutStatus?.hasAccount
-                      ? '振込先の設定が完了していません。手続きを再開してください。'
-                      : '完了した予約の報酬(コイン)を実際の振込として受け取るには、Stripeでの振込先設定が必要です。'}
-                  </span>
-                  <div
-                    onClick={handleConnectSetup}
-                    style={{
-                      cursor: onboarding ? 'not-allowed' : 'pointer',
-                      opacity: onboarding ? 0.6 : 1,
-                      textAlign: 'center',
-                      fontSize: 12.5,
-                      color: C.ink,
-                      background: C.lime,
-                      border: `1.5px solid ${C.border}`,
-                      borderRadius: 6,
-                      padding: '9px 0',
-                    }}
-                  >
-                    {onboarding ? '準備中…' : payoutStatus?.hasAccount ? '設定を再開する' : '振込先を設定する'}
-                  </div>
-                </>
-              )}
-              {payoutError && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{payoutError}</span>}
-            </div>
-          </>
-        )}
+        {isBackendConfigured && <BankAccountSection />}
 
         <span style={{ fontSize: 12, color: C.muted }}>ひとことメッセージ</span>
         <textarea

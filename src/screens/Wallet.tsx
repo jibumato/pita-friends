@@ -12,11 +12,12 @@ import {
   createCheckoutSession,
   fetchCoinPacks,
   fetchEarnings,
-  fetchPayoutAccountStatus,
+  fetchBankAccount,
   fetchPayoutHistory,
   requestPayout,
+  PAYOUT_FEE_COINS,
+  PAYOUT_MIN_COINS,
   type EarningsSummary,
-  type PayoutAccountStatus,
   type PayoutRecord,
 } from '../lib/queries'
 
@@ -93,15 +94,15 @@ function PackCard({
 }
 
 function statusLabel(s: PayoutRecord['status']): string {
-  if (s === 'paid') return '完了'
+  if (s === 'paid') return '振込済み'
   if (s === 'failed') return '失敗'
-  return '処理中'
+  return '振込待ち'
 }
 
 /** ホストとしての収益・換金セクション(報酬コインは購入コインとは別会計)。 */
 function EarningsSection() {
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null)
-  const [payoutStatus, setPayoutStatus] = useState<PayoutAccountStatus | null>(null)
+  const [hasBankAccount, setHasBankAccount] = useState<boolean | null>(null)
   const [history, setHistory] = useState<PayoutRecord[]>([])
   const [amount, setAmount] = useState('')
   const [busy, setBusy] = useState(false)
@@ -110,15 +111,20 @@ function EarningsSection() {
 
   const load = () => {
     fetchEarnings().then(setEarnings).catch(() => {})
-    fetchPayoutAccountStatus().then(setPayoutStatus).catch(() => {})
+    fetchBankAccount().then((a) => setHasBankAccount(!!a)).catch(() => {})
     fetchPayoutHistory().then(setHistory).catch(() => {})
   }
 
   useEffect(load, [])
 
+  const coins = parseInt(amount, 10) || 0
+
   async function handleRequest() {
-    const coins = parseInt(amount, 10)
-    if (busy || !coins || coins <= 0) return
+    if (busy || coins <= 0) return
+    if (coins < PAYOUT_MIN_COINS) {
+      setError(`換金は${PAYOUT_MIN_COINS.toLocaleString()}コインから申請できます`)
+      return
+    }
     if (earnings && coins > earnings.earnedBalance) {
       setError('換金可能な残高を超えています')
       return
@@ -128,7 +134,7 @@ function EarningsSection() {
     setMessage(null)
     try {
       await requestPayout(coins)
-      setMessage('換金を申請しました。反映まで少しお時間をいただく場合があります。')
+      setMessage('換金を申請しました。次回の振込日にご登録の口座へお振込みします。')
       setAmount('')
       load()
     } catch (e) {
@@ -168,44 +174,52 @@ function EarningsSection() {
           </div>
         </div>
 
-        {payoutStatus && !payoutStatus.payoutsEnabled ? (
+        {hasBankAccount === false ? (
           <span style={{ fontSize: 11, color: C.body, lineHeight: 1.6 }}>
-            換金するには、ホスト設定から振込先(Stripe)の設定を完了してください。
+            換金するには、ホスト設定から振込先口座を登録してください。
           </span>
         ) : earnings.earnedBalance > 0 ? (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder={`最大 ${earnings.earnedBalance}`}
-              style={{
-                flex: 1,
-                background: C.surface,
-                border: `1.5px solid ${C.border}`,
-                borderRadius: 6,
-                padding: '9px 12px',
-                fontSize: 13,
-                color: C.ink,
-                outline: 'none',
-                fontFamily: 'inherit',
-              }}
-            />
-            <span
-              onClick={handleRequest}
-              style={{
-                cursor: busy ? 'not-allowed' : 'pointer',
-                opacity: busy ? 0.6 : 1,
-                fontSize: 12.5,
-                color: C.ink,
-                background: C.lime,
-                border: `1.5px solid ${C.border}`,
-                borderRadius: 6,
-                padding: '9px 16px',
-              }}
-            >
-              {busy ? '処理中…' : '換金する'}
+          <>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder={`${PAYOUT_MIN_COINS.toLocaleString()}〜${earnings.earnedBalance.toLocaleString()}`}
+                inputMode="numeric"
+                style={{
+                  flex: 1,
+                  background: C.surface,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 6,
+                  padding: '9px 12px',
+                  fontSize: 13,
+                  color: C.ink,
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <span
+                onClick={handleRequest}
+                style={{
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  opacity: busy ? 0.6 : 1,
+                  fontSize: 12.5,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 6,
+                  padding: '9px 16px',
+                }}
+              >
+                {busy ? '処理中…' : '換金する'}
+              </span>
+            </div>
+            <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
+              振込手数料 {PAYOUT_FEE_COINS}コイン/回
+              {coins >= PAYOUT_MIN_COINS && ` — 振込額 ¥${(coins - PAYOUT_FEE_COINS).toLocaleString()}`}
+              。月末締め・翌月払いでご登録の口座にお振込みします。
             </span>
-          </div>
+          </>
         ) : null}
 
         {error && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{error}</span>}
@@ -216,7 +230,7 @@ function EarningsSection() {
             {history.slice(0, 5).map((h) => (
               <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                 <span style={{ color: C.muted }}>{new Date(h.createdAt).toLocaleDateString('ja-JP')}</span>
-                <span style={{ color: C.ink }}>{h.coins}コイン</span>
+                <span style={{ color: C.ink }}>{h.coins.toLocaleString()}コイン → ¥{h.amountYen.toLocaleString()}</span>
                 <span style={{ color: h.status === 'failed' ? C.avatarPink : C.muted }}>{statusLabel(h.status)}</span>
               </div>
             ))}

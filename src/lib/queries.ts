@@ -13,6 +13,7 @@ import type {
   NotificationType,
   AccountRequestType,
   PayoutStatus,
+  BankAccountType,
 } from './database.types'
 
 export type AccountBundle = {
@@ -749,10 +750,11 @@ export async function submitAccountRequest(type: AccountRequestType): Promise<vo
 }
 
 /* ============================================================
- * エスクロー予約決済・Stripe Connectによるホストへの実際の振込。
- * schema: 0013_escrow_payouts。
+ * エスクロー予約決済・自社銀行振込によるホストへの報酬支払い。
+ * schema: 0013_escrow_payouts + 0014_bank_payouts。
  * ・購入コイン(balance)と報酬コイン(earned_balance)は別会計。
  *   換金できるのはearned_balanceのみ(不正対策・詳細はマイグレーション参照)。
+ * ・ホストは口座を登録して換金申請 → 運営が総合振込で支払う。
  * ============================================================ */
 
 export type BookingInfo = {
@@ -823,48 +825,93 @@ export async function fetchEarnings(): Promise<EarningsSummary> {
   }
 }
 
-export type PayoutAccountStatus = { hasAccount: boolean; payoutsEnabled: boolean }
+/** 換金の運用パラメータ。DB側(request_bank_payout)の定数と一致させること。 */
+export const PAYOUT_FEE_COINS = 300
+export const PAYOUT_MIN_COINS = 1000
 
-/** Stripe Connect(振込先)の設定状況を取得する。 */
-export async function fetchPayoutAccountStatus(): Promise<PayoutAccountStatus> {
+export type BankAccount = {
+  bankName: string
+  bankCode: string
+  branchName: string
+  branchCode: string
+  accountType: BankAccountType
+  accountNumber: string
+  accountHolderKana: string
+}
+
+/** 登録済みの振込先口座を取得する(未登録ならnull)。 */
+export async function fetchBankAccount(): Promise<BankAccount | null> {
   const sb = requireSupabase()
   const { data: auth } = await sb.auth.getUser()
   const me = auth.user?.id
   if (!me) throw new Error('ログインが必要です')
   const { data, error } = await sb
-    .from('host_payout_accounts')
-    .select('payouts_enabled')
+    .from('host_bank_accounts')
+    .select('bank_name, bank_code, branch_name, branch_code, account_type, account_number, account_holder_kana')
     .eq('user_id', me)
     .maybeSingle()
   if (error) throw error
-  return { hasAccount: !!data, payoutsEnabled: data?.payouts_enabled ?? false }
+  if (!data) return null
+  return {
+    bankName: data.bank_name,
+    bankCode: data.bank_code,
+    branchName: data.branch_name,
+    branchCode: data.branch_code,
+    accountType: data.account_type,
+    accountNumber: data.account_number,
+    accountHolderKana: data.account_holder_kana,
+  }
 }
 
-/** Stripe Connectのオンボーディングを開始/再開する。遷移先URLを返す。 */
-export async function startConnectOnboarding(): Promise<string> {
-  const { data, error } = await requireSupabase().functions.invoke<{ url?: string; error?: string }>(
-    'create-connect-account',
-    { body: {} },
-  )
+/** ひらがな→カタカナ・小文字英字→大文字・全角英数→半角などの名義の正規化。 */
+export function normalizeKanaName(input: string): string {
+  return input
+    .replace(/[ぁ-ん]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60))
+    .replace(/[ａ-ｚＡ-Ｚ０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    .toUpperCase()
+    .trim()
+}
+
+/** 振込先口座を登録/更新する。 */
+export async function saveBankAccount(account: BankAccount): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const { error } = await sb.from('host_bank_accounts').upsert({
+    user_id: me,
+    bank_name: account.bankName.trim(),
+    bank_code: account.bankCode,
+    branch_name: account.branchName.trim(),
+    branch_code: account.branchCode,
+    account_type: account.accountType,
+    account_number: account.accountNumber,
+    account_holder_kana: normalizeKanaName(account.accountHolderKana),
+  })
   if (error) throw error
-  if (!data?.url) throw new Error(data?.error || '振込先の設定ページを開けませんでした')
-  return data.url
 }
 
-/** 報酬コインを換金(Stripe Connectへの実振込)を申請する。 */
+const PAYOUT_ERROR_MESSAGES: Record<string, string> = {
+  MIN_PAYOUT_COINS: `換金は${PAYOUT_MIN_COINS.toLocaleString()}コインから申請できます`,
+  NOT_VERIFIED: '換金には本人確認の完了が必要です',
+  BANK_ACCOUNT_NOT_REGISTERED: '先にホスト設定から振込先口座を登録してください',
+  INSUFFICIENT_EARNED_BALANCE: '換金可能な残高が足りません',
+}
+
+/** 報酬コインの換金(銀行振込)を申請する。振込は運営がまとめて行う。 */
 export async function requestPayout(coins: number): Promise<void> {
-  const { data, error } = await requireSupabase().functions.invoke<{ ok?: boolean; error?: string }>(
-    'request-payout',
-    { body: { coins } },
-  )
-  if (error) throw error
-  if (!data?.ok) throw new Error(data?.error || '換金に失敗しました')
+  const { error } = await requireSupabase().rpc('request_bank_payout', { p_coins: coins })
+  if (error) {
+    const known = Object.keys(PAYOUT_ERROR_MESSAGES).find((k) => error.message.includes(k))
+    throw new Error(known ? PAYOUT_ERROR_MESSAGES[known] : '換金の申請に失敗しました')
+  }
 }
 
 export type PayoutRecord = {
   id: string
   coins: number
   amountYen: number
+  feeYen: number
   status: PayoutStatus
   createdAt: string
 }
@@ -873,7 +920,7 @@ export type PayoutRecord = {
 export async function fetchPayoutHistory(): Promise<PayoutRecord[]> {
   const { data, error } = await requireSupabase()
     .from('payouts')
-    .select('id, coins, amount_yen, status, created_at')
+    .select('id, coins, amount_yen, fee_yen, status, created_at')
     .order('created_at', { ascending: false })
     .limit(30)
   if (error) throw error
@@ -881,6 +928,7 @@ export async function fetchPayoutHistory(): Promise<PayoutRecord[]> {
     id: p.id,
     coins: p.coins,
     amountYen: p.amount_yen,
+    feeYen: p.fee_yen,
     status: p.status,
     createdAt: p.created_at,
   }))

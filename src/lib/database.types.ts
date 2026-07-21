@@ -17,6 +17,7 @@ export type ContactScope = 'verified' | 'sameGender' | 'all'
 export type VerificationStatus = 'pending' | 'verified' | 'rejected'
 export type CoinTxType = 'purchase' | 'booking_spend' | 'refund' | 'bonus' | 'booking_earned' | 'payout'
 export type PayoutStatus = 'pending' | 'paid' | 'failed'
+export type BankAccountType = '普通' | '当座'
 export type BookingStatus =
   | 'confirmed'
   | 'completed'
@@ -130,16 +131,38 @@ export type Database = {
         Update: Record<string, never>
         Relationships: []
       }
-      host_payout_accounts: {
+      host_bank_accounts: {
         Row: {
           user_id: string
-          stripe_account_id: string
-          payouts_enabled: boolean
+          bank_name: string
+          bank_code: string
+          branch_name: string
+          branch_code: string
+          account_type: BankAccountType
+          account_number: string
+          account_holder_kana: string
           created_at: string
           updated_at: string
         }
-        Insert: Record<string, never>
-        Update: Record<string, never>
+        Insert: {
+          user_id: string
+          bank_name: string
+          bank_code: string
+          branch_name: string
+          branch_code: string
+          account_type: BankAccountType
+          account_number: string
+          account_holder_kana: string
+        }
+        Update: {
+          bank_name?: string
+          bank_code?: string
+          branch_name?: string
+          branch_code?: string
+          account_type?: BankAccountType
+          account_number?: string
+          account_holder_kana?: string
+        }
         Relationships: []
       }
       payouts: {
@@ -148,9 +171,17 @@ export type Database = {
           user_id: string
           coins: number
           amount_yen: number
-          stripe_transfer_id: string | null
+          fee_yen: number
           status: PayoutStatus
           failure_reason: string | null
+          bank_name: string | null
+          bank_code: string | null
+          branch_name: string | null
+          branch_code: string | null
+          account_type: string | null
+          account_number: string | null
+          account_holder_kana: string | null
+          paid_at: string | null
           created_at: string
         }
         Insert: Record<string, never>
@@ -466,6 +497,10 @@ export type Database = {
       complete_booking: {
         Args: { p_booking_id: string }
         Returns: void
+      }
+      request_bank_payout: {
+        Args: { p_coins: number }
+        Returns: string
       }
       approve_identity_verification: {
         Args: { p_verification_id: string; p_is_adult?: boolean }
