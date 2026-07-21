@@ -68,6 +68,39 @@ select count(*) as 件数, sum(amount_yen) as 振込合計
 from public.payouts where status = 'pending';
 ```
 
+## ①-2 締め時の不正チェック(弁護士指摘Q3②: 自己予約・共謀予約の検知)
+
+ボーナスコイン等を「身内の予約→完了確定→換金」で現金化する動線は、
+マネロン・不正の温床になりやすい典型ルートです。**振込前に毎回**次のSQLで確認してください。
+
+```sql
+-- 換金申請中のホストについて、報酬の「ゲスト集中度」を見る。
+-- 特定の1〜2人のゲストからの報酬が大半を占めるホストは個別確認する。
+select
+  p.user_id                                   as host_id,
+  pr.nickname                                 as host_name,
+  b.guest_id,
+  gp.nickname                                 as guest_name,
+  count(*)                                    as 完了予約数,
+  sum(b.coins)                                as 報酬コイン合計
+from public.payouts p
+join public.bookings b on b.host_id = p.user_id and b.status = 'completed'
+join public.profiles pr on pr.id = p.user_id
+join public.profiles gp on gp.id = b.guest_id
+where p.status = 'pending'
+group by p.user_id, pr.nickname, b.guest_id, gp.nickname
+order by p.user_id, sum(b.coins) desc;
+```
+
+疑わしい場合(同一ゲストへの依存が極端・短時間の連続予約・購入直後の即完了など)は、
+該当ホストの`mark_payout_failed`で差し戻して事情を確認してから振り込むこと。
+
+## ①-3 資金の分別管理(弁護士指摘Q2(c))
+
+ユーザーのコイン購入代金(Stripeからの入金)と報酬振込の原資は、**事業資金と
+別の専用口座**で管理してください(収納代行の預り金性格の裏付け+倒産時の
+ユーザー保護の説明材料。弁護士の強い推奨事項)。
+
 ## ② 総合振込の実行
 
 1. ネットバンキングにログイン → 総合振込(一括振込)メニュー

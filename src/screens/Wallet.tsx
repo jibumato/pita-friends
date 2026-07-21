@@ -215,7 +215,7 @@ function EarningsSection() {
               </span>
             </div>
             <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
-              振込手数料 {PAYOUT_FEE_COINS}コイン/回
+              換金事務手数料(振込手数料を含む) {PAYOUT_FEE_COINS}コイン/回
               {coins >= PAYOUT_MIN_COINS && ` — 振込額 ¥${(coins - PAYOUT_FEE_COINS).toLocaleString()}`}
               。月末締め・翌月払いでご登録の口座にお振込みします。
             </span>
