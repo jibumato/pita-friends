@@ -15,7 +15,15 @@
 export type Gender = 'female' | 'male' | 'na'
 export type ContactScope = 'verified' | 'sameGender' | 'all'
 export type VerificationStatus = 'pending' | 'verified' | 'rejected'
-export type CoinTxType = 'purchase' | 'booking_spend' | 'refund' | 'bonus' | 'booking_earned' | 'payout'
+export type CoinTxType =
+  | 'purchase'
+  | 'booking_spend'
+  | 'refund'
+  | 'bonus'
+  | 'booking_earned'
+  | 'payout'
+  | 'expire'
+export type CoinLotKind = 'paid' | 'bonus'
 export type PayoutStatus = 'pending' | 'paid' | 'failed'
 export type BankAccountType = '普通' | '当座'
 export type BookingStatus =
@@ -188,6 +196,19 @@ export type Database = {
           account_number: string | null
           account_holder_kana: string | null
           paid_at: string | null
+          created_at: string
+        }
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
+      }
+      coin_lots: {
+        Row: {
+          id: string
+          user_id: string
+          kind: CoinLotKind
+          remaining: number
+          expires_at: string
           created_at: string
         }
         Insert: Record<string, never>

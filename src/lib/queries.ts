@@ -1078,6 +1078,24 @@ export async function createBookingRemote(hostId: string, durationMinutes: 30 | 
   return data as string
 }
 
+/** 保有コイン(有償+ボーナス)のうち最も近い有効期限を返す(なければnull)。 */
+export async function fetchSoonestCoinExpiry(): Promise<string | null> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) return null
+  const { data, error } = await sb
+    .from('coin_lots')
+    .select('expires_at')
+    .eq('user_id', me)
+    .gt('remaining', 0)
+    .order('expires_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data?.expires_at ?? null
+}
+
 export type IncomingBookingRequest = {
   bookingId: string
   guestId: string

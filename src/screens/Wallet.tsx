@@ -14,6 +14,7 @@ import {
   fetchEarnings,
   fetchBankAccount,
   fetchPayoutHistory,
+  fetchSoonestCoinExpiry,
   requestPayout,
   PAYOUT_FEE_COINS,
   PAYOUT_MIN_COINS,
@@ -247,6 +248,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
   const [packs, setPacks] = useState<CoinPack[]>(COIN_PACKS)
   const [redirecting, setRedirecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [soonestExpiry, setSoonestExpiry] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isBackendConfigured) return
@@ -258,6 +260,9 @@ export default function Wallet({ flow }: { flow: Flow }) {
       .catch(() => {
         /* 取得失敗時はコード側の定義のまま表示する */
       })
+    fetchSoonestCoinExpiry()
+      .then((e) => active && setSoonestExpiry(e))
+      .catch(() => {})
     return () => {
       active = false
     }
@@ -321,7 +326,17 @@ export default function Wallet({ flow }: { flow: Flow }) {
           {justBought && (
             <span style={{ fontSize: 11, color: '#fff' }}>+{justBought} コインを追加しました</span>
           )}
+          {soonestExpiry && flow.coinBalance > 0 && (
+            <span style={{ fontSize: 10, color: '#E3DCFF' }}>
+              有効期限が近いコイン: {new Date(soonestExpiry).toLocaleDateString('ja-JP')} まで
+            </span>
+          )}
         </div>
+        {isBackendConfigured && (
+          <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
+            コインの有効期限は取得日から6か月未満です。期限を過ぎたコインは失効します(報酬コインは対象外)。
+          </span>
+        )}
 
         {isBackendConfigured && <EarningsSection />}
 
