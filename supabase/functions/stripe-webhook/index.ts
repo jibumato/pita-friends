@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
     const userId = m.user_id
     const packId = m.pack_id ?? null
     const coins = parseInt(m.coins ?? '0', 10)
+    const bonusCoins = parseInt(m.bonus_coins ?? '0', 10)
     const priceYen = parseInt(m.price_yen ?? '0', 10)
 
     if (!userId || !coins) {
@@ -67,6 +68,7 @@ Deno.serve(async (req) => {
       p_user_id: userId,
       p_pack_id: packId,
       p_coins: coins,
+      p_bonus_coins: bonusCoins,
       p_price_yen: priceYen,
       p_session_id: session.id,
       p_payment_intent: (session.payment_intent as string) ?? null,

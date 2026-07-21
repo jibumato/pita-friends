@@ -46,7 +46,7 @@ export async function fetchAccountBundle(userId: string): Promise<AccountBundle 
       .eq('user_id', userId)
       .single(),
     sb.from('host_settings').select('is_host, hourly_rate, games, bio').eq('user_id', userId).single(),
-    sb.from('coin_wallets').select('balance').eq('user_id', userId).single(),
+    sb.from('coin_wallets').select('balance, bonus_balance').eq('user_id', userId).single(),
     sb
       .from('profile_trust_stats')
       .select('manner_score, dotakyan_count, confirmed_count, is_verified')
@@ -65,7 +65,8 @@ export async function fetchAccountBundle(userId: string): Promise<AccountBundle 
     profile: profileRes.data,
     safetyPrefs: safetyRes.data,
     hostSettings: hostRes.data,
-    wallet: walletRes.data,
+    // 予約に使えるのは有償＋ボーナスの合計(消費は有償が先。0016)
+    wallet: { balance: walletRes.data.balance + walletRes.data.bonus_balance },
     trustStats: trustRes.data,
   }
 }

@@ -77,7 +77,8 @@ Deno.serve(async (req) => {
       metadata: {
         user_id: user.id,
         pack_id: pack.id,
-        coins: String(totalCoins),
+        coins: String(pack.coins),
+        bonus_coins: String(pack.bonus_coins),
         price_yen: String(pack.price_yen),
       },
       success_url: `${APP_URL}/?checkout=success`,

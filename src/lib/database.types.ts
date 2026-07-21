@@ -128,7 +128,7 @@ export type Database = {
         Relationships: []
       }
       coin_wallets: {
-        Row: { user_id: string; balance: number; earned_balance: number; updated_at: string }
+        Row: { user_id: string; balance: number; bonus_balance: number; earned_balance: number; updated_at: string }
         Insert: Record<string, never>
         Update: Record<string, never>
         Relationships: []
@@ -254,6 +254,8 @@ export type Database = {
           host_id: string
           duration_minutes: 30 | 60 | 120
           coins: number
+          paid_coins: number
+          bonus_coins: number
           status: BookingStatus
           scheduled_at: string
           cancel_reason: string | null

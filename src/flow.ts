@@ -148,10 +148,13 @@ export function packBonusLabel(pack: CoinPack): string {
  * coin_packs テーブル(サーバー権威)を参照するが、IDと数量はこれと一致させる。
  */
 export const COIN_PACKS: CoinPack[] = [
-  { id: 'pack_300', coins: 300, bonusCoins: 0, priceYen: 300 },
-  { id: 'pack_1000', coins: 1000, bonusCoins: 50, priceYen: 1000 },
-  { id: 'pack_3000', coins: 3000, bonusCoins: 300, priceYen: 3000 },
-  { id: 'pack_6000', coins: 6000, bonusCoins: 900, priceYen: 6000 },
+  { id: 'pack_500', coins: 500, bonusCoins: 0, priceYen: 500 },
+  { id: 'pack_1000', coins: 1000, bonusCoins: 0, priceYen: 1000 },
+  { id: 'pack_3000', coins: 3000, bonusCoins: 0, priceYen: 3000 },
+  { id: 'pack_5000', coins: 5000, bonusCoins: 0, priceYen: 5000 },
+  { id: 'pack_10000', coins: 10000, bonusCoins: 0, priceYen: 10000 },
+  { id: 'pack_20000', coins: 20000, bonusCoins: 100, priceYen: 20000 },
+  { id: 'pack_50000', coins: 50000, bonusCoins: 500, priceYen: 50000 },
 ]
 
 /** ホスト設定(一緒に遊ぶ時間を時給コインで提供する)。 */
