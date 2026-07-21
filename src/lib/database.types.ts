@@ -48,6 +48,8 @@ export type NotificationType =
   | 'verification_approved'
   | 'verification_rejected'
   | 'board_joined'
+  | 'booking_cancelled'
+  | 'booking_completed'
 export type AccountRequestType = 'data_export' | 'account_deletion'
 export type AccountRequestStatus = 'pending' | 'processing' | 'completed'
 

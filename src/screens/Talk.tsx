@@ -7,17 +7,21 @@ import { ChevronLeft, Shield, Send } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import {
+  cancelBooking,
   completeBooking,
   fetchBookingForPromise,
   fetchMessages,
   fetchThreadPartner,
+  hasReviewedPromise,
   markThreadRead,
   sendMessage,
+  submitReview,
   subscribeToMessages,
   type BookingInfo,
   type ChatMessage,
   type ThreadPartner,
 } from '../lib/queries'
+import { REVIEW_TAGS } from '../flow'
 import { containsWarningPattern } from '../lib/ngWords'
 
 function Bubble({ side, children }: { side: 'left' | 'right'; children: React.ReactNode }) {
@@ -51,6 +55,13 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   const [booking, setBooking] = useState<BookingInfo | null>(null)
   const [completing, setCompleting] = useState(false)
   const [completeError, setCompleteError] = useState<string | null>(null)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [reviewed, setReviewed] = useState<boolean | null>(null)
+  const [stars, setStars] = useState(5)
+  const [tags, setTags] = useState<string[]>([])
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [reviewError, setReviewError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -60,12 +71,18 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   useEffect(() => {
     let active = true
     setLoading(true)
-    Promise.all([fetchThreadPartner(promiseId), fetchMessages(promiseId), fetchBookingForPromise(promiseId)])
-      .then(([p, m, b]) => {
+    Promise.all([
+      fetchThreadPartner(promiseId),
+      fetchMessages(promiseId),
+      fetchBookingForPromise(promiseId),
+      hasReviewedPromise(promiseId).catch(() => false),
+    ])
+      .then(([p, m, b, r]) => {
         if (!active) return
         setPartner(p)
         setMessages(m)
         setBooking(b)
+        setReviewed(r)
         void markThreadRead(promiseId)
       })
       .catch((e) => active && setError(e instanceof Error ? e.message : '読み込みに失敗しました'))
@@ -123,7 +140,40 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
     }
   }
 
+  async function handleCancel() {
+    if (!booking || cancelling) return
+    setCancelling(true)
+    setCompleteError(null)
+    try {
+      await cancelBooking(booking.id)
+      setBooking({
+        ...booking,
+        status: myId === booking.hostId ? 'cancelled_by_host' : 'cancelled_by_guest',
+      })
+      setCancelOpen(false)
+    } catch (e) {
+      setCompleteError(e instanceof Error ? e.message : 'キャンセルに失敗しました')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  async function handleSubmitReview() {
+    if (!partner || submittingReview) return
+    setSubmittingReview(true)
+    setReviewError(null)
+    try {
+      await submitReview(promiseId, partner.userId, stars, tags)
+      setReviewed(true)
+    } catch (e) {
+      setReviewError(e instanceof Error ? e.message : '評価の送信に失敗しました')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
   const isGuestOfBooking = booking && myId === booking.guestId
+  const isCancelledBooking = booking?.status.startsWith('cancelled') || booking?.status.startsWith('no_show')
 
   return (
     <Screen background={C.surface}>
@@ -231,12 +281,52 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
               {completing ? '処理中…' : '✓ プレイ完了・支払いを確定する'}
             </div>
           ) : (
-            <span style={{ fontSize: 10.5, color: '#E3DCFF' }}>ゲスト側の確定をお待ちください</span>
+            <span style={{ fontSize: 10.5, color: '#E3DCFF' }}>ゲスト側の確定をお待ちください(72時間で自動確定)</span>
+          )}
+          {!cancelOpen ? (
+            <span
+              onClick={() => setCancelOpen(true)}
+              style={{ cursor: 'pointer', fontSize: 10.5, color: '#E3DCFF', textDecoration: 'underline', textAlign: 'center' }}
+            >
+              予約をキャンセルする…
+            </span>
+          ) : (
+            <div
+              style={{
+                background: C.white,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 8,
+                padding: '9px 11px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 7,
+              }}
+            >
+              <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
+                {isGuestOfBooking
+                  ? '開始1時間前まではコインが全額戻ります。1時間を切るとコインは戻らず(ホストの報酬になります)、ドタキャンとして記録されます。'
+                  : 'ホスト都合のキャンセルはコインがゲストに全額戻り、あなたのドタキャン記録に残ります。'}
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span
+                  onClick={() => setCancelOpen(false)}
+                  style={{ flex: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11.5, color: C.ink, background: C.surface, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 0' }}
+                >
+                  やめる
+                </span>
+                <span
+                  onClick={handleCancel}
+                  style={{ flex: 1, textAlign: 'center', cursor: cancelling ? 'not-allowed' : 'pointer', opacity: cancelling ? 0.6 : 1, fontSize: 11.5, color: C.ink, background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 0' }}
+                >
+                  {cancelling ? '処理中…' : 'キャンセルする'}
+                </span>
+              </div>
+            </div>
           )}
           {completeError && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{completeError}</span>}
         </div>
       )}
-      {booking && booking.status === 'completed' && (
+      {booking && isCancelledBooking && (
         <div
           style={{
             margin: '10px 20px 0',
@@ -247,7 +337,81 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
             textAlign: 'center',
           }}
         >
-          <span style={{ fontSize: 11.5, color: C.lime }}>✓ プレイ完了・お支払いが確定しました</span>
+          <span style={{ fontSize: 11.5, color: C.muted }}>この予約はキャンセルされました</span>
+        </div>
+      )}
+      {booking && booking.status === 'completed' && (
+        <div
+          style={{
+            margin: '10px 20px 0',
+            background: C.fill,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 10,
+            padding: '10px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 11.5, color: C.lime, textAlign: 'center' }}>✓ プレイ完了・お支払いが確定しました</span>
+          {reviewed === false && partner && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <span style={{ fontSize: 11, color: C.ink }}>{partner.name}さんを評価しましょう</span>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <span
+                    key={n}
+                    onClick={() => setStars(n)}
+                    style={{ cursor: 'pointer', fontSize: 26, lineHeight: 1, color: n <= stars ? C.avatarOrange : C.starOff }}
+                  >
+                    ★
+                  </span>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {REVIEW_TAGS.map((t) => {
+                  const sel = tags.includes(t)
+                  return (
+                    <span
+                      key={t}
+                      onClick={() => setTags((xs) => (sel ? xs.filter((x) => x !== t) : [...xs, t]))}
+                      style={{
+                        cursor: 'pointer',
+                        fontSize: 10.5,
+                        color: sel ? C.lime : C.ink,
+                        background: sel ? C.fill : C.white,
+                        border: `1.5px solid ${C.border}`,
+                        padding: '5px 10px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      {t}
+                    </span>
+                  )
+                })}
+              </div>
+              <div
+                onClick={handleSubmitReview}
+                style={{
+                  cursor: submittingReview ? 'not-allowed' : 'pointer',
+                  opacity: submittingReview ? 0.6 : 1,
+                  textAlign: 'center',
+                  fontSize: 12,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 6,
+                  padding: '8px 0',
+                }}
+              >
+                {submittingReview ? '送信中…' : '評価を送る'}
+              </div>
+              {reviewError && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{reviewError}</span>}
+            </div>
+          )}
+          {reviewed === true && (
+            <span style={{ fontSize: 10.5, color: C.muted, textAlign: 'center' }}>評価を送りました。ありがとうございました</span>
+          )}
         </div>
       )}
 

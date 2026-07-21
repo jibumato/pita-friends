@@ -23,6 +23,8 @@ const ICON_BY_TYPE: Record<NotificationType, { icon: string; tint: string }> = {
   verification_approved: { icon: '🛡️', tint: C.lime },
   verification_rejected: { icon: '⚠️', tint: C.avatarOrange },
   board_joined: { icon: '🎮', tint: C.lavender },
+  booking_cancelled: { icon: '🚫', tint: C.avatarOrange },
+  booking_completed: { icon: '🪙', tint: C.lime },
 }
 
 function timeLabel(iso: string): string {
@@ -93,6 +95,12 @@ export default function Notifications({ flow }: { flow: Flow }) {
         return
       case 'verification_approved':
         flow.go('mypage')
+        return
+      case 'booking_cancelled':
+        flow.go('talkList')
+        return
+      case 'booking_completed':
+        flow.go('wallet')
         return
     }
   }

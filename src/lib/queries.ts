@@ -799,6 +799,63 @@ export async function completeBooking(bookingId: string): Promise<void> {
   if (error) throw error
 }
 
+/**
+ * 予約をキャンセルする(当事者のみ)。返還ルールはDB側(規約第9条):
+ * ホスト都合=全額返還 / ゲスト都合1時間前まで=全額返還 / 直前=返還なし。
+ */
+export async function cancelBooking(bookingId: string, reason?: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('cancel_booking', {
+    p_booking_id: bookingId,
+    ...(reason ? { p_reason: reason } : {}),
+  })
+  if (error) {
+    if (error.message.includes('BOOKING_NOT_CANCELLABLE')) {
+      throw new Error('この予約はキャンセルできない状態です(すでに完了/キャンセル済み)')
+    }
+    throw new Error('キャンセルに失敗しました')
+  }
+}
+
+/** 相手への評価(星+タグ)を送る。promiseごとに1回のみ。 */
+export async function submitReview(
+  promiseId: string,
+  revieweeId: string,
+  stars: number,
+  tags: string[],
+): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const { error } = await sb.from('reviews').insert({
+    promise_id: promiseId,
+    reviewer_id: me,
+    reviewee_id: revieweeId,
+    stars: Math.min(5, Math.max(1, Math.round(stars))) as 1 | 2 | 3 | 4 | 5,
+    tags,
+  })
+  if (error) {
+    if (error.code === '23505') throw new Error('この約束はすでに評価済みです')
+    throw new Error('評価の送信に失敗しました')
+  }
+}
+
+/** このpromiseに対して自分がすでに評価済みかを返す。 */
+export async function hasReviewedPromise(promiseId: string): Promise<boolean> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const { data, error } = await sb
+    .from('reviews')
+    .select('id')
+    .eq('promise_id', promiseId)
+    .eq('reviewer_id', me)
+    .maybeSingle()
+  if (error) throw error
+  return !!data
+}
+
 export type EarningsSummary = {
   /** 換金可能な報酬コイン残高。 */
   earnedBalance: number
