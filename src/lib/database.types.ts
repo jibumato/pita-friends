@@ -19,10 +19,12 @@ export type CoinTxType = 'purchase' | 'booking_spend' | 'refund' | 'bonus' | 'bo
 export type PayoutStatus = 'pending' | 'paid' | 'failed'
 export type BankAccountType = '普通' | '当座'
 export type BookingStatus =
+  | 'requested'
   | 'confirmed'
   | 'completed'
   | 'cancelled_by_guest'
   | 'cancelled_by_host'
+  | 'declined_by_host'
   | 'no_show_host'
   | 'no_show_guest'
 export type InviteStatus = 'pending' | 'approved' | 'declined' | 'expired'
@@ -50,6 +52,8 @@ export type NotificationType =
   | 'board_joined'
   | 'booking_cancelled'
   | 'booking_completed'
+  | 'booking_requested'
+  | 'booking_approved'
 export type AccountRequestType = 'data_export' | 'account_deletion'
 export type AccountRequestStatus = 'pending' | 'processing' | 'completed'
 
@@ -481,6 +485,14 @@ export type Database = {
       create_booking: {
         Args: { p_host_id: string; p_duration_minutes: 30 | 60 | 120 }
         Returns: string
+      }
+      approve_booking: {
+        Args: { p_booking_id: string }
+        Returns: string
+      }
+      decline_booking: {
+        Args: { p_booking_id: string }
+        Returns: void
       }
       cancel_booking: {
         Args: { p_booking_id: string; p_reason?: string | null }

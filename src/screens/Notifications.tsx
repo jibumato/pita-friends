@@ -25,6 +25,8 @@ const ICON_BY_TYPE: Record<NotificationType, { icon: string; tint: string }> = {
   board_joined: { icon: '🎮', tint: C.lavender },
   booking_cancelled: { icon: '🚫', tint: C.avatarOrange },
   booking_completed: { icon: '🪙', tint: C.lime },
+  booking_requested: { icon: '📨', tint: C.avatarPink },
+  booking_approved: { icon: '🤝', tint: C.lime },
 }
 
 function timeLabel(iso: string): string {
@@ -101,6 +103,12 @@ export default function Notifications({ flow }: { flow: Flow }) {
         return
       case 'booking_completed':
         flow.go('wallet')
+        return
+      case 'booking_requested':
+        flow.go('requests')
+        return
+      case 'booking_approved':
+        if (n.relatedId) flow.openThread(n.relatedId)
         return
     }
   }

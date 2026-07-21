@@ -46,6 +46,7 @@ import HomeScreen from './screens/Home'
 import Profile from './screens/Profile'
 import InviteSheet from './screens/InviteSheet'
 import Sending from './screens/Sending'
+import BookingRequested from './screens/BookingRequested'
 import Match from './screens/Match'
 import Party from './screens/Party'
 import Talk from './screens/Talk'
@@ -374,11 +375,17 @@ export default function App() {
     if (isBackendConfigured && host.userId && state.userId) {
       setState((p) => ({ ...p, bookingInsufficient: false, bookingError: null }))
       try {
-        const promiseId = await createBookingRemote(host.userId, state.bookingDuration)
+        // 予約はリクエスト(承諾待ち)として作られる。ホストが承諾するまで
+        // トークは開かないので、送信完了→承諾待ち画面に遷移する。
+        await createBookingRemote(host.userId, state.bookingDuration)
         const cost = coinsForDuration(host.hourlyRate, state.bookingDuration)
         clearTimer()
-        setState((p) => ({ ...p, coinBalance: p.coinBalance - cost, screen: 'sending', activeThreadId: promiseId }))
-        timer.current = setTimeout(() => setState((p) => ({ ...p, screen: 'match' })), AUTO_ADVANCE_MS)
+        setState((p) => ({
+          ...p,
+          coinBalance: p.coinBalance - cost,
+          screen: 'bookingRequested',
+          activeThreadId: null,
+        }))
       } catch (err) {
         const message = err instanceof Error ? err.message : ''
         if (message.includes('INSUFFICIENT_COINS')) {
@@ -695,6 +702,7 @@ export default function App() {
         {state.screen === 'profile' && <Profile flow={flow} />}
         {state.screen === 'invite' && <InviteSheet flow={flow} />}
         {state.screen === 'sending' && <Sending flow={flow} />}
+        {state.screen === 'bookingRequested' && <BookingRequested flow={flow} />}
         {state.screen === 'match' && <Match flow={flow} />}
         {state.screen === 'party' && <Party flow={flow} />}
         {state.screen === 'talk' && <Talk flow={flow} />}

@@ -13,6 +13,7 @@ export type ScreenKey =
   | 'profile'
   | 'invite'
   | 'sending'
+  | 'bookingRequested'
   | 'match'
   | 'party'
   | 'talk'
@@ -49,6 +50,7 @@ export const screenNames: Record<ScreenKey, string> = {
   profile: 'プロフィール',
   invite: '誘う',
   sending: '返事待ち',
+  bookingRequested: 'リクエスト送信',
   match: 'MATCH FOUND',
   party: 'PARTY成立',
   talk: 'トークルーム',
@@ -200,6 +202,7 @@ export const stepOf: Record<ScreenKey, number> = {
   profile: 1,
   invite: 1,
   sending: 1,
+  bookingRequested: 1,
   match: 2,
   party: 2,
   talk: 2,

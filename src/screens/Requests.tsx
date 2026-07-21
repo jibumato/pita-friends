@@ -8,10 +8,20 @@ import { Shield } from '../components/Icon'
 import { EmptyState } from '../components/States'
 import { inviteRequests } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
-import { approveInvite, declineInvite, fetchIncomingInvites, type IncomingInvite } from '../lib/queries'
+import {
+  approveInvite,
+  declineInvite,
+  fetchIncomingInvites,
+  approveBooking,
+  declineBooking,
+  fetchIncomingBookingRequests,
+  type IncomingInvite,
+} from '../lib/queries'
 
-/** カード表示に必要な共通形(モック InviteRequest / 実データ IncomingInvite の両対応)。 */
+/** カード表示に必要な共通形(モック InviteRequest / 実データ IncomingInvite / 予約リクエストの共通)。 */
 type CardData = {
+  /** 'invite'=誘い / 'booking'=コイン予約リクエスト。省略時は誘い(モック)。 */
+  kind?: 'invite' | 'booking'
   id: string
   fromUserId?: string
   name: string
@@ -104,8 +114,22 @@ function RequestCard({
           {r.initial}
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 15, color: C.ink }}>{r.name}</span>
+            {r.kind === 'booking' && (
+              <span
+                style={{
+                  fontSize: 9.5,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.border}`,
+                  padding: '2px 7px',
+                  borderRadius: 4,
+                }}
+              >
+                🪙 予約リクエスト
+              </span>
+            )}
             {r.verified && (
               <span
                 style={{
@@ -225,8 +249,28 @@ export default function Requests({ flow }: { flow: Flow }) {
   useEffect(() => {
     if (!isBackendConfigured) return
     let active = true
-    fetchIncomingInvites()
-      .then((data: IncomingInvite[]) => active && setItems(data))
+    Promise.all([fetchIncomingInvites(), fetchIncomingBookingRequests()])
+      .then(([invites, bookings]) => {
+        if (!active) return
+        const inviteCards: CardData[] = (invites as IncomingInvite[]).map((i) => ({ ...i, kind: 'invite' }))
+        const bookingCards: CardData[] = bookings.map((b) => ({
+          kind: 'booking',
+          id: b.bookingId,
+          fromUserId: b.guestId,
+          name: b.name,
+          initial: b.initial,
+          color: b.color,
+          verified: b.verified,
+          manner: b.manner,
+          dotakyan: b.dotakyan,
+          plays: b.plays,
+          game: `${b.coins.toLocaleString()}コイン`,
+          when: `${b.durationMinutes}分`,
+          message: '',
+        }))
+        // 予約リクエストを上に(お金が絡むので優先的に応答してほしい)
+        setItems([...bookingCards, ...inviteCards])
+      })
       .catch((e) => active && setError(e instanceof Error ? e.message : '取得に失敗しました'))
     return () => {
       active = false
@@ -237,7 +281,7 @@ export default function Requests({ flow }: { flow: Flow }) {
 
   const approve = (r: CardData) => async () => {
     if (isBackendConfigured) {
-      const promiseId = await approveInvite(r.id)
+      const promiseId = r.kind === 'booking' ? await approveBooking(r.id) : await approveInvite(r.id)
       remove(r.id)
       flow.openThread(promiseId)
     } else {
@@ -245,14 +289,17 @@ export default function Requests({ flow }: { flow: Flow }) {
     }
   }
   const decline = (r: CardData) => async () => {
-    if (isBackendConfigured) await declineInvite(r.id)
+    if (isBackendConfigured) {
+      if (r.kind === 'booking') await declineBooking(r.id)
+      else await declineInvite(r.id)
+    }
     remove(r.id)
   }
 
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:47" />
-      <SubHeader title="受け取った誘い" onBack={() => flow.go('mypage')} />
+      <SubHeader title="受け取ったリクエスト" onBack={() => flow.go('mypage')} />
 
       {error && (
         <div style={{ margin: '10px 20px 0', background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: '11px 13px', fontSize: 12, color: C.ink }}>
@@ -268,10 +315,10 @@ export default function Requests({ flow }: { flow: Flow }) {
         <EmptyState
           tileColor={C.avatarAqua}
           icon={<Shield size={42} color={C.ink} strokeWidth={2.2} />}
-          title="承認待ちの誘いはありません"
+          title="承認待ちのリクエストはありません"
           desc={
             <>
-              あなたの安心設定を満たした誘いだけが、
+              あなたの安心設定を満たした誘い・予約だけが、
               <br />
               ここにリクエストとして届きます
             </>

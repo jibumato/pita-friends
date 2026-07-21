@@ -667,19 +667,19 @@ export async function resolvePromiseIdForInvite(inviteId: string): Promise<strin
   return data?.id ?? null
 }
 
-/** 自分宛の承認待ちの誘い件数(ホームのバッジ表示用の軽量版)。 */
+/** 自分宛の承認待ち件数(誘い＋予約リクエスト。ホーム/マイページのバッジ用)。 */
 export async function fetchPendingInviteCount(): Promise<number> {
   const sb = requireSupabase()
   const { data: auth } = await sb.auth.getUser()
   const me = auth.user?.id
   if (!me) return 0
-  const { count, error } = await sb
-    .from('invites')
-    .select('id', { count: 'exact', head: true })
-    .eq('to_user', me)
-    .eq('status', 'pending')
-  if (error) throw error
-  return count ?? 0
+  const [invites, bookings] = await Promise.all([
+    sb.from('invites').select('id', { count: 'exact', head: true }).eq('to_user', me).eq('status', 'pending'),
+    sb.from('bookings').select('id', { count: 'exact', head: true }).eq('host_id', me).eq('status', 'requested'),
+  ])
+  if (invites.error) throw invites.error
+  if (bookings.error) throw bookings.error
+  return (invites.count ?? 0) + (bookings.count ?? 0)
 }
 
 /** これまでに約束(promise)が成立した相手の人数(マイページの「フレンド」表示用)。 */
@@ -1065,9 +1065,9 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
 }
 
 /**
- * ホスト予約を確定し、コインをアトミックに消費する(create_booking RPC)。
- * 予約と同時に約束(promise)も作成され、そのpromise_idを返す
- * (トークルームを開くのに使う)。
+ * ホスト予約をリクエストし、コインをアトミックに確保する(create_booking RPC)。
+ * この時点では予約は「承諾待ち(requested)」で、約束(トーク)はまだ成立しない。
+ * ホストが承諾して初めてトークが開く。戻り値は booking_id。
  */
 export async function createBookingRemote(hostId: string, durationMinutes: 30 | 60 | 120): Promise<string> {
   const { data, error } = await requireSupabase().rpc('create_booking', {
@@ -1076,6 +1076,82 @@ export async function createBookingRemote(hostId: string, durationMinutes: 30 | 
   })
   if (error) throw error
   return data as string
+}
+
+export type IncomingBookingRequest = {
+  bookingId: string
+  guestId: string
+  name: string
+  initial: string
+  color: string
+  verified: boolean
+  manner: string
+  dotakyan: string
+  plays: number
+  coins: number
+  durationMinutes: number
+}
+
+/** 自分(ホスト)宛の承諾待ち予約リクエストを、申込者の信頼情報つきで取得する。 */
+export async function fetchIncomingBookingRequests(): Promise<IncomingBookingRequest[]> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+
+  const { data: bookings, error } = await sb
+    .from('bookings')
+    .select('id, guest_id, coins, duration_minutes, created_at')
+    .eq('host_id', me)
+    .eq('status', 'requested')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  if (!bookings || bookings.length === 0) return []
+
+  const guestIds = bookings.map((b) => b.guest_id)
+  const [{ data: profiles }, { data: stats }] = await Promise.all([
+    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color').in('id', guestIds),
+    sb
+      .from('profile_trust_stats')
+      .select('user_id, manner_score, dotakyan_count, confirmed_count, is_verified')
+      .in('user_id', guestIds),
+  ])
+  const pMap = new Map((profiles ?? []).map((p) => [p.id, p]))
+  const sMap = new Map((stats ?? []).map((s) => [s.user_id, s]))
+
+  return bookings.map((b) => {
+    const p = pMap.get(b.guest_id)
+    const s = sMap.get(b.guest_id)
+    const confirmed = s?.confirmed_count ?? 0
+    const dotakyan = s?.dotakyan_count ?? 0
+    const denom = confirmed + dotakyan
+    return {
+      bookingId: b.id,
+      guestId: b.guest_id,
+      name: p?.nickname || '(名前未設定)',
+      initial: p?.avatar_initial || p?.nickname?.charAt(0) || '?',
+      color: p?.avatar_color || '#B3E5F2',
+      verified: s?.is_verified ?? false,
+      manner: `★${(s?.manner_score ?? 4.5).toFixed(1)}`,
+      dotakyan: `${denom > 0 ? Math.round((dotakyan / denom) * 100) : 0}%`,
+      plays: confirmed,
+      coins: b.coins,
+      durationMinutes: b.duration_minutes,
+    }
+  })
+}
+
+/** 予約リクエストを承諾する(約束=トークが成立)。promise_idを返す。 */
+export async function approveBooking(bookingId: string): Promise<string> {
+  const { data, error } = await requireSupabase().rpc('approve_booking', { p_booking_id: bookingId })
+  if (error) throw error
+  return data as string
+}
+
+/** 予約リクエストを辞退する(コインは申込者へ全額返却)。 */
+export async function declineBooking(bookingId: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('decline_booking', { p_booking_id: bookingId })
+  if (error) throw error
 }
 
 function fileExtension(file: File): string {
