@@ -1,0 +1,21 @@
+# Cloudflare Pages 用のレスポンスヘッダ設定(vercel.json と同等の内容)。
+# public/ に置くと Vite がビルド時に dist/ へコピーし、Cloudflare Pages が読み取る。
+# ※ Vercel はこのファイルを無視し、vercel.json を使う(両対応)。
+
+# Service Worker は毎回検証させ、更新を確実に伝播させる
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+# ハッシュ付きアセットは長期の不変キャッシュ
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# 全ページ共通のセキュリティヘッダ
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
