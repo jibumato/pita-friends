@@ -196,6 +196,8 @@ export default function Booking({ flow }: { flow: Flow }) {
             <br />
             ・<b style={{ color: C.ink }}>あなたの都合</b>のキャンセル → 開始1時間前まで全額再付与
             <br />
+            　（開始1時間を切ってからは再付与されず、コインはホストの報酬になります）
+            <br />
             トラブル時はいつでも通報・相談ができます。
           </span>
         </div>
