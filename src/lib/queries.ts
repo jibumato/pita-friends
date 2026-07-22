@@ -387,6 +387,12 @@ export async function fetchChatThreads(): Promise<ChatThread[]> {
   })
 }
 
+/** 全トークの未読メッセージ合計(下部タブのバッジ表示用)。 */
+export async function fetchUnreadTalkCount(): Promise<number> {
+  const threads = await fetchChatThreads()
+  return threads.reduce((sum, t) => sum + t.unreadCount, 0)
+}
+
 export type ThreadPartner = {
   userId: string
   name: string
