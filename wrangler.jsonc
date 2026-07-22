@@ -1,0 +1,13 @@
+{
+  // Cloudflare(npx wrangler deploy)で静的サイトとして配信する設定。
+  // ビルド(npm run build)で dist/ を作り、それをそのまま配信する。
+  // Worker スクリプト(main)は無し = 純粋な静的ホスティング。
+  // ※ これが無いと wrangler が Vite の自動設定を試み、Vite6未満でデプロイが失敗する。
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pita-friends",
+  "compatibility_date": "2025-07-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
