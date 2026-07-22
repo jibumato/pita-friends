@@ -465,6 +465,45 @@ export async function sendMessage(promiseId: string, body: string): Promise<void
   if (error) throw error
 }
 
+/** ギフト(投げ銭)で選べる金額(コイン)。 */
+export const GIFT_AMOUNTS = [50, 100, 300, 500, 1000] as const
+
+const GIFT_ERROR_MESSAGES: Record<string, string> = {
+  INSUFFICIENT_COINS: '購入コインの残高が足りません。ギフトは購入コインからのみ贈れます',
+  INVALID_AMOUNT: 'ギフトの金額が正しくありません',
+  BLOCKED: 'この相手にはギフトを贈れません',
+  THREAD_NOT_FOUND: 'トークが見つかりませんでした',
+  FORBIDDEN: 'このトークではギフトを贈れません',
+  NOT_AUTHENTICATED: 'ログインが必要です',
+}
+
+/**
+ * トークの相手にコインを贈る(投げ銭)。原資は自分の購入コイン(balance)のみ。
+ * 相手は換金可能な報酬コイン(earned_balance)として受け取る。
+ */
+export async function sendGift(promiseId: string, coins: number, message?: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('send_gift', {
+    p_promise_id: promiseId,
+    p_coins: coins,
+    p_message: message?.trim() ? message.trim() : null,
+  })
+  if (error) {
+    const known = Object.keys(GIFT_ERROR_MESSAGES).find((k) => error.message.includes(k))
+    throw new Error(known ? GIFT_ERROR_MESSAGES[known] : 'ギフトの送信に失敗しました')
+  }
+}
+
+/** 自分の購入コイン残高(換金不可・予約/ギフトに使える有償分)を取得する。 */
+export async function fetchPaidBalance(): Promise<number> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const { data, error } = await sb.from('coin_wallets').select('balance').eq('user_id', me).single()
+  if (error) throw error
+  return data.balance
+}
+
 /** このpromiseを既読にする(自分の既読位置を今に更新)。 */
 export async function markThreadRead(promiseId: string): Promise<void> {
   const sb = requireSupabase()

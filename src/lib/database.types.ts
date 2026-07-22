@@ -62,6 +62,7 @@ export type NotificationType =
   | 'booking_completed'
   | 'booking_requested'
   | 'booking_approved'
+  | 'gift_received'
 export type AccountRequestType = 'data_export' | 'account_deletion'
 export type AccountRequestStatus = 'pending' | 'processing' | 'completed'
 
@@ -537,6 +538,10 @@ export type Database = {
       }
       request_bank_payout: {
         Args: { p_coins: number }
+        Returns: string
+      }
+      send_gift: {
+        Args: { p_promise_id: string; p_coins: number; p_message?: string | null }
         Returns: string
       }
       approve_identity_verification: {

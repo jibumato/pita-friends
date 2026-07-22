@@ -11,12 +11,15 @@ import {
   completeBooking,
   fetchBookingForPromise,
   fetchMessages,
+  fetchPaidBalance,
   fetchThreadPartner,
   hasReviewedPromise,
   markThreadRead,
+  sendGift,
   sendMessage,
   submitReview,
   subscribeToMessages,
+  GIFT_AMOUNTS,
   type BookingInfo,
   type ChatMessage,
   type ThreadPartner,
@@ -42,6 +45,162 @@ function Bubble({ side, children }: { side: 'left' | 'right'; children: React.Re
   )
 }
 
+/** ギフト(投げ銭)を贈るボトムシート。 */
+function GiftSheet({
+  promiseId,
+  partnerName,
+  onClose,
+  onSent,
+}: {
+  promiseId: string
+  partnerName: string
+  onClose: () => void
+  onSent: () => void
+}) {
+  const [amount, setAmount] = useState<number>(GIFT_AMOUNTS[1])
+  const [message, setMessage] = useState('')
+  const [balance, setBalance] = useState<number | null>(null)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetchPaidBalance()
+      .then((b) => active && setBalance(b))
+      .catch(() => active && setBalance(null))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const short = balance !== null && balance < amount
+
+  async function handleSend() {
+    if (sending || short) return
+    setSending(true)
+    setError(null)
+    try {
+      await sendGift(promiseId, amount, message)
+      onSent()
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'ギフトの送信に失敗しました')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'rgba(0,0,0,.35)',
+        display: 'flex',
+        alignItems: 'flex-end',
+        zIndex: 50,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          background: C.surface,
+          borderTop: `1.5px solid ${C.border}`,
+          borderRadius: '16px 16px 0 0',
+          padding: '16px 20px 26px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          animation: 'scrIn .25s ease both',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 15, color: C.ink }}>🎁 {partnerName}さんにギフト</span>
+          <span onClick={onClose} style={{ cursor: 'pointer', fontSize: 13, color: C.muted }}>
+            閉じる
+          </span>
+        </div>
+
+        <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
+          「楽しかった」「応援したい」気持ちをコインで贈れます。相手の報酬(換金可能)になります。
+        </span>
+
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {GIFT_AMOUNTS.map((a) => {
+            const sel = amount === a
+            return (
+              <span
+                key={a}
+                onClick={() => setAmount(a)}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  color: sel ? C.ink : C.body,
+                  background: sel ? C.lime : C.white,
+                  border: `1.5px solid ${C.border}`,
+                  padding: '9px 14px',
+                  borderRadius: 8,
+                }}
+              >
+                {a}
+              </span>
+            )
+          })}
+        </div>
+
+        <input
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="ひとこと添える(任意)"
+          maxLength={100}
+          style={{
+            background: C.white,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 8,
+            padding: '11px 14px',
+            fontSize: 12.5,
+            color: C.ink,
+            outline: 'none',
+            fontFamily: 'inherit',
+          }}
+        />
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11, color: C.muted }}>購入コイン残高</span>
+          <span style={{ fontSize: 12.5, color: short ? C.avatarPink : C.ink }}>
+            {balance === null ? '—' : `${balance} コイン`}
+          </span>
+        </div>
+
+        {short && (
+          <span style={{ fontSize: 11, color: C.avatarPink }}>
+            残高が足りません。ギフトは購入コインからのみ贈れます。
+          </span>
+        )}
+        {error && <span style={{ fontSize: 11, color: C.avatarPink }}>{error}</span>}
+
+        <div
+          onClick={handleSend}
+          style={{
+            cursor: sending || short ? 'not-allowed' : 'pointer',
+            opacity: sending || short ? 0.55 : 1,
+            textAlign: 'center',
+            fontSize: 14,
+            color: C.ctaFg,
+            background: C.ctaBg,
+            borderRadius: 8,
+            padding: '13px 0',
+          }}
+        >
+          {sending ? '送信中…' : `${amount} コインを贈る 🎁`}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** 実データのトークルーム(promise)。 */
 function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   const [partner, setPartner] = useState<ThreadPartner | null>(null)
@@ -62,6 +221,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   const [tags, setTags] = useState<string[]>([])
   const [submittingReview, setSubmittingReview] = useState(false)
   const [reviewError, setReviewError] = useState<string | null>(null)
+  const [giftOpen, setGiftOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -226,6 +386,24 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
             )}
           </div>
         </div>
+        {partner && (
+          <div
+            onClick={() => setGiftOpen(true)}
+            style={{
+              cursor: 'pointer',
+              flex: 'none',
+              fontSize: 12,
+              color: C.ink,
+              background: C.fill,
+              border: `1.5px solid ${C.border}`,
+              boxShadow: `2px 2px 0 ${C.lavender}`,
+              borderRadius: 8,
+              padding: '7px 11px',
+            }}
+          >
+            🎁 ギフト
+          </div>
+        )}
       </div>
 
       <div
@@ -520,6 +698,15 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
           <Send />
         </div>
       </div>
+
+      {giftOpen && partner && (
+        <GiftSheet
+          promiseId={promiseId}
+          partnerName={partner.name}
+          onClose={() => setGiftOpen(false)}
+          onSent={() => void markThreadRead(promiseId)}
+        />
+      )}
     </Screen>
   )
 }
