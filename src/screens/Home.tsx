@@ -9,7 +9,12 @@ import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
-import { fetchDiscoverableHosts, fetchPendingInviteCount, type DiscoverableHost } from '../lib/queries'
+import {
+  fetchDiscoverableHosts,
+  fetchPendingInviteCount,
+  fetchUnreadNotificationCount,
+  type DiscoverableHost,
+} from '../lib/queries'
 
 const ONLINE = [
   { initial: 'る', name: 'るか', color: C.avatarOrange },
@@ -26,6 +31,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
   const [pendingCount, setPendingCount] = useState<number | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
   const [recommended, setRecommended] = useState<DiscoverableHost | null>(null)
+  const [unreadNotifs, setUnreadNotifs] = useState(0)
 
   useEffect(() => {
     if (!isBackendConfigured) return
@@ -33,6 +39,15 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
     fetchPendingInviteCount()
       .then((n) => active && setPendingCount(n))
       .catch(() => active && setPendingCount(0))
+    const refreshNotifs = () =>
+      fetchUnreadNotificationCount()
+        .then((n) => active && setUnreadNotifs(n))
+        .catch(() => {
+          /* 取れなくてもベルは表示する */
+        })
+    refreshNotifs()
+    // 新着通知に気づけるよう5秒ごとに未読数を取り直す
+    const notifTimer = setInterval(refreshNotifs, 5000)
     fetchDiscoverableHosts(flow.userId)
       .then((hosts) => {
         if (!active || hosts.length === 0) return
@@ -46,6 +61,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
     return () => {
       active = false
       unsubscribe()
+      clearInterval(notifTimer)
     }
     // 初回マウント時のみ実行
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,9 +119,13 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           </div>
           <div
             onClick={() => flow.go('notifications')}
-            {...clickable(() => flow.go('notifications'), '通知')}
+            {...clickable(
+              () => flow.go('notifications'),
+              unreadNotifs > 0 ? `通知 未読${unreadNotifs}件` : '通知',
+            )}
             style={{
               cursor: 'pointer',
+              position: 'relative',
               width: 38,
               height: 38,
               borderRadius: 8,
@@ -118,6 +138,30 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             }}
           >
             <Bell />
+            {isBackendConfigured && unreadNotifs > 0 && (
+              <span
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  top: -6,
+                  right: -6,
+                  minWidth: 18,
+                  height: 18,
+                  padding: '0 5px',
+                  boxSizing: 'border-box',
+                  borderRadius: 9,
+                  background: C.avatarPink,
+                  color: '#fff',
+                  fontSize: 10.5,
+                  lineHeight: '18px',
+                  textAlign: 'center',
+                  fontWeight: 700,
+                  border: `1.5px solid ${C.white}`,
+                }}
+              >
+                {unreadNotifs > 99 ? '99+' : unreadNotifs}
+              </span>
+            )}
           </div>
         </div>
       </div>

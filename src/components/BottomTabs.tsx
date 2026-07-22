@@ -36,8 +36,8 @@ export default function BottomTabs({
           /* 取得失敗時はバッジを出さないだけ */
         })
     refresh()
-    // 別画面にいる間に届いた新着にも気づけるよう、20秒ごとに取り直す
-    const timer = setInterval(refresh, 20000)
+    // 別画面にいる間に届いた新着にも気づけるよう、5秒ごとに取り直す
+    const timer = setInterval(refresh, 5000)
     return () => {
       alive = false
       clearInterval(timer)

@@ -662,6 +662,21 @@ export async function markAllNotificationsRead(): Promise<void> {
   if (error) throw error
 }
 
+/** 未読通知の件数(ホームのベルのバッジ表示用)。 */
+export async function fetchUnreadNotificationCount(): Promise<number> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) return 0
+  const { count, error } = await sb
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', me)
+    .eq('read', false)
+  if (error) throw error
+  return count ?? 0
+}
+
 /** 承認された誘い(invite)から成立した約束(promise)のIDを引く(通知タップでトークを開くのに使う)。 */
 export async function resolvePromiseIdForInvite(inviteId: string): Promise<string | null> {
   const { data, error } = await requireSupabase()
