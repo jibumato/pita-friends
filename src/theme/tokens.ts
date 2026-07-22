@@ -33,6 +33,8 @@ export const color = {
   avatarOrange: '#FBD79E',
   avatarAqua: '#B3E5F2',
   avatarPink: '#F5B8CE',
+  /** 未読バッジ用の濃い赤。 */
+  badge: '#E23B3B',
 
   muted: 'var(--pf-muted)',
   body: 'var(--pf-body)',

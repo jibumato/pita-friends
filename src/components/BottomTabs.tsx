@@ -88,7 +88,7 @@ export default function BottomTabs({
                     padding: '0 4px',
                     boxSizing: 'border-box',
                     borderRadius: 8,
-                    background: C.avatarPink,
+                    background: C.badge,
                     color: '#fff',
                     fontSize: 10,
                     lineHeight: '16px',

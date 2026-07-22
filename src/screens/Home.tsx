@@ -150,7 +150,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   padding: '0 5px',
                   boxSizing: 'border-box',
                   borderRadius: 9,
-                  background: C.avatarPink,
+                  background: C.badge,
                   color: '#fff',
                   fontSize: 10.5,
                   lineHeight: '18px',
