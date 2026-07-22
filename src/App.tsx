@@ -104,6 +104,8 @@ export type Flow = {
   profileReturn: ScreenKey
   inviteTarget: { userId: string; name: string } | null
   activeThreadId: string | null
+  /** トークを閉じたときに戻る画面(通知から開いたら通知に戻る等)。 */
+  threadReturn: ScreenKey
   sendFailOpen: boolean
   gender: Gender
   safetyPrefs: SafetyPrefs
@@ -180,6 +182,7 @@ const INITIAL = {
   profileReturn: 'search' as ScreenKey,
   inviteTarget: null as { userId: string; name: string } | null,
   activeThreadId: null as string | null,
+  threadReturn: 'talkList' as ScreenKey,
   sendFailOpen: false,
   reviewStars: 5,
   reviewTag: '時間ぴったり',
@@ -474,7 +477,15 @@ export default function App() {
       if (!target) throw new Error('送信先が不明です')
       await createInviteRemote(target.userId, game, whenText, message)
     },
-    openThread: (promiseId) => setState((p) => ({ ...p, activeThreadId: promiseId, screen: 'talk' })),
+    openThread: (promiseId) =>
+      setState((p) => ({
+        ...p,
+        activeThreadId: promiseId,
+        // いま居る画面を戻り先として覚える(通知→トークなら通知に戻る)。
+        // ただしトーク画面同士の遷移では talkList を戻り先に保つ。
+        threadReturn: p.screen === 'talk' ? p.threadReturn : p.screen,
+        screen: 'talk',
+      })),
     submitReport: async (category, alsoBlock) => {
       const target = state.reportTarget
       // 実データの相手(userIdあり)かつバックエンド接続時のみDBへ送信。

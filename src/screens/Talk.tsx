@@ -188,7 +188,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
           background: C.white,
         }}
       >
-        <div onClick={() => flow.go('talkList')} style={{ cursor: 'pointer' }}>
+        <div onClick={() => flow.go(flow.threadReturn)} style={{ cursor: 'pointer' }}>
           <ChevronLeft />
         </div>
         <div
