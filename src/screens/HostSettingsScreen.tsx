@@ -5,7 +5,7 @@ import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader, Toggle, Card, ListRow } from '../components/Ui'
 import { Coin, Shield } from '../components/Icon'
-import { GAMES } from '../flow'
+import { GAMES, coinsPer30 } from '../flow'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchBankAccount, saveBankAccount, normalizeKanaName, type BankAccount } from '../lib/queries'
@@ -303,7 +303,7 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
           />
         </Card>
 
-        <span style={{ fontSize: 12, color: C.muted }}>時給レート</span>
+        <span style={{ fontSize: 12, color: C.muted }}>料金（30分あたり）</span>
         <div
           style={{
             background: C.white,
@@ -317,16 +317,16 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
         >
           <Coin size={18} />
           <span
-            onClick={() => flow.setHostPref('hourlyRate', Math.max(50, h.hourlyRate - 50))}
+            onClick={() => flow.setHostPref('hourlyRate', Math.max(100, h.hourlyRate - 100))}
             style={{ cursor: 'pointer', fontSize: 18, color: C.ink, userSelect: 'none', padding: '0 6px' }}
           >
             −
           </span>
           <span style={{ flex: 1, textAlign: 'center', fontSize: 16, color: C.ink }}>
-            {h.hourlyRate} / 1時間
+            {coinsPer30(h.hourlyRate)} コイン / 30分
           </span>
           <span
-            onClick={() => flow.setHostPref('hourlyRate', Math.min(2000, h.hourlyRate + 50))}
+            onClick={() => flow.setHostPref('hourlyRate', Math.min(2000, h.hourlyRate + 100))}
             style={{ cursor: 'pointer', fontSize: 18, color: C.ink, userSelect: 'none', padding: '0 6px' }}
           >
             ＋

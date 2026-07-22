@@ -9,7 +9,7 @@ import { EmptyState, ErrorState, SkeletonCard } from '../components/States'
 import { searchUsers } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchDiscoverableHosts } from '../lib/queries'
-import { GAMES } from '../flow'
+import { GAMES, coinsPer30 } from '../flow'
 
 type Phase = 'loading' | 'results' | 'empty' | 'error'
 const DEMO_FILTERS = ['今夜あそべる', 'Apex', 'ゴールド帯', 'エンジョイ', '✓ 本人確認済みのみ']
@@ -334,7 +334,7 @@ export default function Search({ flow }: { flow: Flow }) {
                 >
                   <Coin size={14} />
                   <span style={{ flex: 1, fontSize: 12, color: C.ink }}>
-                    1時間 {u.hourlyRate} コインでホスト中
+                    30分 {coinsPer30(u.hourlyRate)} コインでホスト中
                   </span>
                   <span
                     onClick={(e) => {

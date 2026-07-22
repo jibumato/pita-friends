@@ -5,7 +5,7 @@ import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader } from '../components/Ui'
 import { Coin, Clock, Shield } from '../components/Icon'
-import { BOOKING_DURATIONS, coinsForDuration, durationLabel } from '../flow'
+import { BOOKING_DURATIONS, coinsForDuration, coinsPer30, durationLabel } from '../flow'
 import { usePress } from '../hooks/usePress'
 
 export default function Booking({ flow }: { flow: Flow }) {
@@ -68,7 +68,7 @@ export default function Booking({ flow }: { flow: Flow }) {
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span style={{ fontSize: 15, color: C.ink }}>{host.name}</span>
-            <span style={{ fontSize: 10.5, color: C.muted }}>1時間 {host.hourlyRate} コイン</span>
+            <span style={{ fontSize: 10.5, color: C.muted }}>30分 {coinsPer30(host.hourlyRate)} コイン</span>
           </div>
         </div>
 

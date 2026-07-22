@@ -188,6 +188,14 @@ export function coinsForDuration(hourlyRate: number, minutes: number): number {
 }
 
 /**
+ * 料金の表示・設定は「30分あたり」で行う。内部の時給(hourlyRate)から
+ * 30分料金を出す(= 時給の半分)。予約計算は従来どおり時給ベースで正確。
+ */
+export function coinsPer30(hourlyRate: number): number {
+  return Math.round(hourlyRate / 2)
+}
+
+/**
  * 各画面がフローレールのどのステップ(0..4)に対応するか。
  * 周辺画面(タブシェル)は信頼ループ外なので -1(レール非表示)。
  */

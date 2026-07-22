@@ -9,6 +9,7 @@ import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
+import { coinsPer30 } from '../flow'
 import {
   fetchDiscoverableHosts,
   fetchPendingInviteCount,
@@ -413,7 +414,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   </div>
                   <span style={{ fontSize: 11, color: C.muted }}>
                     {isBackendConfigured && recommended
-                      ? recommended.bio || `1時間 ${recommended.hourlyRate} コイン`
+                      ? recommended.bio || `30分 ${coinsPer30(recommended.hourlyRate)} コイン`
                       : '社会人 / 平日21時〜 / エンジョイ寄り'}
                   </span>
                 </div>

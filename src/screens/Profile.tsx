@@ -6,6 +6,7 @@ import { ChevronLeft, DotsHorizontal, Heart } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchPublicProfile, type PublicProfile } from '../lib/queries'
+import { coinsPer30 } from '../flow'
 
 /* ---- デモ(モック)用の固定データ ---- */
 const MOCK_STATS = [
@@ -79,7 +80,7 @@ export default function Profile({ flow }: { flow: Flow }) {
   const verified = useReal ? !!data?.isVerified : true
   const subtitle = useReal
     ? data?.isHost
-      ? `ホスト · 1時間 ${data.hourlyRate} コイン`
+      ? `ホスト · 30分 ${coinsPer30(data.hourlyRate)} コイン`
       : 'ゲーマー'
     : '社会人ゲーマー · 平日夜メイン · 都内'
   const bio = useReal ? data?.bio ?? '' : '仕事終わりの21時から遊べます。ランクはガチすぎず、笑いながら上を目指したい派。建築ゲーも好きなのでまったり勢も歓迎です。'

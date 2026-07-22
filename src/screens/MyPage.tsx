@@ -8,6 +8,7 @@ import { Card, ListRow } from '../components/Ui'
 import { Coin } from '../components/Icon'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchFriendCount, fetchPendingInviteCount } from '../lib/queries'
+import { coinsPer30 } from '../flow'
 
 export default function MyPage({ flow }: { flow: Flow }) {
   const [friendCount, setFriendCount] = useState<number | null>(null)
@@ -187,7 +188,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
             label={flow.hostSettings.isHost ? 'ホスト設定' : 'ホストになる'}
             sub={
               flow.hostSettings.isHost
-                ? `掲載中 · 1時間 ${flow.hostSettings.hourlyRate} コイン`
+                ? `掲載中 · 30分 ${coinsPer30(flow.hostSettings.hourlyRate)} コイン`
                 : '一緒に遊ぶ時間をコインで提供できます'
             }
             onClick={() => flow.go('hostSettings')}
