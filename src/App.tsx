@@ -706,10 +706,11 @@ export default function App() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: C.canvas }}>
       <DesktopTopBar flow={flow} />
+      {/* ヒーローはトップバー直下に全幅で挟む(サイドバー/右レールの横には置かない)。 */}
+      {showHeroRail && <DesktopHero flow={flow} />}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <DesktopSidebar flow={flow} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-          {showHeroRail && <DesktopHero flow={flow} />}
           <div
             style={{
               flex: 1,
