@@ -4,11 +4,12 @@ import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import BottomTabs from '../components/BottomTabs'
-import { Search as SearchIcon, Coin } from '../components/Icon'
+import { Search as SearchIcon } from '../components/Icon'
 import { EmptyState, ErrorState, SkeletonCard } from '../components/States'
 import { searchUsers } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchDiscoverableHosts } from '../lib/queries'
+import { subscribeOnlineUsers } from '../lib/presence'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { GAMES, coinsPer30, SEARCH_VERIFIED_FILTER as VERIFIED_FILTER, SEARCH_DEMO_FILTERS as DEMO_FILTERS, SEARCH_REAL_FILTERS as REAL_FILTERS } from '../flow'
 
@@ -36,7 +37,7 @@ function fromMock(u: (typeof searchUsers)[number]): DisplayCard {
     name: u.name,
     verified: true,
     meta: u.meta,
-    scoreLabel: `${u.score}%`,
+    scoreLabel: `相性${u.score}%`,
     tags: u.tags,
     hourlyRate: u.hourlyRate,
     bookingHost:
@@ -53,6 +54,15 @@ export default function Search({ flow }: { flow: Flow }) {
   const selected = flow.searchFilters
   const query = flow.searchQuery
   const [realCards, setRealCards] = useState<DisplayCard[] | null>(null)
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set())
+
+  // オンライン状態(カードのオンラインドット表示用)。安心設定で公開している人のみ届く。
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    const unsubscribe = subscribeOnlineUsers(flow.userId, (users) => setOnlineIds(new Set(users.map((u) => u.userId))))
+    return unsubscribe
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 初回マウント: バックエンド接続時は実際のホスト一覧を取得、
   // 未接続(デモモード)時はこれまでどおり一定時間後にモック結果を表示する。
@@ -74,7 +84,7 @@ export default function Search({ flow }: { flow: Flow }) {
           name: h.nickname,
           verified: h.isVerified,
           meta: h.bio || 'よろしくお願いします！',
-          scoreLabel: `★${h.mannerScore.toFixed(1)}`,
+          scoreLabel: `★${h.mannerScore.toFixed(1)}・マナー◎`,
           tags: h.games,
           hourlyRate: h.hourlyRate,
           bookingHost: {
@@ -120,7 +130,14 @@ export default function Search({ flow }: { flow: Flow }) {
       <StatusBar time="21:47" />
       <div style={{ padding: '12px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 21, color: C.ink }}>▶ さがす</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <span style={{ fontSize: 21, color: C.ink }}>▶ さがす</span>
+            {!mobile && phase === 'results' && (
+              <span style={{ fontSize: 11.5, color: C.muted }}>
+                {isBackendConfigured ? `${cards.length}人のホストが見つかりました` : '24人が条件にマッチ・相性順'}
+              </span>
+            )}
+          </div>
           {/* デモ状態スイッチャ(ハーネス上での状態網羅プレビュー)。実データ接続時は非表示。 */}
           {!isBackendConfigured && (
             <div style={{ display: 'flex', gap: 4 }}>
@@ -225,9 +242,11 @@ export default function Search({ flow }: { flow: Flow }) {
             gap: 12,
           }}
         >
-          <span style={{ fontSize: 11.5, color: C.muted }}>
-            {isBackendConfigured ? `${cards.length}人のホストが見つかりました` : '24人が条件にマッチ · 相性順'}
-          </span>
+          {mobile && (
+            <span style={{ fontSize: 11.5, color: C.muted }}>
+              {isBackendConfigured ? `${cards.length}人のホストが見つかりました` : '24人が条件にマッチ · 相性順'}
+            </span>
+          )}
           <div
             style={{
               background: C.surfaceLavender,
@@ -250,7 +269,9 @@ export default function Search({ flow }: { flow: Flow }) {
             </span>
           )}
           <div className="search-grid">
-          {cards.map((u) => (
+          {cards.map((u, i) => {
+            const online = isBackendConfigured ? onlineIds.has(u.key) : i % 3 !== 2
+            return (
             <div
               key={u.key}
               onClick={() =>
@@ -270,11 +291,13 @@ export default function Search({ flow }: { flow: Flow }) {
                 gap: 10,
               }}
             >
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 11, alignItems: 'center' }}>
                 <div
                   style={{
+                    position: 'relative',
                     width: 50,
                     height: 50,
+                    flex: 'none',
                     borderRadius: 8,
                     background: u.color,
                     border: `1.5px solid ${C.border}`,
@@ -286,39 +309,67 @@ export default function Search({ flow }: { flow: Flow }) {
                   }}
                 >
                   {u.initial}
+                  {online && (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: 'absolute',
+                        bottom: -3,
+                        right: -3,
+                        width: 13,
+                        height: 13,
+                        borderRadius: '50%',
+                        background: '#5FC26A',
+                        border: `2px solid ${C.white}`,
+                      }}
+                    />
+                  )}
                 </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 15, color: C.ink }}>{u.name}</span>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 14.5, color: C.ink }}>{u.name}</span>
                     {u.verified && (
                       <span
+                        aria-label="本人確認済み"
                         style={{
-                          fontSize: 9.5,
+                          fontSize: 8.5,
                           color: C.ink,
                           background: C.lime,
                           border: `1.5px solid ${C.border}`,
-                          padding: '2px 7px',
+                          padding: '1px 4px',
                           borderRadius: 4,
                         }}
                       >
-                        ✓ 本人確認済み
+                        ✓
                       </span>
                     )}
                   </div>
-                  <span style={{ fontSize: 10.5, color: C.muted }}>{u.meta}</span>
+                  <span style={{ fontSize: 10.5, color: C.muted }}>{u.scoreLabel}</span>
                 </div>
-                <span style={{ fontSize: 17, color: C.lavender }}>{u.scoreLabel}</span>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: C.body,
+                  lineHeight: 1.6,
+                  overflow: 'hidden',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                }}
+              >
+                {u.meta}
+              </span>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 {u.tags.map((t) => (
                   <span
                     key={t}
                     style={{
-                      fontSize: 11,
-                      color: C.ink,
-                      background: C.surfaceLavender,
-                      padding: '4px 10px',
-                      borderRadius: 4,
+                      fontSize: 10,
+                      color: C.body,
+                      background: C.surface,
+                      padding: '2px 7px',
+                      borderRadius: 5,
                       border: `1.5px solid ${C.border}`,
                     }}
                   >
@@ -327,18 +378,9 @@ export default function Search({ flow }: { flow: Flow }) {
                 ))}
               </div>
               {u.hourlyRate != null && u.bookingHost && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    borderTop: `1.5px solid ${C.divider}`,
-                    paddingTop: 10,
-                  }}
-                >
-                  <Coin size={14} />
-                  <span style={{ flex: 1, fontSize: 12, color: C.ink }}>
-                    30分 {coinsPer30(u.hourlyRate)} コインでホスト中
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                  <span style={{ fontSize: 12.5, color: C.ink }}>
+                    30分 <b style={{ fontSize: 14 }}>{coinsPer30(u.hourlyRate)}</b> コイン
                   </span>
                   <span
                     onClick={(e) => {
@@ -347,20 +389,21 @@ export default function Search({ flow }: { flow: Flow }) {
                     }}
                     style={{
                       cursor: 'pointer',
-                      fontSize: 12,
-                      color: C.ctaFg,
-                      background: C.ctaBg,
-                      padding: '7px 14px',
-                      borderRadius: 4,
-                      boxShadow: `2px 2px 0 ${C.lavender}`,
+                      fontSize: 11.5,
+                      color: C.ink,
+                      background: C.lime,
+                      border: `1.5px solid ${C.border}`,
+                      padding: '5px 12px',
+                      borderRadius: 6,
                     }}
                   >
-                    予約する
+                    予約 ▶
                   </span>
                 </div>
               )}
             </div>
-          ))}
+            )
+          })}
           </div>
         </div>
       )}

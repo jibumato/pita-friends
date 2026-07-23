@@ -2,7 +2,7 @@
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import { Home, Search, PlusCircle, Chat, User } from './Icon'
-import { activeTabOf, tabToScreen, SEARCH_DEMO_FILTERS, SEARCH_REAL_FILTERS, type TabKey } from '../flow'
+import { activeTabOf, tabToScreen, GAMES, SEARCH_DEMO_FILTERS, SEARCH_REAL_FILTERS, type TabKey } from '../flow'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 
@@ -13,6 +13,37 @@ const TABS: { key: TabKey; label: string; Icon: typeof Home }[] = [
   { key: 'talk', label: 'トーク', Icon: Chat },
   { key: 'mypage', label: 'マイページ', Icon: User },
 ]
+
+function FilterSection({ label, filters, flow }: { label: string; filters: string[]; flow: Flow }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
+      <span style={{ fontSize: 11, color: C.muted, letterSpacing: '.06em', padding: '0 4px' }}>{label}</span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '4px 2px' }}>
+        {filters.map((f) => {
+          const sel = !!flow.searchFilters[f]
+          return (
+            <span
+              key={f}
+              onClick={() => flow.toggleSearchFilter(f)}
+              {...clickable(() => flow.toggleSearchFilter(f), f)}
+              style={{
+                cursor: 'pointer',
+                fontSize: 11.5,
+                color: C.ink,
+                background: sel ? C.lime : C.surface,
+                border: `1.5px solid ${C.border}`,
+                padding: '5px 10px',
+                borderRadius: 6,
+              }}
+            >
+              {f}
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function DesktopSidebar({ flow }: { flow: Flow }) {
   const active = activeTabOf(flow.screen)
@@ -56,34 +87,22 @@ export default function DesktopSidebar({ flow }: { flow: Flow }) {
         )
       })}
 
-      {flow.screen === 'search' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
-          <span style={{ fontSize: 11, color: C.muted, letterSpacing: '.06em', padding: '0 4px' }}>絞り込み</span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '4px 2px' }}>
-            {(isBackendConfigured ? SEARCH_REAL_FILTERS : SEARCH_DEMO_FILTERS).map((f) => {
-              const sel = !!flow.searchFilters[f]
-              return (
-                <span
-                  key={f}
-                  onClick={() => flow.toggleSearchFilter(f)}
-                  {...clickable(() => flow.toggleSearchFilter(f), f)}
-                  style={{
-                    cursor: 'pointer',
-                    fontSize: 11.5,
-                    color: C.ink,
-                    background: sel ? C.lime : C.surface,
-                    border: `1.5px solid ${C.border}`,
-                    padding: '5px 10px',
-                    borderRadius: 6,
-                  }}
-                >
-                  {f}
-                </span>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      {flow.screen === 'search' &&
+        (() => {
+          const all = isBackendConfigured ? SEARCH_REAL_FILTERS : SEARCH_DEMO_FILTERS
+          const gameFilters = all.filter((f) => (GAMES as readonly string[]).includes(f))
+          const stateFilters = all.filter((f) => !(GAMES as readonly string[]).includes(f))
+          return (
+            <>
+              {gameFilters.length > 0 && (
+                <FilterSection label="ゲーム" filters={gameFilters} flow={flow} />
+              )}
+              {stateFilters.length > 0 && (
+                <FilterSection label="状態" filters={stateFilters} flow={flow} />
+              )}
+            </>
+          )
+        })()}
 
       <div style={{ marginTop: 'auto', paddingTop: 14 }}>
         <div
