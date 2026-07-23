@@ -79,6 +79,8 @@ export type Database = {
           favorite_games: string[]
           play_style: string
           bio: string
+          voice_path: string | null
+          voice_seconds: number | null
           created_at: string
           updated_at: string
         }
@@ -555,6 +557,18 @@ export type Database = {
       }
       record_ip: {
         Args: { p_ip: string }
+        Returns: void
+      }
+      set_voice_greeting: {
+        Args: { p_path: string; p_seconds: number }
+        Returns: void
+      }
+      clear_voice_greeting: {
+        Args: Record<string, never>
+        Returns: void
+      }
+      admin_clear_voice_greeting: {
+        Args: { p_user_id: string }
         Returns: void
       }
       host_ranking: {

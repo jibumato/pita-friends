@@ -9,6 +9,7 @@ import { Coin } from '../components/Icon'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchFriendCount, fetchPendingInviteCount } from '../lib/queries'
 import { coinsPer30 } from '../flow'
+import VoiceRecorder from '../components/VoiceRecorder'
 
 export default function MyPage({ flow }: { flow: Flow }) {
   const [friendCount, setFriendCount] = useState<number | null>(null)
@@ -181,6 +182,16 @@ export default function MyPage({ flow }: { flow: Flow }) {
             チャージ
           </span>
         </div>
+
+        {/* 声の挨拶(ボイスプロフィール) */}
+        {isBackendConfigured && (
+          <Card>
+            <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 13, color: C.ink }}>🎤 声の挨拶</span>
+              <VoiceRecorder />
+            </div>
+          </Card>
+        )}
 
         {/* メニュー */}
         <Card>

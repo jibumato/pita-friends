@@ -1153,6 +1153,8 @@ export type PublicProfile = {
   hourlyRate: number
   games: string[]
   bio: string
+  voiceUrl: string | null
+  voiceSeconds: number | null
   latestReview: { stars: number; tags: string[]; reviewerName: string } | null
 }
 
@@ -1160,7 +1162,7 @@ export type PublicProfile = {
 export async function fetchPublicProfile(userId: string): Promise<PublicProfile | null> {
   const sb = requireSupabase()
   const [profileRes, trustRes, hostRes, reviewRes] = await Promise.all([
-    sb.from('profiles').select('nickname, avatar_initial, avatar_color').eq('id', userId).single(),
+    sb.from('profiles').select('nickname, avatar_initial, avatar_color, voice_path, voice_seconds').eq('id', userId).single(),
     sb
       .from('profile_trust_stats')
       .select('manner_score, dotakyan_count, confirmed_count, is_verified')
@@ -1208,8 +1210,66 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     hourlyRate: host?.hourly_rate ?? 0,
     games: host?.games ?? [],
     bio: host?.bio ?? '',
+    voiceUrl: profileRes.data.voice_path ? voiceGreetingUrl(profileRes.data.voice_path) : null,
+    voiceSeconds: profileRes.data.voice_seconds ?? null,
     latestReview,
   }
+}
+
+const VOICE_BUCKET = 'voice-greetings'
+
+/** 音声挨拶パスから公開URLを作る。 */
+export function voiceGreetingUrl(path: string): string {
+  return requireSupabase().storage.from(VOICE_BUCKET).getPublicUrl(path).data.publicUrl
+}
+
+export type OwnVoice = { url: string; seconds: number } | null
+
+/** 自分の音声挨拶を取得する(マイページの管理用)。 */
+export async function fetchOwnVoiceGreeting(): Promise<OwnVoice> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) return null
+  const { data, error } = await sb.from('profiles').select('voice_path, voice_seconds').eq('id', me).single()
+  if (error || !data?.voice_path) return null
+  return { url: voiceGreetingUrl(data.voice_path), seconds: data.voice_seconds ?? 0 }
+}
+
+/**
+ * 録音した音声挨拶をアップロードして公開する(B方式=即公開)。
+ * 原資は本人フォルダ配下に固定パスで上書き保存。戻り値は公開URL。
+ */
+export async function uploadVoiceGreeting(blob: Blob, seconds: number): Promise<string> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) throw new Error('ログインが必要です')
+  const path = `${me}/greeting.webm`
+  const { error: upErr } = await sb.storage.from(VOICE_BUCKET).upload(path, blob, {
+    upsert: true,
+    contentType: blob.type || 'audio/webm',
+  })
+  if (upErr) throw upErr
+  const { error } = await sb.rpc('set_voice_greeting', { p_path: path, p_seconds: Math.max(1, Math.min(15, Math.round(seconds))) })
+  if (error) throw error
+  return voiceGreetingUrl(path)
+}
+
+/** 自分の音声挨拶を削除する。 */
+export async function deleteVoiceGreeting(): Promise<void> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const me = auth.user?.id
+  if (!me) return
+  await sb.rpc('clear_voice_greeting')
+  await sb.storage.from(VOICE_BUCKET).remove([`${me}/greeting.webm`]).catch(() => undefined)
+}
+
+/** 管理者が音声挨拶を削除する(通報対応)。 */
+export async function adminClearVoiceGreeting(userId: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_clear_voice_greeting', { p_user_id: userId })
+  if (error) throw error
 }
 
 /**
