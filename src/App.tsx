@@ -92,8 +92,6 @@ const DESKTOP_FULL_BLEED_SCREENS = new Set<ScreenKey>([
   'home',
   'search',
   'board',
-  'mypage',
-  'talkList',
   'notifications',
   'requests',
   'ranking',
@@ -102,6 +100,8 @@ const DESKTOP_FULL_BLEED_SCREENS = new Set<ScreenKey>([
 ])
 const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
   'profile',
+  'mypage',
+  'talkList',
   'settings',
   'safety',
   'safetyPrefs',
