@@ -46,14 +46,15 @@ function ChipRow({
 export default function Setup({ flow }: { flow: Flow }) {
   const [style, setStyle] = useState('エンジョイ')
   const cta = usePress(`3px 3px 0 ${C.shadowCol}`)
+  const editing = flow.editingProfile
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:45" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 20px 0' }}>
-        <div onClick={() => flow.go('verify')} style={{ cursor: 'pointer' }}>
+        <div onClick={() => (editing ? flow.finishEditProfile() : flow.go('verify'))} style={{ cursor: 'pointer' }}>
           <ChevronLeft />
         </div>
-        <span style={{ fontSize: 11, color: C.muted }}>STEP 2 / 2</span>
+        {!editing && <span style={{ fontSize: 11, color: C.muted }}>STEP 2 / 2</span>}
       </div>
       <div
         className="pita-scroll"
@@ -66,7 +67,7 @@ export default function Setup({ flow }: { flow: Flow }) {
           gap: 18,
         }}
       >
-        <span style={{ fontSize: 22, color: C.ink }}>プロフィールをつくる</span>
+        <span style={{ fontSize: 22, color: C.ink }}>{editing ? 'プロフィールを編集' : 'プロフィールをつくる'}</span>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <div style={{ position: 'relative' }}>
             <Avatar initial="あ" color={C.lime} size={80} />
@@ -148,8 +149,8 @@ export default function Setup({ flow }: { flow: Flow }) {
             性別は、あなたが選んだ範囲だけに表示されます。いつでも「安心設定」で変更できます。
           </span>
         </div>
-        {/* 女性向けの安心設定への導線 */}
-        {flow.gender === 'female' && (
+        {/* 女性向けの安心設定への導線(新規オンボーディング時のみ) */}
+        {!editing && flow.gender === 'female' && (
           <div
             style={{
               background: C.surfaceLavender,
@@ -171,7 +172,9 @@ export default function Setup({ flow }: { flow: Flow }) {
       <div style={{ padding: '12px 22px 30px' }}>
         <div
           className="pita-press"
-          onClick={() => flow.go(flow.gender === 'female' ? 'safetyPrefs' : 'home')}
+          onClick={() =>
+            editing ? flow.finishEditProfile() : flow.go(flow.gender === 'female' ? 'safetyPrefs' : 'home')
+          }
           {...cta.handlers}
           style={{
             cursor: 'pointer',
@@ -185,7 +188,7 @@ export default function Setup({ flow }: { flow: Flow }) {
             ...cta.style,
           }}
         >
-          {flow.gender === 'female' ? '安心設定へ ▶' : 'はじめる ▶'}
+          {editing ? '保存する ▶' : flow.gender === 'female' ? '安心設定へ ▶' : 'はじめる ▶'}
         </div>
       </div>
     </Screen>

@@ -63,31 +63,40 @@ export default function DesktopRightRail({ flow }: { flow: Flow }) {
         gap: 14,
       }}
     >
-      <Panel title="コイン残高">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Coin size={20} color={C.ink} />
-          <span style={{ fontSize: 22, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
-            {flow.coinBalance.toLocaleString()}
-          </span>
-        </div>
+      {/* 残高はトップバーのコインチップに常時表示されているため、ここでは繰り返さずチャージ動線のみ。 */}
+      <div
+        onClick={() => flow.go('wallet')}
+        {...clickable(() => flow.go('wallet'), 'コインをチャージ')}
+        style={{
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          background: C.white,
+          border: `1.5px solid ${C.border}`,
+          borderRadius: 12,
+          boxShadow: `3px 3px 0 ${C.shadowCol}`,
+          padding: '12px 14px',
+        }}
+      >
         <div
-          onClick={() => flow.go('wallet')}
-          {...clickable(() => flow.go('wallet'), 'コインをチャージ')}
           style={{
-            cursor: 'pointer',
-            textAlign: 'center',
-            fontSize: 12,
-            color: C.ink,
+            width: 32,
+            height: 32,
+            borderRadius: 8,
             background: C.lime,
             border: `1.5px solid ${C.border}`,
-            borderRadius: 8,
-            padding: '9px 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: 'none',
           }}
         >
-          チャージする
+          <Coin size={16} color={C.ink} />
         </div>
-        <span style={{ fontSize: 10, color: C.muted }}>コインの有効期限は最終購入日から180日</span>
-      </Panel>
+        <span style={{ flex: 1, fontSize: 12.5, color: C.ink }}>コインをチャージ</span>
+        <span style={{ fontSize: 11, color: C.muted }}>›</span>
+      </div>
 
       <Panel title="今週のランキング">
         <div
