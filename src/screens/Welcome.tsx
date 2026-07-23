@@ -21,34 +21,21 @@ export default function Welcome({ flow }: { flow: Flow }) {
           padding: '0 28px',
         }}
       >
-        <div
+        <img
+          src="/logo.webp"
+          alt="ピタフレ — ゲーム仲間マッチングサービス"
           style={{
-            width: 64,
-            height: 64,
-            borderRadius: 14,
-            background: C.lime,
-            border: `2px solid ${C.border}`,
-            boxShadow: `5px 5px 0 ${C.lavender}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 30,
-            color: C.ink,
+            width: '88%',
+            maxWidth: 320,
+            display: 'block',
             animation: 'floaty 3s ease-in-out infinite',
           }}
-        >
-          ピ
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 30, color: '#fff', letterSpacing: '.08em' }}>ピタフレ</span>
-          <span
-            style={{ fontSize: 12.5, color: C.muted, textAlign: 'center', lineHeight: 1.7 }}
-          >
-            ぴったりのゲーム仲間と、
-            <br />
-            今夜すぐつながる
-          </span>
-        </div>
+        />
+        <span style={{ fontSize: 12.5, color: C.muted, textAlign: 'center', lineHeight: 1.7 }}>
+          ぴったりのゲーム仲間と、
+          <br />
+          今夜すぐつながる
+        </span>
         <img
           src="/hero.webp"
           alt="離れた場所にいる2人がオンラインでつながって一緒にゲームを楽しむイラスト"
