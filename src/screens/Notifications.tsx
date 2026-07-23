@@ -11,6 +11,7 @@ import { isBackendConfigured } from '../lib/supabase'
 import {
   fetchNotifications,
   markAllNotificationsRead,
+  markNotificationRead,
   resolvePromiseIdForInvite,
   type AppNotification,
 } from '../lib/queries'
@@ -73,6 +74,12 @@ export default function Notifications({ flow }: { flow: Flow }) {
   }
 
   async function handleTap(n: AppNotification) {
+    if (isBackendConfigured && !n.read) {
+      setRealItems((xs) => (xs ? xs.map((x) => (x.id === n.id ? { ...x, read: true } : x)) : xs))
+      markNotificationRead(n.id).catch(() => {
+        /* 失敗しても表示上は既読のままにしておく(次回取得時に再同期される) */
+      })
+    }
     switch (n.type) {
       case 'invite_received':
         flow.go('requests')

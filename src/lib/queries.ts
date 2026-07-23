@@ -778,6 +778,12 @@ export async function fetchNotifications(): Promise<AppNotification[]> {
   }))
 }
 
+/** 指定した通知1件を既読にする(通知一覧でタップして開いたとき用)。 */
+export async function markNotificationRead(notificationId: string): Promise<void> {
+  const { error } = await requireSupabase().from('notifications').update({ read: true }).eq('id', notificationId)
+  if (error) throw error
+}
+
 /** 未読の通知をすべて既読にする。 */
 export async function markAllNotificationsRead(): Promise<void> {
   const sb = requireSupabase()
