@@ -261,6 +261,19 @@ html { scroll-behavior: smooth; }
 .lp-hostgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 520px) { .lp-hostgrid { grid-template-columns: 1fr; } }
 
+/* デスクトップヒーローCTAの脈動 */
+@keyframes heroPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 5px 5px 0 var(--pf-border);
+  }
+  50% {
+    transform: scale(1.035);
+    box-shadow: 6px 7px 0 var(--pf-border);
+  }
+}
+
 /* さがす: PCでは全幅グリッド(GameRoom型) */
 .search-grid { display: flex; flex-direction: column; gap: 12px; }
 @media (min-width: 700px) {

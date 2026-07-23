@@ -1,4 +1,5 @@
-/** 下部タブバー(ホーム/さがす/募集/トーク/マイページ)。現在画面から自動でハイライト。 */
+/** 下部タブバー(ホーム/さがす/募集/トーク/マイページ)。現在画面から自動でハイライト。
+ *  モバイル専用。デスクトップでは DesktopSidebar がナビゲーションを担う。 */
 import { useEffect, useState } from 'react'
 import { color as C } from '../theme/tokens'
 import { Home, Search, PlusCircle, Chat, User } from './Icon'
@@ -46,19 +47,17 @@ export default function BottomTabs({
     }
   }, [current])
 
+  if (!mobile) return null
+
   return (
     <div
       style={{
         display: 'flex',
-        justifyContent: mobile ? 'space-around' : 'center',
-        gap: mobile ? 0 : 8,
+        justifyContent: 'space-around',
         alignItems: 'center',
-        // PCでは上部に置く(flex order で視覚的に先頭へ)ナビバー
-        order: mobile ? 0 : -1,
-        padding: mobile ? '10px 8px 24px' : '10px 12px',
+        padding: '10px 8px 24px',
         background: C.white,
-        borderTop: mobile ? `1.5px solid ${C.border}` : 'none',
-        borderBottom: mobile ? 'none' : `1.5px solid ${C.border}`,
+        borderTop: `1.5px solid ${C.border}`,
       }}
     >
       {TABS.map(({ key, label, Icon }) => {
@@ -73,14 +72,14 @@ export default function BottomTabs({
             aria-current={on || undefined}
             style={{
               display: 'flex',
-              flexDirection: mobile ? 'column' : 'row',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: mobile ? 3 : 7,
+              gap: 3,
               cursor: 'pointer',
-              flex: mobile ? 1 : 'none',
-              padding: mobile ? 0 : '7px 16px',
+              flex: 1,
+              padding: 0,
               borderRadius: 8,
-              background: !mobile && on ? C.surfaceLavender : 'transparent',
+              background: 'transparent',
             }}
           >
             <div style={{ position: 'relative', display: 'flex' }}>
