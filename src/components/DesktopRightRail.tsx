@@ -1,5 +1,5 @@
-/** デスクトップ専用の右レール(コイン残高/週間ランキング/安心して遊べる/近日公開)。
- *  ホーム/さがす画面の右側に共通表示。 */
+/** コイン残高/週間ランキング/安心して遊べる/近日公開のパネル群。
+ *  トップバーのハンバーガーメニューから開くドロップダウンの中身として使う。 */
 import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
@@ -57,14 +57,10 @@ export default function DesktopRightRail({ flow }: { flow: Flow }) {
   return (
     <div
       style={{
-        flex: 'none',
-        width: 304,
+        width: 300,
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
-        padding: 18,
-        borderLeft: `1.5px solid ${C.border}`,
-        background: C.surface,
       }}
     >
       <Panel title="コイン残高">

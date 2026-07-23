@@ -43,6 +43,16 @@ export function Bell({ size = 18, color = '#453D5C', strokeWidth = 2.2, style }:
   )
 }
 
+export function Menu({ size = 20, color = '#453D5C', strokeWidth = 2.4, style }: IconProps) {
+  return (
+    <svg {...base(size, color, strokeWidth, style)}>
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+    </svg>
+  )
+}
+
 export function Home({ size = 22, color = '#A78BDF', strokeWidth = 2.6, style }: IconProps) {
   return (
     <svg {...base(size, color, strokeWidth, style)}>

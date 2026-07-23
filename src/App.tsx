@@ -20,7 +20,6 @@ import LandingDesktop from './components/LandingDesktop'
 import DesktopTopBar from './components/DesktopTopBar'
 import DesktopSidebar from './components/DesktopSidebar'
 import DesktopHero from './components/DesktopHero'
-import DesktopRightRail from './components/DesktopRightRail'
 import { useIsMobile } from './hooks/useMediaQuery'
 import { loadPrefs, savePrefs } from './persist'
 import { isBackendConfigured } from './lib/supabase'
@@ -717,14 +716,13 @@ export default function App() {
     return <div style={{ display: 'flex', flexDirection: 'column' }}>{deviceEl}</div>
   }
 
-  // デスクトップ: ようこそ画面はGameRoom型のLP。入ったらアプリ本体(トップバー+サイドナビ+中央パネル+右レール)。
+  // デスクトップ: ようこそ画面はGameRoom型のLP。入ったらアプリ本体(トップバー+サイドナビ+中央パネル)。
   if (state.screen === 'welcome') {
     return <LandingDesktop flow={flow} />
   }
   // ヒーローはホームの上部にのみ表示(さがすは検索結果に集中させる)。
-  // 右レール(コイン残高/ランキング/安心して遊べる)はホーム/さがす共通で表示。
+  // コイン残高/ランキング/安心して遊べるは右レールではなくトップバーのハンバーガーメニューから開く。
   const showHero = state.screen === 'home'
-  const showRail = state.screen === 'home' || state.screen === 'search'
   // 一覧系(さがす/募集)はメイン列いっぱいのフラットな全幅グリッド(モックアップ準拠)。
   // フォーム・詳細・ホームは読みやすい幅で中央寄せ。カード風の枠・影は付けず地の面に馴染ませる。
   const fullBleed = state.screen === 'search' || state.screen === 'board'
@@ -735,8 +733,7 @@ export default function App() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start' }}>
         <DesktopSidebar flow={flow} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          {/* ヒーローはメイン列の先頭に置き、ページと一緒にスクロールして流れていく
-              (サイドバー/右レールの横に来ないよう、サイド/レールは別カラムのまま)。 */}
+          {/* ヒーローはメイン列の先頭に置き、ページと一緒にスクロールして流れていく。 */}
           {showHero && <DesktopHero flow={flow} />}
           <div
             style={{
@@ -760,7 +757,6 @@ export default function App() {
             </div>
           </div>
         </div>
-        {showRail && <DesktopRightRail flow={flow} />}
       </div>
     </div>
   )
