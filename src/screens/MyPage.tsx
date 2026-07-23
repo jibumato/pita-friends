@@ -104,7 +104,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
               </span>
             </div>
             <span
-              onClick={() => flow.go('setup')}
+              onClick={flow.startEditProfile}
               style={{ fontSize: 11, color: C.lavender, cursor: 'pointer' }}
             >
               編集
@@ -232,7 +232,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
             sub="誘いを受ける範囲・承認制・公開範囲"
             onClick={() => flow.go('safetyPrefs')}
           />
-          <ListRow label="プロフィール編集" onClick={() => flow.go('setup')} />
+          <ListRow label="プロフィール編集" onClick={flow.startEditProfile} />
           <ListRow
             label="本人確認ステータス"
             onClick={() => flow.go('verify')}

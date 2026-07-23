@@ -86,6 +86,26 @@ export default function DesktopSidebar({ flow }: { flow: Flow }) {
         )
       })}
 
+      {/* ランキングは回遊の重要な導線なので、ハンバーガーメニューだけでなくここにも常設する。 */}
+      <div
+        onClick={() => flow.go('ranking')}
+        {...clickable(() => flow.go('ranking'), 'ランキング')}
+        aria-current={flow.screen === 'ranking' || undefined}
+        style={{
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '10px 12px',
+          borderRadius: 8,
+          marginTop: 6,
+          background: flow.screen === 'ranking' ? C.surfaceLavender : 'transparent',
+        }}
+      >
+        <span style={{ fontSize: 15, width: 17, textAlign: 'center' }}>🏆</span>
+        <span style={{ fontSize: 13, color: flow.screen === 'ranking' ? C.lavender : C.body }}>ランキング</span>
+      </div>
+
       {flow.screen === 'search' &&
         (() => {
           const all = isBackendConfigured ? SEARCH_REAL_FILTERS : SEARCH_DEMO_FILTERS
@@ -119,7 +139,7 @@ export default function DesktopSidebar({ flow }: { flow: Flow }) {
             padding: '10px 0',
           }}
         >
-          ＋ ホストになる
+          {flow.hostSettings.isHost ? 'ホスト設定' : '＋ ホストになる'}
         </div>
       </div>
     </div>

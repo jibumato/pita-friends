@@ -18,13 +18,6 @@ import {
   type DiscoverableHost,
 } from '../lib/queries'
 
-const ONLINE = [
-  { initial: 'る', name: 'るか', color: C.avatarOrange },
-  { initial: 'そ', name: 'そら', color: C.avatarAqua },
-  { initial: 'ひ', name: 'ひなた', color: C.avatarPink },
-  { initial: 'カ', name: 'カイ', color: C.lime },
-]
-
 /** ヒーロー直下のアイコン一覧(いろんな人を紹介する用)のデモデータ。 */
 const ONLINE_STRIP = [
   { initial: 'る', color: C.avatarOrange },
@@ -58,7 +51,7 @@ function OnlineStrip({ flow, online }: { flow: Flow; online: OnlineUser[] }) {
         <span
           onClick={() => flow.go('search')}
           {...clickable(() => flow.go('search'), 'ホストをさがす')}
-          style={{ cursor: 'pointer', fontSize: 10.5, color: C.lavender }}
+          style={{ cursor: 'pointer', fontSize: 10.5, color: C.lavender, fontWeight: 700 }}
         >
           もっと見る ›
         </span>
@@ -343,134 +336,19 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             <span style={{ fontSize: 13, color: C.ink }}>ランキング</span>
             <span style={{ fontSize: 10, color: C.muted }}>プレイ実績・評価で決まる今週の上位ホスト</span>
           </div>
-          <span style={{ fontSize: 11, color: C.lavender }}>見る ›</span>
+          <span style={{ fontSize: 11, color: C.lavender, fontWeight: 700 }}>見る ›</span>
         </div>
 
         {night ? (
           <NightHome flow={flow} />
         ) : (
         <>
-        {/* いま遊べる */}
-        <div
-          style={{
-            background: C.lavender,
-            border: `1.5px solid ${C.border}`,
-            borderRadius: 12,
-            boxShadow: `4px 4px 0 ${C.shadowCol}`,
-            padding: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 15, color: '#fff' }}>▶ いま遊べる</span>
-            <span
-              style={{
-                fontSize: 11,
-                color: C.ink,
-                background: C.lime,
-                border: `1.5px solid ${C.border}`,
-                padding: '3px 10px',
-                borderRadius: 4,
-              }}
-            >
-              {isBackendConfigured ? onlineUsers.length : 18}人 ONLINE
-            </span>
-          </div>
-          {isBackendConfigured ? (
-            onlineUsers.length === 0 ? (
-              <span style={{ fontSize: 11, color: '#E3DCFF', padding: '4px 0' }}>
-                いま公開中のフレンドはいません(安心設定「オンライン状態を公開」がオンの人だけ表示されます)
-              </span>
-            ) : (
-              <div style={{ display: 'flex', gap: 9, overflowX: 'auto' }}>
-                {onlineUsers.slice(0, 6).map((u) => (
-                  <div
-                    key={u.userId}
-                    onClick={() => flow.openProfile(u.userId)}
-                    style={{
-                      cursor: 'pointer',
-                      flex: 'none',
-                      width: 74,
-                      background: C.white,
-                      border: `1.5px solid ${C.border}`,
-                      borderRadius: 8,
-                      padding: '9px 6px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 8,
-                        background: u.avatarColor,
-                        border: `1.5px solid ${C.border}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 17,
-                        color: C.ink,
-                      }}
-                    >
-                      {u.avatarInitial}
-                    </div>
-                    <span style={{ fontSize: 11.5, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
-                      {u.nickname}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : (
-            <div style={{ display: 'flex', gap: 9 }}>
-              {ONLINE.map((u) => (
-                <div
-                  key={u.name}
-                  style={{
-                    flex: 1,
-                    background: C.white,
-                    border: `1.5px solid ${C.border}`,
-                    borderRadius: 8,
-                    padding: '9px 6px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: 8,
-                      background: u.color,
-                      border: `1.5px solid ${C.border}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 17,
-                      color: C.ink,
-                    }}
-                  >
-                    {u.initial}
-                  </div>
-                  <span style={{ fontSize: 11.5, color: C.ink }}>{u.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
         {/* 今夜のおすすめマッチ */}
         {(!isBackendConfigured || recommended) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span style={{ fontSize: 15, color: C.ink }}>▶ 今夜のおすすめマッチ</span>
-              <span style={{ fontSize: 10, color: C.lavender }}>タップでプロフィール →</span>
+              <span style={{ fontSize: 10, color: C.lavender, fontWeight: 700 }}>タップでプロフィール →</span>
             </div>
             <div
               className="pita-press"

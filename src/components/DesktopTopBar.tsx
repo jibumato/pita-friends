@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
-import { Search as SearchIcon, Coin, Bell, Sun, MoonSmall, Menu } from './Icon'
+import { Search as SearchIcon, Coin, Bell, Menu } from './Icon'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchUnreadNotificationCount } from '../lib/queries'
@@ -123,21 +123,22 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
       <div ref={menuRef} style={{ position: 'relative', flex: 'none' }}>
         <div
           onClick={() => setMenuOpen((o) => !o)}
-          {...clickable(() => setMenuOpen((o) => !o), 'メニュー(コイン残高・ランキング)')}
+          {...clickable(() => setMenuOpen((o) => !o), 'メニュー(ランキング・安心して遊べる)')}
           aria-expanded={menuOpen}
           style={{
             cursor: 'pointer',
-            width: 38,
-            height: 38,
-            borderRadius: 8,
-            background: menuOpen ? C.surfaceLavender : C.white,
-            border: `1.5px solid ${C.border}`,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: 6,
+            height: 38,
+            borderRadius: 20,
+            background: menuOpen ? C.surfaceLavender : C.white,
+            border: `1.5px solid ${C.border}`,
+            padding: '0 13px',
           }}
         >
-          <Menu size={18} color={C.ink} />
+          <Menu size={16} color={C.ink} />
+          <span style={{ fontSize: 12, color: C.ink }}>メニュー</span>
         </div>
         {menuOpen && (
           <div
@@ -156,24 +157,6 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
             <DesktopRightRail flow={flow} />
           </div>
         )}
-      </div>
-      <div
-        onClick={flow.toggleTheme}
-        {...clickable(flow.toggleTheme, flow.theme === 'dark' ? 'ライトテーマに切替' : 'ダークテーマに切替')}
-        style={{
-          cursor: 'pointer',
-          width: 38,
-          height: 38,
-          borderRadius: 8,
-          background: C.white,
-          border: `1.5px solid ${C.border}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flex: 'none',
-        }}
-      >
-        {flow.theme === 'dark' ? <Sun size={17} /> : <MoonSmall size={17} />}
       </div>
       <div
         onClick={() => flow.go('notifications')}

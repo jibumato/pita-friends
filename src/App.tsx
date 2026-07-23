@@ -148,6 +148,8 @@ export type Flow = {
   /** さがす画面の検索語・絞り込みチップ。デスクトップではトップバー/サイドバーからも操作する共通状態。 */
   searchQuery: string
   searchFilters: Record<string, boolean>
+  /** setup画面が新規オンボーディングか、マイページからの編集かを区別する。 */
+  editingProfile: boolean
   bookingHost: BookingHost | null
   bookingDuration: BookingDuration
   bookingInsufficient: boolean
@@ -175,6 +177,10 @@ export type Flow = {
   buyCoins: (coins: number) => void
   setSearchQuery: (q: string) => void
   toggleSearchFilter: (f: string) => void
+  /** マイページから編集モードでsetup画面を開く(新規オンボーディングとは文言・戻り先が異なる)。 */
+  startEditProfile: () => void
+  /** 編集モードのsetupを保存してマイページへ戻る。 */
+  finishEditProfile: () => void
   setHostPref: <K extends keyof HostSettings>(key: K, value: HostSettings[K]) => void
   startBooking: (host: BookingHost) => void
   setBookingDuration: (min: BookingDuration) => void
@@ -233,6 +239,7 @@ const INITIAL = {
   searchFilters: (isBackendConfigured
     ? {}
     : { 今夜あそべる: true, Apex: true, [SEARCH_VERIFIED_FILTER]: true }) as Record<string, boolean>,
+  editingProfile: false,
   bookingHost: null as BookingHost | null,
   bookingDuration: 60 as BookingDuration,
   bookingInsufficient: false,
@@ -604,6 +611,8 @@ export default function App() {
     setSearchQuery: (q) => setState((p) => ({ ...p, searchQuery: q })),
     toggleSearchFilter: (f) =>
       setState((p) => ({ ...p, searchFilters: { ...p.searchFilters, [f]: !p.searchFilters[f] } })),
+    startEditProfile: () => setState((p) => ({ ...p, editingProfile: true, screen: 'setup' })),
+    finishEditProfile: () => setState((p) => ({ ...p, editingProfile: false, screen: 'mypage' })),
     setHostPref: (key, value) => {
       const previous = state.hostSettings[key]
       setState((p) => ({
@@ -732,7 +741,9 @@ export default function App() {
   // 一覧・ダッシュボード系はメイン列いっぱいのフラットな全幅(モックアップ準拠)。
   // フォーム・詳細・ホームは読みやすい幅で中央寄せ。カード風の枠・影は付けず地の面に馴染ませる。
   const fullBleed = DESKTOP_FULL_BLEED_SCREENS.has(state.screen)
-  const maxContentWidth = fullBleed ? undefined : DESKTOP_WIDE_SCREENS.has(state.screen) ? 760 : 560
+  // ホームは全幅表示だが、超ワイド画面でカードが際限なく引き伸ばされ色面が強くなりすぎないよう上限を設ける。
+  const maxContentWidth =
+    state.screen === 'home' ? 1180 : fullBleed ? undefined : DESKTOP_WIDE_SCREENS.has(state.screen) ? 760 : 560
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.canvas }}>
       <DesktopTopBar flow={flow} />

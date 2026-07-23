@@ -249,18 +249,19 @@ export default function Search({ flow }: { flow: Flow }) {
           )}
           <div
             style={{
+              display: 'inline-flex',
+              alignSelf: 'flex-start',
               background: C.surfaceLavender,
               border: `1.5px solid ${C.lavender}`,
               borderRadius: 8,
-              padding: '8px 11px',
-              display: 'flex',
-              gap: 8,
+              padding: '8px 12px',
+              gap: 7,
               alignItems: 'center',
             }}
           >
             <span style={{ fontSize: 13, flex: 'none' }}>🛡️</span>
-            <span style={{ fontSize: 10, color: C.body, lineHeight: 1.5 }}>
-              「安心設定」で受け身にしている人は表示されません。誘いは相手の設定により承認制になります。
+            <span style={{ fontSize: 11, color: C.body }}>
+              <b style={{ color: C.ink }}>受け身設定の人は非表示</b> ・ 誘いは承認制です
             </span>
           </div>
           {isBackendConfigured && allCards.length > 0 && cards.length === 0 && (
