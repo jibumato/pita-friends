@@ -97,10 +97,12 @@
     (RECENT_PURCHASE_COOLDOWN) ／ ✅ 送信上限(1回5万・1日5万・30日20万) ／ ✅ 受領7日換金保留
     (request_bank_payoutで直近7日受領分を差し引き) ／ ✅ 有償コインのみ原資。**
     **✅ 追加(0021): 同一端末の自己取引を検知・遮断。端末ID(localStorage永続)をrecord_deviceで
-    記録し、send_gift で送り主と受け手が端末を共有した履歴があれば送信拒否(SAME_DEVICE_FORBIDDEN)。
-    運用の目視チェックSQLも payouts-bank-operations.md ①-2b に追加。**
-    **⬜ 未対応(要フォロー): IP監視(Edge Function経由でのIP取得が必要)・カードフィンガープリント監視
-    (購入フロー/Stripe webhookでの保存が必要)。端末IDはクリアされうるため完全ではない。事業判断で
+    記録し、send_gift で送り主と受け手が端末を共有した履歴があれば送信拒否(SAME_DEVICE_FORBIDDEN)。**
+    **✅ 追加(0022): IP共有の検知。Edge Function(record-ip)がX-Forwarded-Forから実IPを記録し、
+    send_gift で送り主と受け手のIP共有履歴があれば gifts.ip_flagged を立てる(IPは同一Wi-Fi/NATで
+    正当に一致しうるため遮断ではなく調査フラグ)。運用チェックSQLも payouts-bank-operations.md ①-2b に追加。**
+    **⬜ 未対応(要フォロー): カードフィンガープリント監視(購入フロー/Stripe webhookでの保存が必要)。
+    端末ID/IPともに完全ではない(端末IDはクリア可・IPは共有NAT等)ため多層で運用する。事業判断で
     最低プレイ時間10h・最低3回は採らず「完了予約1回」を採用。**
 - **(d) 射幸性・景表法・出会い系**: 通常の投げ銭は景表法上問題になりにくい(抽選でない)。ただし
   **「投げ銭ランキング」「女性人気ランキング」は警察に『人気女性への金銭提供サービス』と見られ危険**。

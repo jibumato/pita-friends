@@ -515,6 +515,19 @@ export async function recordDevice(): Promise<void> {
 }
 
 /**
+ * ログイン中ユーザーのIPを記録する(アプリ起動時に一度呼ぶ)。
+ * ブラウザは自分の正しい公開IPを取得できないため、Edge Function(record-ip)が
+ * サーバ側でX-Forwarded-Forを読んで記録する。失敗は無視(監視用のため)。
+ */
+export async function recordIp(): Promise<void> {
+  try {
+    await requireSupabase().functions.invoke('record-ip', { body: {} })
+  } catch {
+    /* Edge Function未デプロイ・ネットワーク不通でもユーザー操作は妨げない */
+  }
+}
+
+/**
  * トークの相手にコインを贈る(ありがとうチップ)。原資は自分の購入コイン(balance)のみ。
  * 一緒に遊んだ(予約完了した)相手にのみ贈れ、相手は換金可能な報酬コインとして受け取る
  * (受領から7日間は換金保留)。端末IDを同送し、同一端末の自己取引を検知・遮断する。

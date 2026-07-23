@@ -1,8 +1,8 @@
--- ピタフレ 全スキーマ結合版 (0001〜0021)
+-- ピタフレ 全スキーマ結合版 (0001〜0022)
 -- Supabase ダッシュボードの SQL Editor に、このファイルの中身をそのまま貼り付けて一括実行できます。
 -- (個別ファイルは supabase/migrations/ にあります。CLIを使う場合は supabase db push でも可)
--- 既に0001〜0020を適用済みの場合は、追加分の 0021 だけを実行すればOKです。
--- ※ギフト関連は 0019(初版)→0020(ガードレール)→0021(端末監視)の順にセットで適用してください。
+-- 既に0001〜0021を適用済みの場合は、追加分の 0022 だけを実行すればOKです。
+-- ※ギフト関連は 0019→0020→0021→0022 の順にセットで適用してください。
 
 
 -- ============================================================================
@@ -4432,3 +4432,253 @@ grant execute on function public.send_gift(uuid, int, text, text) to authenticat
 
 -- 旧シグネチャ(4引数でない版)は不要になるが、明示的に削除はしない
 -- (PostgRESTは引数名で解決するため、フロントは常に4引数版を呼ぶ)。
+
+-- ============================================================================
+-- 0022_gift_ip_monitoring.sql
+-- ============================================================================
+-- ============================================================
+-- ギフトのIP監視: 送り主と受け手のIP共有を検知してフラグを立てる
+-- ------------------------------------------------------------
+-- 弁護士Q11(c)の推奨「同一IPを監視」への対応。
+--
+-- 設計上の要点:
+--   ・クライアントの正しい公開IPはブラウザからは取得できない(信頼できない)ため、
+--     アプリ起動時に Edge Function(record-ip)がリクエストヘッダの
+--     X-Forwarded-For から実IPを読み、record_ip でユーザーごとに記録する。
+--   ・IPは同一Wi-Fi・同一キャリアのNAT(CGNAT)・同じカフェ等で「正当に」一致
+--     しうる(一緒に遊んだ相手が同居家族・同じ回線というのは普通)。よって
+--     IP一致は端末一致(=ほぼ同一人物)と違い、**遮断ではなく調査用フラグ**に
+--     とどめる。送信は止めない。
+--   ・send_gift は user_ips(record-ipが蓄積)を参照し、送り主と受け手のIP共有
+--     履歴があれば gifts.ip_flagged=true を立てる。運用の目視・振込前チェックで使う。
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- user_ips: ユーザーが利用したIPの記録(Edge Function経由でのみ書き込む)
+-- ------------------------------------------------------------
+create table public.user_ips (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  ip text not null check (char_length(ip) between 3 and 64),
+  first_seen_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  uses int not null default 1,
+  primary key (user_id, ip)
+);
+
+comment on table public.user_ips is
+  'ユーザーが利用した公開IPの記録(Edge Function record-ip がX-Forwarded-Forから記録)。ギフトのIP共有検知に用いる。IP一致は遮断せず調査フラグに使う。';
+
+alter table public.user_ips enable row level security;
+
+create policy "user_ips_select_own"
+  on public.user_ips for select
+  to authenticated
+  using (user_id = auth.uid());
+
+-- 書き込みは record_ip(SECURITY DEFINER)経由のみ。
+
+create index user_ips_ip_idx on public.user_ips (ip);
+
+-- ------------------------------------------------------------
+-- gifts に IP要確認フラグを追加
+-- ------------------------------------------------------------
+alter table public.gifts add column ip_flagged boolean not null default false;
+
+comment on column public.gifts.ip_flagged is
+  '送り主と受け手が同一IPを共有した履歴がある場合にtrue。遮断はしないが、換金前の目視確認対象。';
+
+-- ------------------------------------------------------------
+-- record_ip: ログイン中ユーザーのIPを記録(Edge Function record-ip が呼ぶ)
+-- ------------------------------------------------------------
+create function public.record_ip(p_ip text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_ip text := btrim(coalesce(p_ip, ''));
+begin
+  if v_uid is null then
+    return;
+  end if;
+  if char_length(v_ip) < 3 or char_length(v_ip) > 64 then
+    return;
+  end if;
+  insert into public.user_ips (user_id, ip)
+    values (v_uid, v_ip)
+  on conflict (user_id, ip) do update
+    set last_seen_at = now(), uses = public.user_ips.uses + 1;
+end;
+$$;
+
+revoke all on function public.record_ip(text) from public;
+grant execute on function public.record_ip(text) to authenticated;
+
+-- ------------------------------------------------------------
+-- send_gift: IP共有履歴があれば ip_flagged を立てて記録(0021版に追加)
+-- ------------------------------------------------------------
+create or replace function public.send_gift(
+  p_promise_id uuid,
+  p_coins int,
+  p_message text default null,
+  p_device_id text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  c_max_per_tx    constant int := 50000;
+  c_max_per_day   constant int := 50000;
+  c_max_per_month constant int := 200000;
+  v_sender uuid := auth.uid();
+  v_promise public.promises;
+  v_receiver uuid;
+  v_paid int;
+  v_last_purchase timestamptz;
+  v_sum_day int;
+  v_sum_month int;
+  v_ip_flag boolean;
+  v_gift_id uuid;
+  v_sender_name text;
+  v_msg text;
+  v_body text;
+begin
+  if v_sender is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if p_coins is null or p_coins < 10 or p_coins > c_max_per_tx then
+    raise exception 'INVALID_AMOUNT';
+  end if;
+
+  select * into v_promise from public.promises where id = p_promise_id;
+  if v_promise.id is null then
+    raise exception 'THREAD_NOT_FOUND';
+  end if;
+  if v_sender not in (v_promise.user_a, v_promise.user_b) then
+    raise exception 'FORBIDDEN';
+  end if;
+
+  v_receiver := case when v_sender = v_promise.user_a then v_promise.user_b else v_promise.user_a end;
+
+  -- 送り主の端末を記録(以降の共有判定に使う)
+  if p_device_id is not null and char_length(p_device_id) between 8 and 128 then
+    insert into public.user_devices (user_id, device_id)
+      values (v_sender, p_device_id)
+    on conflict (user_id, device_id) do update
+      set last_seen_at = now(), uses = public.user_devices.uses + 1;
+  end if;
+
+  -- ブロック関係では贈れない
+  if exists (
+    select 1 from public.blocks
+    where (blocker_id = v_sender and blocked_id = v_receiver)
+       or (blocker_id = v_receiver and blocked_id = v_sender)
+  ) then
+    raise exception 'BLOCKED';
+  end if;
+
+  -- 【同一端末の自己取引を遮断】(端末一致はほぼ同一人物なので拒否)
+  if exists (
+    select 1
+    from public.user_devices d1
+    join public.user_devices d2 on d1.device_id = d2.device_id
+    where d1.user_id = v_sender and d2.user_id = v_receiver
+  ) then
+    raise exception 'SAME_DEVICE_FORBIDDEN';
+  end if;
+
+  -- 【付随謝礼】実際に一緒に遊んだ相手(=完了した予約が1回以上ある相手)にのみ贈れる
+  if not exists (
+    select 1 from public.bookings
+    where status = 'completed'
+      and ((guest_id = v_sender and host_id = v_receiver)
+        or (guest_id = v_receiver and host_id = v_sender))
+  ) then
+    raise exception 'NO_COMPLETED_PLAY';
+  end if;
+
+  -- 【相互送金禁止】
+  if exists (
+    select 1 from public.gifts where sender_id = v_receiver and receiver_id = v_sender
+  ) then
+    raise exception 'MUTUAL_GIFT_FORBIDDEN';
+  end if;
+
+  -- 【チャージ直後禁止】最後のコイン購入から24時間は送金不可
+  select max(created_at) into v_last_purchase from public.coin_purchases where user_id = v_sender;
+  if v_last_purchase is not null and v_last_purchase > now() - interval '24 hours' then
+    raise exception 'RECENT_PURCHASE_COOLDOWN';
+  end if;
+
+  -- 【上限】直近24時間・直近30日の送金合計
+  select coalesce(sum(coins), 0) into v_sum_day
+    from public.gifts where sender_id = v_sender and created_at > now() - interval '1 day';
+  select coalesce(sum(coins), 0) into v_sum_month
+    from public.gifts where sender_id = v_sender and created_at > now() - interval '30 days';
+  if v_sum_day + p_coins > c_max_per_day then
+    raise exception 'DAILY_LIMIT';
+  end if;
+  if v_sum_month + p_coins > c_max_per_month then
+    raise exception 'MONTHLY_LIMIT';
+  end if;
+
+  -- 【IP共有の検知】遮断はしない。調査用フラグを立てるだけ。
+  select exists (
+    select 1
+    from public.user_ips a
+    join public.user_ips b on a.ip = b.ip
+    where a.user_id = v_sender and b.user_id = v_receiver
+  ) into v_ip_flag;
+
+  -- 原資は有償の購入コイン(balance)のみ
+  select balance into v_paid from public.coin_wallets where user_id = v_sender for update;
+  if v_paid is null or v_paid < p_coins then
+    raise exception 'INSUFFICIENT_COINS';
+  end if;
+
+  update public.coin_wallets set balance = balance - p_coins where user_id = v_sender;
+  perform public._consume_coin_lots(v_sender, 'paid', p_coins);
+
+  insert into public.coin_wallets (user_id) values (v_receiver)
+    on conflict (user_id) do nothing;
+  update public.coin_wallets set earned_balance = earned_balance + p_coins
+    where user_id = v_receiver;
+
+  v_msg := nullif(btrim(coalesce(p_message, '')), '');
+
+  insert into public.gifts (promise_id, sender_id, receiver_id, coins, message, sender_device_id, ip_flagged)
+    values (p_promise_id, v_sender, v_receiver, p_coins, v_msg, p_device_id, coalesce(v_ip_flag, false))
+    returning id into v_gift_id;
+
+  insert into public.coin_transactions (user_id, amount, type, note)
+    values (v_sender, -p_coins, 'gift_sent', 'gift:' || v_gift_id);
+  insert into public.coin_transactions (user_id, amount, type, note)
+    values (v_receiver, p_coins, 'gift_received', 'gift:' || v_gift_id);
+
+  v_body := '🎁 ' || p_coins || 'コインのありがとうギフトを贈りました';
+  if v_msg is not null then
+    v_body := v_body || '「' || v_msg || '」';
+  end if;
+  insert into public.messages (promise_id, sender_id, body)
+    values (p_promise_id, v_sender, v_body);
+
+  select nickname into v_sender_name from public.profiles where id = v_sender;
+  insert into public.notifications (user_id, type, title, body, related_id)
+  values (
+    v_receiver, 'gift_received',
+    coalesce(nullif(v_sender_name, ''), '誰か') || 'さんからありがとうギフトが届きました',
+    p_coins || 'コインを受け取りました(受領から7日間は換金できません)'
+      || coalesce('「' || v_msg || '」', ''),
+    p_promise_id
+  );
+
+  return v_gift_id;
+end;
+$$;
+
+revoke all on function public.send_gift(uuid, int, text, text) from public;
+grant execute on function public.send_gift(uuid, int, text, text) to authenticated;

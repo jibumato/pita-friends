@@ -132,13 +132,35 @@ from public.gifts
 where created_at > now() - interval '7 days'
 group by receiver_id
 order by sum(coins) desc;
+
+-- (4) IP要確認フラグの立ったギフト(送り主と受け手が同一IPを共有した履歴あり)。
+-- 遮断はしていないので、換金前に個別確認する。
+select g.id, g.created_at, g.coins,
+       g.sender_id, sp.nickname as sender_name,
+       g.receiver_id, rp.nickname as receiver_name
+from public.gifts g
+join public.profiles sp on sp.id = g.sender_id
+join public.profiles rp on rp.id = g.receiver_id
+where g.ip_flagged
+order by g.created_at desc;
+
+-- (5) 同一IPを共有しているアカウントの組(調査の入口)。
+select a.ip,
+       a.user_id as user_a, pa.nickname as name_a,
+       b.user_id as user_b, pb.nickname as name_b
+from public.user_ips a
+join public.user_ips b on a.ip = b.ip and a.user_id < b.user_id
+join public.profiles pa on pa.id = a.user_id
+join public.profiles pb on pb.id = b.user_id
+order by a.ip;
 ```
 
 疑わしい場合は該当ホストの`mark_payout_failed`で差し戻し、事情確認してから振り込むこと。
+IP一致は同一Wi-Fi・キャリアNATでも起きるため、それ単体では不正と断定しないこと。
 
-> **継続課題(未実装)**: IPアドレス・カード(決済手段)フィンガープリントの監視は、
-> それぞれ Edge Function 経由でのIP取得・購入フロー(Stripe webhook)でのカード
-> フィンガープリント保存が必要で、現状は未対応。端末ID監視のみ稼働中。
+> **稼働中の監視**: 端末ID(0021・同一端末は送信遮断) / IP共有(0022・調査フラグ)。
+> **継続課題(未実装)**: カード(決済手段)フィンガープリントの監視は、購入フロー
+> (Stripe webhook)で payment_method のフィンガープリントを保存する改修が必要。
 
 ## ①-3 資金の分別管理(弁護士指摘Q2(c))
 

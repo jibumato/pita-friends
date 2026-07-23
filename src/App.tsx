@@ -35,6 +35,7 @@ import {
   blockUser as blockUserRemote,
   createInvite as createInviteRemote,
   recordDevice,
+  recordIp,
 } from './lib/queries'
 
 import Welcome from './screens/Welcome'
@@ -317,10 +318,11 @@ export default function App() {
     return stop
   }, [state.userId, state.safetyPrefs.showOnline, state.nickname])
 
-  // 端末IDを記録(ギフトの自己取引検知に使う)。ログイン後に一度だけ。
+  // 端末ID・IPを記録(ギフトの自己取引/IP共有検知に使う)。ログイン後に一度だけ。
   useEffect(() => {
     if (!isBackendConfigured || !state.userId) return
     void recordDevice()
+    void recordIp()
   }, [state.userId])
 
   // テーマを <html data-theme> に反映(CSS変数が切替わる)

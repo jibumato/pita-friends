@@ -553,6 +553,10 @@ export type Database = {
         Args: { p_device_id: string }
         Returns: void
       }
+      record_ip: {
+        Args: { p_ip: string }
+        Returns: void
+      }
       approve_identity_verification: {
         Args: { p_verification_id: string; p_is_adult?: boolean }
         Returns: void
