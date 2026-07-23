@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
-import { Search as SearchIcon, Coin, Bell } from './Icon'
+import { Search as SearchIcon, Coin, Bell, Sun, MoonSmall } from './Icon'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchUnreadNotificationCount } from '../lib/queries'
@@ -46,9 +46,9 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
       />
       <div
         onClick={() => flow.screen !== 'search' && flow.go('search')}
-        {...clickable(() => flow.go('search'), 'さがす')}
+        {...(flow.screen === 'search' ? {} : clickable(() => flow.go('search'), 'さがす'))}
         style={{
-          cursor: 'pointer',
+          cursor: flow.screen === 'search' && isBackendConfigured ? 'text' : 'pointer',
           flex: 1,
           maxWidth: 420,
           display: 'flex',
@@ -61,7 +61,24 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
         }}
       >
         <SearchIcon size={14} color={C.muted} strokeWidth={2.4} />
-        <span style={{ fontSize: 12, color: C.muted }}>ゲーム名・プレイスタイルで検索</span>
+        {flow.screen === 'search' && isBackendConfigured ? (
+          <input
+            value={flow.searchQuery}
+            onChange={(e) => flow.setSearchQuery(e.target.value)}
+            placeholder="ゲーム名・プレイスタイルで検索"
+            style={{
+              flex: 1,
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              fontSize: 12.5,
+              color: C.ink,
+              fontFamily: 'inherit',
+            }}
+          />
+        ) : (
+          <span style={{ fontSize: 12, color: C.muted }}>ゲーム名・プレイスタイルで検索</span>
+        )}
       </div>
       <div style={{ flex: 1 }} />
       <div
@@ -82,6 +99,24 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
         <span style={{ fontSize: 12.5, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
           {flow.coinBalance.toLocaleString()}
         </span>
+      </div>
+      <div
+        onClick={flow.toggleTheme}
+        {...clickable(flow.toggleTheme, flow.theme === 'dark' ? 'ライトテーマに切替' : 'ダークテーマに切替')}
+        style={{
+          cursor: 'pointer',
+          width: 38,
+          height: 38,
+          borderRadius: 8,
+          background: C.white,
+          border: `1.5px solid ${C.border}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: 'none',
+        }}
+      >
+        {flow.theme === 'dark' ? <Sun size={17} /> : <MoonSmall size={17} />}
       </div>
       <div
         onClick={() => flow.go('notifications')}

@@ -2,8 +2,9 @@
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import { Home, Search, PlusCircle, Chat, User } from './Icon'
-import { activeTabOf, tabToScreen, type TabKey } from '../flow'
+import { activeTabOf, tabToScreen, SEARCH_DEMO_FILTERS, SEARCH_REAL_FILTERS, type TabKey } from '../flow'
 import { clickable } from '../hooks/clickable'
+import { isBackendConfigured } from '../lib/supabase'
 
 const TABS: { key: TabKey; label: string; Icon: typeof Home }[] = [
   { key: 'home', label: 'ホーム', Icon: Home },
@@ -54,6 +55,36 @@ export default function DesktopSidebar({ flow }: { flow: Flow }) {
           </div>
         )
       })}
+
+      {flow.screen === 'search' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
+          <span style={{ fontSize: 11, color: C.muted, letterSpacing: '.06em', padding: '0 4px' }}>絞り込み</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '4px 2px' }}>
+            {(isBackendConfigured ? SEARCH_REAL_FILTERS : SEARCH_DEMO_FILTERS).map((f) => {
+              const sel = !!flow.searchFilters[f]
+              return (
+                <span
+                  key={f}
+                  onClick={() => flow.toggleSearchFilter(f)}
+                  {...clickable(() => flow.toggleSearchFilter(f), f)}
+                  style={{
+                    cursor: 'pointer',
+                    fontSize: 11.5,
+                    color: C.ink,
+                    background: sel ? C.lime : C.surface,
+                    border: `1.5px solid ${C.border}`,
+                    padding: '5px 10px',
+                    borderRadius: 6,
+                  }}
+                >
+                  {f}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ marginTop: 'auto', paddingTop: 14 }}>
         <div
           onClick={() => flow.go('hostSettings')}

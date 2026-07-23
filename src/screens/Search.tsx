@@ -9,12 +9,10 @@ import { EmptyState, ErrorState, SkeletonCard } from '../components/States'
 import { searchUsers } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchDiscoverableHosts } from '../lib/queries'
-import { GAMES, coinsPer30 } from '../flow'
+import { useIsMobile } from '../hooks/useMediaQuery'
+import { GAMES, coinsPer30, SEARCH_VERIFIED_FILTER as VERIFIED_FILTER, SEARCH_DEMO_FILTERS as DEMO_FILTERS, SEARCH_REAL_FILTERS as REAL_FILTERS } from '../flow'
 
 type Phase = 'loading' | 'results' | 'empty' | 'error'
-const DEMO_FILTERS = ['今夜あそべる', 'Apex', 'ゴールド帯', 'エンジョイ', '✓ 本人確認済みのみ']
-const VERIFIED_FILTER = '✓ 本人確認済みのみ'
-const REAL_FILTERS = [...GAMES, VERIFIED_FILTER]
 
 /** デモのモックユーザーと実データのホストを、カード表示用の共通形に正規化する。 */
 type DisplayCard = {
@@ -49,11 +47,11 @@ function fromMock(u: (typeof searchUsers)[number]): DisplayCard {
 }
 
 export default function Search({ flow }: { flow: Flow }) {
+  const mobile = useIsMobile()
   const [phase, setPhase] = useState<Phase>('loading')
-  const [selected, setSelected] = useState<Record<string, boolean>>(
-    isBackendConfigured ? {} : { 今夜あそべる: true, Apex: true, [VERIFIED_FILTER]: true },
-  )
-  const [query, setQuery] = useState('')
+  // 検索語・絞り込みチップはFlow(App)側の共通状態。デスクトップではトップバー/サイドバーからも操作する。
+  const selected = flow.searchFilters
+  const query = flow.searchQuery
   const [realCards, setRealCards] = useState<DisplayCard[] | null>(null)
 
   // 初回マウント: バックエンド接続時は実際のホスト一覧を取得、
@@ -153,61 +151,66 @@ export default function Search({ flow }: { flow: Flow }) {
             </div>
           )}
         </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            background: C.white,
-            border: `1.5px solid ${C.border}`,
-            borderRadius: 8,
-            padding: '12px 14px',
-            boxShadow: `2px 2px 0 ${C.shadowCol}`,
-          }}
-        >
-          <SearchIcon size={16} color={C.ink} strokeWidth={2.4} />
-          {isBackendConfigured ? (
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="ゲーム名・プレイスタイルで検索"
+        {/* デスクトップでは検索ボックス/絞り込みチップをトップバー・サイドバーが担うため、ここは非表示。 */}
+        {mobile && (
+          <>
+            <div
               style={{
-                flex: 1,
-                border: 'none',
-                outline: 'none',
-                background: 'transparent',
-                fontSize: 13,
-                color: C.ink,
-                fontFamily: 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                background: C.white,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 8,
+                padding: '12px 14px',
+                boxShadow: `2px 2px 0 ${C.shadowCol}`,
               }}
-            />
-          ) : (
-            <span style={{ fontSize: 13, color: C.placeholder }}>ゲーム名・プレイスタイルで検索</span>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          {(isBackendConfigured ? REAL_FILTERS : DEMO_FILTERS).map((f) => {
-            const sel = !!selected[f]
-            const isVerify = f.startsWith('✓')
-            return (
-              <span
-                key={f}
-                onClick={() => setSelected((s) => ({ ...s, [f]: !s[f] }))}
-                style={{
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  color: sel ? (isVerify ? C.ink : C.lime) : C.ink,
-                  background: sel ? (isVerify ? C.lime : C.ink) : C.white,
-                  border: `1.5px solid ${C.border}`,
-                  padding: '7px 13px',
-                  borderRadius: 4,
-                }}
-              >
-                {f}
-              </span>
-            )
-          })}
-        </div>
+            >
+              <SearchIcon size={16} color={C.ink} strokeWidth={2.4} />
+              {isBackendConfigured ? (
+                <input
+                  value={query}
+                  onChange={(e) => flow.setSearchQuery(e.target.value)}
+                  placeholder="ゲーム名・プレイスタイルで検索"
+                  style={{
+                    flex: 1,
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                    fontSize: 13,
+                    color: C.ink,
+                    fontFamily: 'inherit',
+                  }}
+                />
+              ) : (
+                <span style={{ fontSize: 13, color: C.placeholder }}>ゲーム名・プレイスタイルで検索</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+              {(isBackendConfigured ? REAL_FILTERS : DEMO_FILTERS).map((f) => {
+                const sel = !!selected[f]
+                const isVerify = f.startsWith('✓')
+                return (
+                  <span
+                    key={f}
+                    onClick={() => flow.toggleSearchFilter(f)}
+                    style={{
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      color: sel ? (isVerify ? C.ink : C.lime) : C.ink,
+                      background: sel ? (isVerify ? C.lime : C.ink) : C.white,
+                      border: `1.5px solid ${C.border}`,
+                      padding: '7px 13px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    {f}
+                  </span>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {phase === 'results' && (
