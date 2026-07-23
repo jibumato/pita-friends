@@ -82,26 +82,32 @@ const MATCH_SCORE = 92
 const AUTO_ADVANCE_MS = 2400
 
 /**
- * デスクトップのメイン列の幅。一覧・設定・ダッシュボード系はhome/profileと同じ広め幅にし、
+ * デスクトップのメイン列の幅を画面種別ごとに決める。
+ *  - FULL_BLEED : 一覧・ダッシュボード系。メイン列いっぱいに広げる(さがすと同じ)。
+ *  - WIDE(760) : カード/設定リストだが読みやすさのため上限を設ける画面。
+ *  - それ以外(560): オンボーディング・チャット・確認・お祝いなど単一導線の画面。
  * 手のひらサイズの端末幅(旧440px)のまま据え置かれて見えないようにする。
- * それ以外(オンボーディング・チャット・確認・お祝い演出など単一導線の画面)はやや狭めの中央寄せ。
  */
+const DESKTOP_FULL_BLEED_SCREENS = new Set<ScreenKey>([
+  'search',
+  'board',
+  'mypage',
+  'talkList',
+  'notifications',
+  'requests',
+  'ranking',
+  'blockList',
+  'adminVerifications',
+])
 const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
   'home',
   'profile',
-  'mypage',
   'settings',
   'safety',
-  'notifications',
   'safetyPrefs',
-  'requests',
   'wallet',
   'hostSettings',
-  'ranking',
-  'adminVerifications',
-  'blockList',
   'legalDoc',
-  'talkList',
   'boardCreate',
 ])
 
@@ -723,9 +729,9 @@ export default function App() {
   // ヒーローはホームの上部にのみ表示(さがすは検索結果に集中させる)。
   // コイン残高/ランキング/安心して遊べるは右レールではなくトップバーのハンバーガーメニューから開く。
   const showHero = state.screen === 'home'
-  // 一覧系(さがす/募集)はメイン列いっぱいのフラットな全幅グリッド(モックアップ準拠)。
+  // 一覧・ダッシュボード系はメイン列いっぱいのフラットな全幅(モックアップ準拠)。
   // フォーム・詳細・ホームは読みやすい幅で中央寄せ。カード風の枠・影は付けず地の面に馴染ませる。
-  const fullBleed = state.screen === 'search' || state.screen === 'board'
+  const fullBleed = DESKTOP_FULL_BLEED_SCREENS.has(state.screen)
   const maxContentWidth = fullBleed ? undefined : DESKTOP_WIDE_SCREENS.has(state.screen) ? 760 : 560
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.canvas }}>
