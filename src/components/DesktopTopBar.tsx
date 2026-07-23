@@ -1,14 +1,31 @@
-/** デスクトップ専用の上部バー(ロゴ/検索導線/コイン残高/通知/アバター)。welcome以外の全画面で共通表示。 */
-import { useEffect, useState } from 'react'
+/** デスクトップ専用の上部バー(ロゴ/検索導線/コイン残高/通知/アバター/ハンバーガーメニュー)。welcome以外の全画面で共通表示。 */
+import { useEffect, useRef, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
-import { Search as SearchIcon, Coin, Bell, Sun, MoonSmall } from './Icon'
+import { Search as SearchIcon, Coin, Bell, Sun, MoonSmall, Menu } from './Icon'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchUnreadNotificationCount } from '../lib/queries'
+import DesktopRightRail from './DesktopRightRail'
 
 export default function DesktopTopBar({ flow }: { flow: Flow }) {
   const [unreadNotifs, setUnreadNotifs] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [menuOpen])
+
+  // メニュー内のリンク(チャージする/ランキングを見る等)で画面遷移したら自動で閉じる
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [flow.screen])
 
   useEffect(() => {
     if (!isBackendConfigured) return
@@ -102,6 +119,43 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
         <span style={{ fontSize: 12.5, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
           {flow.coinBalance.toLocaleString()}
         </span>
+      </div>
+      <div ref={menuRef} style={{ position: 'relative', flex: 'none' }}>
+        <div
+          onClick={() => setMenuOpen((o) => !o)}
+          {...clickable(() => setMenuOpen((o) => !o), 'メニュー(コイン残高・ランキング)')}
+          aria-expanded={menuOpen}
+          style={{
+            cursor: 'pointer',
+            width: 38,
+            height: 38,
+            borderRadius: 8,
+            background: menuOpen ? C.surfaceLavender : C.white,
+            border: `1.5px solid ${C.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Menu size={18} color={C.ink} />
+        </div>
+        {menuOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 46,
+              right: 0,
+              zIndex: 40,
+              background: C.surface,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 12,
+              boxShadow: '0 12px 30px rgba(40,30,80,.2)',
+              padding: 14,
+            }}
+          >
+            <DesktopRightRail flow={flow} />
+          </div>
+        )}
       </div>
       <div
         onClick={flow.toggleTheme}
