@@ -17,22 +17,22 @@ export default function Welcome({ flow }: { flow: Flow }) {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 22,
-          padding: '0 34px',
+          gap: 16,
+          padding: '0 28px',
         }}
       >
         <div
           style={{
-            width: 76,
-            height: 76,
-            borderRadius: 16,
+            width: 64,
+            height: 64,
+            borderRadius: 14,
             background: C.lime,
             border: `2px solid ${C.border}`,
             boxShadow: `5px 5px 0 ${C.lavender}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 36,
+            fontSize: 30,
             color: C.ink,
             animation: 'floaty 3s ease-in-out infinite',
           }}
@@ -49,6 +49,19 @@ export default function Welcome({ flow }: { flow: Flow }) {
             今夜すぐつながる
           </span>
         </div>
+        <img
+          src="/hero.webp"
+          alt="離れた場所にいる2人がオンラインでつながって一緒にゲームを楽しむイラスト"
+          style={{
+            width: '100%',
+            aspectRatio: '16 / 9',
+            objectFit: 'cover',
+            borderRadius: 12,
+            border: `2px solid ${C.border}`,
+            boxShadow: `5px 5px 0 ${C.lavender}`,
+            display: 'block',
+          }}
+        />
         <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
           {['✓ 本人確認あり', '✓ マナースコア'].map((t) => (
             <span
