@@ -82,6 +82,30 @@ import LegalDoc from './screens/LegalDoc'
 const MATCH_SCORE = 92
 const AUTO_ADVANCE_MS = 2400
 
+/**
+ * デスクトップのメイン列の幅。一覧・設定・ダッシュボード系はhome/profileと同じ広め幅にし、
+ * 手のひらサイズの端末幅(旧440px)のまま据え置かれて見えないようにする。
+ * それ以外(オンボーディング・チャット・確認・お祝い演出など単一導線の画面)はやや狭めの中央寄せ。
+ */
+const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
+  'home',
+  'profile',
+  'mypage',
+  'settings',
+  'safety',
+  'notifications',
+  'safetyPrefs',
+  'requests',
+  'wallet',
+  'hostSettings',
+  'ranking',
+  'adminVerifications',
+  'blockList',
+  'legalDoc',
+  'talkList',
+  'boardCreate',
+])
+
 /** 予約対象のホスト(さがす画面のカードから渡す最小情報)。 */
 export type BookingHost = {
   name: string
@@ -702,7 +726,7 @@ export default function App() {
   // 一覧系(さがす/募集)はメイン列いっぱいのフラットな全幅グリッド(モックアップ準拠)。
   // フォーム・詳細・ホームは読みやすい幅で中央寄せ。カード風の枠・影は付けず地の面に馴染ませる。
   const fullBleed = state.screen === 'search' || state.screen === 'board'
-  const maxContentWidth = fullBleed ? undefined : state.screen === 'home' || state.screen === 'profile' ? 760 : 440
+  const maxContentWidth = fullBleed ? undefined : DESKTOP_WIDE_SCREENS.has(state.screen) ? 760 : 560
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: C.canvas }}>
       <DesktopTopBar flow={flow} />
