@@ -728,13 +728,14 @@ export default function App() {
   const fullBleed = state.screen === 'search' || state.screen === 'board'
   const maxContentWidth = fullBleed ? undefined : DESKTOP_WIDE_SCREENS.has(state.screen) ? 760 : 560
   return (
-    <div style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: C.canvas }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.canvas }}>
       <DesktopTopBar flow={flow} />
-      {/* ヒーローはトップバー直下に全幅で挟む(サイドバー/右レールの横には置かない)。 */}
-      {showHeroRail && <DesktopHero flow={flow} />}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start' }}>
         <DesktopSidebar flow={flow} />
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          {/* ヒーローはメイン列の先頭に置き、ページと一緒にスクロールして流れていく
+              (サイドバー/右レールの横に来ないよう、サイド/レールは別カラムのまま)。 */}
+          {showHeroRail && <DesktopHero flow={flow} />}
           <div
             style={{
               flex: 1,
@@ -749,7 +750,7 @@ export default function App() {
                 position: 'relative',
                 width: '100%',
                 maxWidth: maxContentWidth,
-                minHeight: '100%',
+                minHeight: 320,
                 background: C.surface,
               }}
             >

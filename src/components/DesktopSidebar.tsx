@@ -59,7 +59,6 @@ export default function DesktopSidebar({ flow }: { flow: Flow }) {
         padding: '18px 14px',
         borderRight: `1.5px solid ${C.border}`,
         background: C.white,
-        overflowY: 'auto',
       }}
     >
       {TABS.map(({ key, label, Icon }) => {
