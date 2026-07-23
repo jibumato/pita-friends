@@ -29,6 +29,9 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
     <div
       style={{
         flex: 'none',
+        position: 'sticky',
+        top: 0,
+        zIndex: 30,
         display: 'flex',
         alignItems: 'center',
         gap: 18,
