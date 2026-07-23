@@ -117,14 +117,15 @@ function GiftSheet({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 15, color: C.ink }}>🎁 {partnerName}さんにギフト</span>
+          <span style={{ fontSize: 15, color: C.ink }}>🎁 {partnerName}さんにありがとうギフト</span>
           <span onClick={onClose} style={{ cursor: 'pointer', fontSize: 13, color: C.muted }}>
             閉じる
           </span>
         </div>
 
         <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
-          「楽しかった」「応援したい」気持ちをコインで贈れます。相手の報酬(換金可能)になります。
+          一緒に遊んでくれた感謝の気持ちを、コインで贈れます。相手の報酬(換金可能・受領から7日後)になります。
+          原資は購入コインのみ・返金はできません。
         </span>
 
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -386,24 +387,6 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
             )}
           </div>
         </div>
-        {partner && (
-          <div
-            onClick={() => setGiftOpen(true)}
-            style={{
-              cursor: 'pointer',
-              flex: 'none',
-              fontSize: 12,
-              color: C.ink,
-              background: C.fill,
-              border: `1.5px solid ${C.border}`,
-              boxShadow: `2px 2px 0 ${C.lavender}`,
-              borderRadius: 8,
-              padding: '7px 11px',
-            }}
-          >
-            🎁 ギフト
-          </div>
-        )}
       </div>
 
       <div
@@ -589,6 +572,24 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
           )}
           {reviewed === true && (
             <span style={{ fontSize: 10.5, color: C.muted, textAlign: 'center' }}>評価を送りました。ありがとうございました</span>
+          )}
+          {partner && (
+            <div
+              onClick={() => setGiftOpen(true)}
+              style={{
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontSize: 12,
+                color: C.ink,
+                background: C.white,
+                border: `1.5px solid ${C.border}`,
+                boxShadow: `2px 2px 0 ${C.lavender}`,
+                borderRadius: 6,
+                padding: '9px 0',
+              }}
+            >
+              🎁 {partner.name}さんにありがとうギフトを贈る
+            </div>
           )}
         </div>
       )}

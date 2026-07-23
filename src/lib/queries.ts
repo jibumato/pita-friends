@@ -465,21 +465,27 @@ export async function sendMessage(promiseId: string, body: string): Promise<void
   if (error) throw error
 }
 
-/** ギフト(投げ銭)で選べる金額(コイン)。 */
-export const GIFT_AMOUNTS = [50, 100, 300, 500, 1000] as const
+/** ギフト(ありがとうチップ)で選べる金額(コイン=円)。上限は1回50,000。 */
+export const GIFT_AMOUNTS = [100, 500, 1000, 5000, 10000, 50000] as const
 
 const GIFT_ERROR_MESSAGES: Record<string, string> = {
   INSUFFICIENT_COINS: '購入コインの残高が足りません。ギフトは購入コインからのみ贈れます',
-  INVALID_AMOUNT: 'ギフトの金額が正しくありません',
+  INVALID_AMOUNT: 'ギフトの金額が正しくありません(1回50,000コインまで)',
   BLOCKED: 'この相手にはギフトを贈れません',
   THREAD_NOT_FOUND: 'トークが見つかりませんでした',
   FORBIDDEN: 'このトークではギフトを贈れません',
+  NO_COMPLETED_PLAY: 'ギフトは、一緒に遊んだ(予約が完了した)相手にだけ贈れます',
+  MUTUAL_GIFT_FORBIDDEN: '相手からギフトを受け取っているため、こちらからは贈れません(相互送金の防止)',
+  RECENT_PURCHASE_COOLDOWN: 'コイン購入から24時間はギフトを贈れません',
+  DAILY_LIMIT: '1日の送信上限(50,000コイン)を超えます',
+  MONTHLY_LIMIT: '30日間の送信上限(200,000コイン)を超えます',
   NOT_AUTHENTICATED: 'ログインが必要です',
 }
 
 /**
- * トークの相手にコインを贈る(投げ銭)。原資は自分の購入コイン(balance)のみ。
- * 相手は換金可能な報酬コイン(earned_balance)として受け取る。
+ * トークの相手にコインを贈る(ありがとうチップ)。原資は自分の購入コイン(balance)のみ。
+ * 一緒に遊んだ(予約完了した)相手にのみ贈れ、相手は換金可能な報酬コインとして受け取る
+ * (受領から7日間は換金保留)。
  */
 export async function sendGift(promiseId: string, coins: number, message?: string): Promise<void> {
   const { error } = await requireSupabase().rpc('send_gift', {
@@ -1014,6 +1020,7 @@ const PAYOUT_ERROR_MESSAGES: Record<string, string> = {
   NOT_VERIFIED: '換金には本人確認の完了が必要です',
   BANK_ACCOUNT_NOT_REGISTERED: '先にホスト設定から振込先口座を登録してください',
   INSUFFICIENT_EARNED_BALANCE: '換金可能な残高が足りません',
+  GIFT_ON_HOLD: '受け取ったギフトは7日間は換金できません。保留が明けるまでお待ちください',
 }
 
 /** 報酬コインの換金(銀行振込)を申請する。振込は運営がまとめて行う。 */
