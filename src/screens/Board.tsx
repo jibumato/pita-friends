@@ -9,6 +9,7 @@ import { EmptyState } from '../components/States'
 import { boardPosts } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchBoardPosts, joinBoardPost, type BoardPostItem } from '../lib/queries'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 const DEMO_FILTERS = ['すべて', '今夜', 'Apex', 'まったり']
 const REAL_FILTERS = ['すべて', '今夜', 'Apex', 'エンジョイ']
@@ -132,6 +133,7 @@ function RealPostCard({ p, onJoined }: { p: BoardPostItem; onJoined: (id: string
 }
 
 export default function Board({ flow }: { flow: Flow }) {
+  const mobile = useIsMobile()
   const [filter, setFilter] = useState('すべて')
   const [realPosts, setRealPosts] = useState<BoardPostItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -169,7 +171,28 @@ export default function Board({ flow }: { flow: Flow }) {
     <Screen background={C.surface}>
       <StatusBar time="21:47" />
       <div style={{ padding: '12px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <span style={{ fontSize: 21, color: C.ink }}>▶ 募集板</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 21, color: C.ink }}>▶ 募集板</span>
+          {!mobile && (
+            <div
+              onClick={() => flow.go('boardCreate')}
+              style={{
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: C.lime,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 8,
+                padding: '9px 15px',
+                boxShadow: `2px 2px 0 ${C.shadowCol}`,
+              }}
+            >
+              <Plus size={15} />
+              <span style={{ fontSize: 12.5, color: C.ink }}>募集する</span>
+            </div>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {(isBackendConfigured ? REAL_FILTERS : DEMO_FILTERS).map((f) => {
             const sel = filter === f
@@ -339,7 +362,7 @@ export default function Board({ flow }: { flow: Flow }) {
         </div>
       )}
 
-      {!empty && (
+      {mobile && !empty && (
         <div
           onClick={() => flow.go('boardCreate')}
           style={{

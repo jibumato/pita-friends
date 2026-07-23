@@ -10,8 +10,10 @@ import { isBackendConfigured } from '../lib/supabase'
 import { fetchFriendCount, fetchPendingInviteCount } from '../lib/queries'
 import { coinsPer30 } from '../flow'
 import VoiceRecorder from '../components/VoiceRecorder'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 export default function MyPage({ flow }: { flow: Flow }) {
+  const mobile = useIsMobile()
   const [friendCount, setFriendCount] = useState<number | null>(null)
   const [pendingCount, setPendingCount] = useState<number | null>(null)
 
@@ -195,15 +197,19 @@ export default function MyPage({ flow }: { flow: Flow }) {
 
         {/* メニュー */}
         <Card>
-          <ListRow
-            label={flow.hostSettings.isHost ? 'ホスト設定' : 'ホストになる'}
-            sub={
-              flow.hostSettings.isHost
-                ? `掲載中 · 30分 ${coinsPer30(flow.hostSettings.hourlyRate)} コイン`
-                : '一緒に遊ぶ時間をコインで提供できます'
-            }
-            onClick={() => flow.go('hostSettings')}
-          />
+          {/* デスクトップは「＋ホストになる」がサイドバーに常設されているため、まだホストでない間はここでは重複表示しない。
+              掲載中の場合は現在の料金など実質的な情報があるため、デスクトップでも表示する。 */}
+          {(mobile || flow.hostSettings.isHost) && (
+            <ListRow
+              label={flow.hostSettings.isHost ? 'ホスト設定' : 'ホストになる'}
+              sub={
+                flow.hostSettings.isHost
+                  ? `掲載中 · 30分 ${coinsPer30(flow.hostSettings.hourlyRate)} コイン`
+                  : '一緒に遊ぶ時間をコインで提供できます'
+              }
+              onClick={() => flow.go('hostSettings')}
+            />
+          )}
           <ListRow
             label="受け取った誘い"
             sub="承認待ちのリクエスト"
