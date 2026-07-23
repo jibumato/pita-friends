@@ -25,6 +25,88 @@ const ONLINE = [
   { initial: 'カ', name: 'カイ', color: C.lime },
 ]
 
+/** ヒーロー直下のアイコン一覧(いろんな人を紹介する用)のデモデータ。 */
+const ONLINE_STRIP = [
+  { initial: 'る', color: C.avatarOrange },
+  { initial: 'そ', color: C.avatarAqua },
+  { initial: 'ひ', color: C.avatarPink },
+  { initial: 'カ', color: C.lime },
+  { initial: 'み', color: C.avatarAqua },
+  { initial: 'あ', color: C.lavender },
+  { initial: 'り', color: '#C9F2C7' },
+  { initial: 'の', color: '#FFC7D9' },
+  { initial: 'ゆ', color: C.avatarOrange },
+  { initial: 'は', color: C.avatarAqua },
+  { initial: 'な', color: C.avatarPink },
+  { initial: 'れ', color: '#C9F2C7' },
+]
+
+/** ヒーロー直下に置く、今あそべる人のアイコンのみ横並び(コンパクト)。 */
+function OnlineStrip({ flow, online }: { flow: Flow; online: OnlineUser[] }) {
+  const items = isBackendConfigured
+    ? online.map((u) => ({ key: u.userId, initial: u.avatarInitial, color: u.avatarColor, userId: u.userId }))
+    : ONLINE_STRIP.map((u, i) => ({ key: `${u.initial}-${i}`, initial: u.initial, color: u.color, userId: null as string | null }))
+
+  if (isBackendConfigured && items.length === 0) return null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 12.5, color: C.ink }}>🟢 今あそべる</span>
+        <span style={{ fontSize: 10.5, color: C.muted }}>{items.length}人</span>
+        <div style={{ flex: 1 }} />
+        <span
+          onClick={() => flow.go('search')}
+          {...clickable(() => flow.go('search'), 'ホストをさがす')}
+          style={{ cursor: 'pointer', fontSize: 10.5, color: C.lavender }}
+        >
+          もっと見る ›
+        </span>
+      </div>
+      <div className="pita-scroll" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+        {items.map((u) => (
+          <div
+            key={u.key}
+            onClick={() => (u.userId ? flow.openProfile(u.userId) : flow.go('profile'))}
+            {...clickable(() => (u.userId ? flow.openProfile(u.userId) : flow.go('profile')), 'プロフィールを見る')}
+            style={{ position: 'relative', flex: 'none', cursor: 'pointer' }}
+          >
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: u.color,
+                border: `1.5px solid ${C.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 17,
+                color: C.ink,
+              }}
+            >
+              {u.initial}
+            </div>
+            <span
+              aria-hidden
+              style={{
+                position: 'absolute',
+                bottom: 1,
+                right: 1,
+                width: 11,
+                height: 11,
+                borderRadius: '50%',
+                background: '#5FC26A',
+                border: `2px solid ${C.surface}`,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function HomeScreen({ flow }: { flow: Flow }) {
   const mobile = useIsMobile()
   const card = usePress(`4px 4px 0 ${C.shadowCol}`)
@@ -181,6 +263,9 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '14px 20px 0',
         }}
       >
+        {/* ヒーロー直下: 今あそべる人のアイコン一覧(コンパクト)。深夜オフライン時は隠す。 */}
+        {!night && <OnlineStrip flow={flow} online={onlineUsers} />}
+
         {/* デモ: 通常 / 深夜オフライン 状態の切替。実データ接続時は非表示。 */}
         {!isBackendConfigured && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, marginBottom: -8 }}>
