@@ -465,6 +465,41 @@ export async function sendMessage(promiseId: string, body: string): Promise<void
   if (error) throw error
 }
 
+/** ホストランキングの期間。 */
+export type RankingPeriod = 'daily' | 'weekly' | 'monthly'
+
+export type RankingEntry = {
+  rank: number
+  hostId: string
+  nickname: string
+  avatarInitial: string
+  avatarColor: string
+  completedCount: number
+  mannerScore: number
+  score: number
+  isVerified: boolean
+}
+
+/**
+ * ホストランキングを取得する。スコアは「完了予約数×品質×信頼性」で、
+ * 金額(投げ銭・稼ぎ)は一切含まない(スキル・活動ベース)。
+ */
+export async function fetchHostRanking(period: RankingPeriod, limit = 30): Promise<RankingEntry[]> {
+  const { data, error } = await requireSupabase().rpc('host_ranking', { p_period: period, p_limit: limit })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    rank: Number(r.rank),
+    hostId: r.host_id,
+    nickname: r.nickname,
+    avatarInitial: r.avatar_initial,
+    avatarColor: r.avatar_color,
+    completedCount: Number(r.completed_count),
+    mannerScore: Number(r.manner_score),
+    score: Number(r.score),
+    isVerified: r.is_verified,
+  }))
+}
+
 /** ギフト(ありがとうチップ)で選べる金額(コイン=円)。上限は1回50,000。 */
 export const GIFT_AMOUNTS = [100, 500, 1000, 5000, 10000, 50000] as const
 

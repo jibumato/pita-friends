@@ -35,6 +35,7 @@ export type ScreenKey =
   | 'wallet'
   | 'hostSettings'
   | 'booking'
+  | 'ranking'
   | 'adminVerifications'
   | 'blockList'
   | 'legalDoc'
@@ -71,6 +72,7 @@ export const screenNames: Record<ScreenKey, string> = {
   wallet: 'コインウォレット',
   hostSettings: 'ホスト設定',
   booking: '予約する',
+  ranking: 'ランキング',
   adminVerifications: '本人確認の審査(管理)',
   blockList: 'ブロックリスト',
   legalDoc: '規約・ポリシー',
@@ -231,6 +233,7 @@ export const stepOf: Record<ScreenKey, number> = {
   wallet: -1,
   hostSettings: -1,
   booking: -1,
+  ranking: -1,
   adminVerifications: -1,
   blockList: -1,
   legalDoc: -1,
@@ -251,6 +254,7 @@ export const tabToScreen: Record<TabKey, ScreenKey> = {
 export function activeTabOf(screen: ScreenKey): TabKey | null {
   switch (screen) {
     case 'home':
+    case 'ranking':
       return 'home'
     case 'search':
       return 'search'

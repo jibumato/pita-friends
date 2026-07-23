@@ -557,6 +557,20 @@ export type Database = {
         Args: { p_ip: string }
         Returns: void
       }
+      host_ranking: {
+        Args: { p_period?: string; p_limit?: number }
+        Returns: {
+          rank: number
+          host_id: string
+          nickname: string
+          avatar_initial: string
+          avatar_color: string
+          completed_count: number
+          manner_score: number
+          score: number
+          is_verified: boolean
+        }[]
+      }
       approve_identity_verification: {
         Args: { p_verification_id: string; p_is_adult?: boolean }
         Returns: void

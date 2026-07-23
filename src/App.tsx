@@ -71,6 +71,7 @@ import SendFailDialog from './screens/SendFailDialog'
 import Wallet from './screens/Wallet'
 import HostSettingsScreen from './screens/HostSettingsScreen'
 import Booking from './screens/Booking'
+import Ranking from './screens/Ranking'
 import AdminVerifications from './screens/AdminVerifications'
 import BlockList from './screens/BlockList'
 import LegalDoc from './screens/LegalDoc'
@@ -743,6 +744,7 @@ export default function App() {
         {state.screen === 'wallet' && <Wallet flow={flow} />}
         {state.screen === 'hostSettings' && <HostSettingsScreen flow={flow} />}
         {state.screen === 'booking' && <Booking flow={flow} />}
+        {state.screen === 'ranking' && <Ranking flow={flow} />}
         {state.screen === 'adminVerifications' && <AdminVerifications flow={flow} />}
         {state.screen === 'blockList' && <BlockList flow={flow} />}
         {state.screen === 'legalDoc' && <LegalDoc flow={flow} />}
