@@ -260,3 +260,9 @@ html { scroll-behavior: smooth; }
 @media (max-width: 720px) { .lp-nav { display: none !important; } }
 .lp-hostgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 520px) { .lp-hostgrid { grid-template-columns: 1fr; } }
+
+/* さがす: PCでは全幅グリッド(GameRoom型) */
+.search-grid { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 700px) {
+  .search-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; align-items: start; }
+}

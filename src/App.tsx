@@ -680,19 +680,38 @@ export default function App() {
   if (state.screen === 'welcome') {
     return <LandingDesktop flow={flow} />
   }
+  // 一覧系(さがす)はGameRoom型に全幅グリッドで広げる。その他は読みやすい幅で中央寄せ。
+  const wide = state.screen === 'search'
   return (
     <div
       style={{
         minHeight: '100vh',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: wide ? 'stretch' : 'center',
         justifyContent: 'center',
-        padding: 24,
+        padding: wide ? '24px 0' : 24,
         boxSizing: 'border-box',
         background: `radial-gradient(1000px 500px at 50% -10%, ${C.surfaceLavender}, ${C.surface} 60%)`,
       }}
     >
-      {deviceEl}
+      <div style={wide ? wideShell : narrowShell}>{deviceEl2(deviceEl, wide)}</div>
     </div>
   )
+}
+
+const wideShell: React.CSSProperties = {
+  position: 'relative',
+  width: 'min(1040px, 96vw)',
+  height: 'min(880px, 92vh)',
+  background: C.surface,
+  borderRadius: 20,
+  border: `1.5px solid ${C.border}`,
+  overflow: 'hidden',
+  boxShadow: '0 20px 50px rgba(40,30,80,.18)',
+}
+const narrowShell: React.CSSProperties = { display: 'contents' }
+
+/** wideのときはPhoneFrameの内側(children)だけを使い、幅制約を外して全幅で描く。 */
+function deviceEl2(el: React.ReactElement, wide: boolean): React.ReactNode {
+  return wide ? el.props.children : el
 }

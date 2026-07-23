@@ -1,8 +1,12 @@
-/** 端末ステータスバー(時刻 + 電池)。dark=濃背景画面用に白で描画。 */
+/** 端末ステータスバー(時刻 + 電池)。dark=濃背景画面用に白で描画。
+ *  スマホ実機の“っぽさ”演出なので、PC(640px超)では表示しない。 */
 import { color as C } from '../theme/tokens'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 export default function StatusBar({ time, dark = false }: { time: string; dark?: boolean }) {
+  const mobile = useIsMobile()
   const fg = dark ? '#fff' : C.ink
+  if (!mobile) return null
   return (
     <div
       style={{

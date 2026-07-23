@@ -246,6 +246,7 @@ export default function Search({ flow }: { flow: Flow }) {
               条件に合うホストが見つかりませんでした
             </span>
           )}
+          <div className="search-grid">
           {cards.map((u) => (
             <div
               key={u.key}
@@ -357,6 +358,7 @@ export default function Search({ flow }: { flow: Flow }) {
               )}
             </div>
           ))}
+          </div>
         </div>
       )}
 
