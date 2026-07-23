@@ -243,3 +243,18 @@ a:hover {
   background: #d8d3e4;
   border-radius: 99px;
 }
+
+/* ===== PC向けランディングページ ===== */
+html { scroll-behavior: smooth; }
+.lp-wrap a { text-decoration: none; }
+.lp-navlink { font-size: 13.5px; color: var(--pf-body); cursor: pointer; }
+.lp-navlink:hover { color: var(--pf-ink); }
+.lp-hero { display: grid; grid-template-columns: 1fr; gap: 40px; align-items: center; }
+@media (min-width: 940px) { .lp-hero { grid-template-columns: 1.05fr 0.95fr; } }
+.lp-grid3 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 760px) { .lp-grid3 { grid-template-columns: repeat(3, 1fr); } }
+.lp-card { transition: transform .15s ease, box-shadow .15s ease; }
+.lp-card:hover { transform: translateY(-3px); box-shadow: 6px 8px 0 var(--pf-lavender); }
+.lp-cta { transition: transform .08s ease; }
+.lp-cta:active { transform: translate(2px, 2px); box-shadow: none !important; }
+@media (max-width: 720px) { .lp-nav { display: none !important; } }

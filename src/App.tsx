@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { color as C } from './theme/tokens'
 import {
-  screenNames,
-  stepOf,
   defaultSafetyPrefs,
   recommendedFemalePrefs,
   defaultHostSettings,
@@ -16,9 +14,8 @@ import {
 } from './flow'
 import type { ReportCategory } from './lib/database.types'
 import type { LegalDocKey } from './content/legalDocs'
-import FlowRail from './components/FlowRail'
 import PhoneFrame from './components/PhoneFrame'
-import { usePress } from './hooks/usePress'
+import LandingDesktop from './components/LandingDesktop'
 import { useIsMobile } from './hooks/useMediaQuery'
 import { loadPrefs, savePrefs } from './persist'
 import { isBackendConfigured } from './lib/supabase'
@@ -79,7 +76,6 @@ import LegalDoc from './screens/LegalDoc'
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
 const AUTO_ADVANCE_MS = 2400
-const SHOW_RAIL = true
 
 /** 予約対象のホスト(さがす画面のカードから渡す最小情報)。 */
 export type BookingHost = {
@@ -606,89 +602,10 @@ export default function App() {
     signOut,
   }
 
-  const restartBtn = usePress(`2px 2px 0 ${C.shadowCol}`)
   const mobile = useIsMobile()
 
-  return (
-    <div
-      style={
-        mobile
-          ? { display: 'flex', flexDirection: 'column' }
-          : {
-              minHeight: '100vh',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: '34px 20px 60px',
-              boxSizing: 'border-box',
-            }
-      }
-    >
-      {/* ヘッダー(ショーケースのデモ枠。実機幅では非表示) */}
-      {!mobile && (
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 720,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            marginBottom: 22,
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-              <div
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 6,
-                  background: C.lime,
-                  border: `1.5px solid ${C.border}`,
-                  boxShadow: `2px 2px 0 ${C.lavender}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: C.ink,
-                  fontSize: 14,
-                }}
-              >
-                ピ
-              </div>
-              <span style={{ fontSize: 18, color: C.ink, letterSpacing: '.04em' }}>
-                ピタフレ コアフロー
-              </span>
-            </div>
-            <span style={{ fontSize: 11, color: C.muted }}>
-              準備 → 探す → 約束 → 合流 → 評価 ／ タップで進める完全フロー
-            </span>
-          </div>
-          <div
-            className="pita-press"
-            onClick={restart}
-            {...restartBtn.handlers}
-            style={{
-              cursor: 'pointer',
-              fontSize: 12,
-              color: C.ink,
-              background: C.white,
-              border: `1.5px solid ${C.border}`,
-              padding: '9px 14px',
-              borderRadius: 6,
-              userSelect: 'none',
-              ...restartBtn.style,
-            }}
-          >
-            ↺ 最初から
-          </div>
-        </div>
-      )}
-
-      {/* フローレール(信頼ループの画面のみ・ショーケース時のみ表示) */}
-      {!mobile && SHOW_RAIL && stepOf[state.screen] >= 0 && <FlowRail step={stepOf[state.screen]} />}
-
-      {/* 端末 */}
-      <PhoneFrame>
+  const deviceEl = (
+    <PhoneFrame>
         {authChecking ? (
           <div
             style={{
@@ -753,12 +670,11 @@ export default function App() {
           </>
         )}
       </PhoneFrame>
+  )
 
-      {!mobile && (
-        <span style={{ marginTop: 20, fontSize: 11, color: C.placeholder }}>
-          現在: {screenNames[state.screen]}
-        </span>
-      )}
-    </div>
+  return mobile ? (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>{deviceEl}</div>
+  ) : (
+    <LandingDesktop flow={flow} device={deviceEl} />
   )
 }
