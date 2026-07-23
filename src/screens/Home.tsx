@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
-import StatusBar from '../components/StatusBar'
 import BottomTabs from '../components/BottomTabs'
 import { Bell, Sun, MoonSmall, Moon } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
@@ -147,7 +146,15 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
 
   return (
     <Screen background={C.surface}>
-      <StatusBar time={night ? '03:12' : '21:47'} />
+      {/* モバイルの疑似ステータスバーは廃止。代わりに画面最上部にヒーロー画像を設置。
+          デスクトップはApp側のDesktopHeroが別途表示されるため、ここでは出さない。 */}
+      {mobile && (
+        <img
+          src="/hero.webp"
+          alt="オンラインで一緒に遊ぶ2人"
+          style={{ width: '100%', height: 160, objectFit: 'cover', objectPosition: 'center 35%', display: 'block' }}
+        />
+      )}
       {/* デスクトップではロゴ/通知/テーマ切替をDesktopTopBarが担うため、ここは非表示。 */}
       {mobile && (
       <div
