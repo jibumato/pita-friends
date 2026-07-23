@@ -65,7 +65,6 @@ export default function DesktopRightRail({ flow }: { flow: Flow }) {
         padding: 18,
         borderLeft: `1.5px solid ${C.border}`,
         background: C.surface,
-        overflowY: 'auto',
       }}
     >
       <Panel title="コイン残高">

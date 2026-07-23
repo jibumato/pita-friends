@@ -1,5 +1,11 @@
-/** 画面の共通ラッパ。position:absolute inset:0 + scrIn 入場アニメ。 */
+/**
+ * 画面の共通ラッパ。
+ * - モバイル: 端末フレームいっぱいに position:absolute inset:0 + 内部スクロール(従来通り)。
+ * - デスクトップ: ヒーローを含むページ全体がスクロールできるよう、絶対配置・高さ固定はせず
+ *   自然な高さで流し込む(内容が長ければページごとスクロールする)。
+ */
 import type { CSSProperties, ReactNode } from 'react'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 export default function Screen({
   background,
@@ -10,15 +16,17 @@ export default function Screen({
   children: ReactNode
   style?: CSSProperties
 }) {
+  const mobile = useIsMobile()
   return (
     <div
       style={{
-        position: 'absolute',
-        inset: 0,
+        position: mobile ? 'absolute' : 'relative',
+        inset: mobile ? 0 : undefined,
+        minHeight: mobile ? undefined : '100%',
         background,
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
+        overflow: mobile ? 'hidden' : 'visible',
         animation: 'scrIn .34s ease both',
         ...style,
       }}
