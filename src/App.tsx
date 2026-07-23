@@ -89,6 +89,7 @@ const AUTO_ADVANCE_MS = 2400
  * 手のひらサイズの端末幅(旧440px)のまま据え置かれて見えないようにする。
  */
 const DESKTOP_FULL_BLEED_SCREENS = new Set<ScreenKey>([
+  'home',
   'search',
   'board',
   'mypage',
@@ -100,7 +101,6 @@ const DESKTOP_FULL_BLEED_SCREENS = new Set<ScreenKey>([
   'adminVerifications',
 ])
 const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
-  'home',
   'profile',
   'settings',
   'safety',
