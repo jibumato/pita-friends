@@ -30,13 +30,17 @@ alter table public.coin_transactions
   ));
 
 -- notifications.type にギフト受領を追加
+-- (0017までの全種別を維持したうえで gift_received を足すこと。
+--  既存行に booking_completed / booking_approved があるため欠かすと制約違反になる)
 alter table public.notifications drop constraint if exists notifications_type_check;
 alter table public.notifications
   add constraint notifications_type_check
   check (type in (
     'invite_received', 'invite_approved', 'message_received',
     'verification_approved', 'verification_rejected', 'board_joined',
-    'booking_requested', 'booking_cancelled', 'gift_received'
+    'booking_cancelled', 'booking_completed',
+    'booking_requested', 'booking_approved',
+    'gift_received'
   ));
 
 -- ------------------------------------------------------------
