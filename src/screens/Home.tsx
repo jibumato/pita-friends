@@ -255,7 +255,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
         >
           <span style={{ fontSize: 18 }}>🏆</span>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <span style={{ fontSize: 13, color: C.ink }}>ホストランキング</span>
+            <span style={{ fontSize: 13, color: C.ink }}>ランキング</span>
             <span style={{ fontSize: 10, color: C.muted }}>プレイ実績・評価で決まる今週の上位ホスト</span>
           </div>
           <span style={{ fontSize: 11, color: C.lavender }}>見る ›</span>

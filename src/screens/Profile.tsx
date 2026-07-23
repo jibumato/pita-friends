@@ -210,11 +210,11 @@ export default function Profile({ flow }: { flow: Flow }) {
             <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.7, color: C.body }}>{bio}</p>
           )}
 
-          {/* 声の挨拶 */}
+          {/* ボイスプロフィール */}
           {useReal && data?.voiceUrl && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, color: C.ink }}>🎤 声の挨拶</span>
+                <span style={{ fontSize: 13, color: C.ink }}>🎤 ボイスプロフィール</span>
                 {targetId && (
                   <span
                     onClick={() => flow.openReport({ userId: targetId, nickname: name || 'この相手' })}

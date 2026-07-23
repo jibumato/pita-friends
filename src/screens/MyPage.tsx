@@ -183,11 +183,11 @@ export default function MyPage({ flow }: { flow: Flow }) {
           </span>
         </div>
 
-        {/* 声の挨拶(ボイスプロフィール) */}
+        {/* ボイスプロフィール */}
         {isBackendConfigured && (
           <Card>
             <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 13, color: C.ink }}>🎤 声の挨拶</span>
+              <span style={{ fontSize: 13, color: C.ink }}>🎤 ボイスプロフィール</span>
               <VoiceRecorder />
             </div>
           </Card>

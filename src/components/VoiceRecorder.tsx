@@ -1,5 +1,5 @@
 /**
- * 声の挨拶(ボイスプロフィール)の録音・管理UI。自分のプロフィール用。
+ * ボイスプロフィールの録音・管理UI。自分のプロフィール用。
  * 15秒まで。B方式(即公開)。録音時に注意書きを表示する。
  */
 import { useEffect, useRef, useState } from 'react'
@@ -106,7 +106,7 @@ export default function VoiceRecorder() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
-        15秒までの声の挨拶をプロフィールに載せられます。外部連絡先の交換・出会い目的・不適切な発言は禁止です（違反は削除・利用停止の対象）。
+        15秒までのボイスプロフィールを載せられます。外部連絡先の交換・出会い目的・不適切な発言は禁止です（違反は削除・利用停止の対象）。
       </span>
 
       {loading ? (
