@@ -95,6 +95,51 @@ order by p.user_id, sum(b.coins) desc;
 疑わしい場合(同一ゲストへの依存が極端・短時間の連続予約・購入直後の即完了など)は、
 該当ホストの`mark_payout_failed`で差し戻して事情を確認してから振り込むこと。
 
+## ①-2b ギフト(投げ銭)の不正チェック(弁護士指摘Q11(c))
+
+ギフトは `send_gift` 側で相互送金禁止・チャージ後24時間禁止・上限・**同一端末の自己取引
+遮断**・7日換金保留を自動適用しているが、端末IDはクリアされうるため、**振込前に**次の
+SQLでもパターンを確認する。
+
+```sql
+-- (1) 同一端末を共有しているアカウントの組(自己取引の疑い)。
+-- send_gift はこの組の送金を遮断するが、記録済みの関係は必ず目視する。
+select d1.device_id,
+       d1.user_id as user_a, pa.nickname as name_a,
+       d2.user_id as user_b, pb.nickname as name_b
+from public.user_devices d1
+join public.user_devices d2 on d1.device_id = d2.device_id and d1.user_id < d2.user_id
+join public.profiles pa on pa.id = d1.user_id
+join public.profiles pb on pb.id = d2.user_id
+order by d1.device_id;
+
+-- (2) 受け取りギフトの「送り主集中度」。特定の1〜2人からの受領が大半を占める
+-- 換金申請中ホストは個別確認する(共謀の疑い)。
+select p.user_id as host_id, pr.nickname as host_name,
+       g.sender_id, sp.nickname as sender_name,
+       count(*) as ギフト件数, sum(g.coins) as 受領コイン合計
+from public.payouts p
+join public.gifts g on g.receiver_id = p.user_id
+join public.profiles pr on pr.id = p.user_id
+join public.profiles sp on sp.id = g.sender_id
+where p.status = 'pending'
+group by p.user_id, pr.nickname, g.sender_id, sp.nickname
+order by p.user_id, sum(g.coins) desc;
+
+-- (3) 直近7日の受領ギフト(=まだ換金保留中)の額。換金可能額の内訳確認用。
+select receiver_id, sum(coins) as 保留中ギフト
+from public.gifts
+where created_at > now() - interval '7 days'
+group by receiver_id
+order by sum(coins) desc;
+```
+
+疑わしい場合は該当ホストの`mark_payout_failed`で差し戻し、事情確認してから振り込むこと。
+
+> **継続課題(未実装)**: IPアドレス・カード(決済手段)フィンガープリントの監視は、
+> それぞれ Edge Function 経由でのIP取得・購入フロー(Stripe webhook)でのカード
+> フィンガープリント保存が必要で、現状は未対応。端末ID監視のみ稼働中。
+
 ## ①-3 資金の分別管理(弁護士指摘Q2(c))
 
 ユーザーのコイン購入代金(Stripeからの入金)と報酬振込の原資は、**事業資金と

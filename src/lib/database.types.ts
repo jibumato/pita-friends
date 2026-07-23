@@ -541,8 +541,17 @@ export type Database = {
         Returns: string
       }
       send_gift: {
-        Args: { p_promise_id: string; p_coins: number; p_message?: string | null }
+        Args: {
+          p_promise_id: string
+          p_coins: number
+          p_message?: string | null
+          p_device_id?: string | null
+        }
         Returns: string
+      }
+      record_device: {
+        Args: { p_device_id: string }
+        Returns: void
       }
       approve_identity_verification: {
         Args: { p_verification_id: string; p_is_adult?: boolean }

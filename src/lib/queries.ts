@@ -474,6 +474,7 @@ const GIFT_ERROR_MESSAGES: Record<string, string> = {
   BLOCKED: 'この相手にはギフトを贈れません',
   THREAD_NOT_FOUND: 'トークが見つかりませんでした',
   FORBIDDEN: 'このトークではギフトを贈れません',
+  SAME_DEVICE_FORBIDDEN: '同じ端末で使われたアカウント間ではギフトを贈れません',
   NO_COMPLETED_PLAY: 'ギフトは、一緒に遊んだ(予約が完了した)相手にだけ贈れます',
   MUTUAL_GIFT_FORBIDDEN: '相手からギフトを受け取っているため、こちらからは贈れません(相互送金の防止)',
   RECENT_PURCHASE_COOLDOWN: 'コイン購入から24時間はギフトを贈れません',
@@ -483,15 +484,47 @@ const GIFT_ERROR_MESSAGES: Record<string, string> = {
 }
 
 /**
+ * この端末の安定ID(localStorageに永続化)。ギフトの自己取引検知に用いる。
+ * ブラウザのストレージをクリアすると変わりうるが、通常の自己取引導線は捕捉できる。
+ */
+export function getDeviceId(): string {
+  const KEY = 'pita_device_id'
+  try {
+    let id = localStorage.getItem(KEY)
+    if (!id) {
+      id =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : 'd_' + Math.random().toString(36).slice(2) + Date.now().toString(36)
+      localStorage.setItem(KEY, id)
+    }
+    return id
+  } catch {
+    // localStorageが使えない環境ではセッション限りのIDにフォールバック
+    return 'd_' + Math.random().toString(36).slice(2) + Date.now().toString(36)
+  }
+}
+
+/** ログイン中ユーザーの端末IDを記録する(アプリ起動時に一度呼ぶ)。失敗は無視。 */
+export async function recordDevice(): Promise<void> {
+  try {
+    await requireSupabase().rpc('record_device', { p_device_id: getDeviceId() })
+  } catch {
+    /* 監視用の記録なので、失敗してもユーザー操作は妨げない */
+  }
+}
+
+/**
  * トークの相手にコインを贈る(ありがとうチップ)。原資は自分の購入コイン(balance)のみ。
  * 一緒に遊んだ(予約完了した)相手にのみ贈れ、相手は換金可能な報酬コインとして受け取る
- * (受領から7日間は換金保留)。
+ * (受領から7日間は換金保留)。端末IDを同送し、同一端末の自己取引を検知・遮断する。
  */
 export async function sendGift(promiseId: string, coins: number, message?: string): Promise<void> {
   const { error } = await requireSupabase().rpc('send_gift', {
     p_promise_id: promiseId,
     p_coins: coins,
     p_message: message?.trim() ? message.trim() : null,
+    p_device_id: getDeviceId(),
   })
   if (error) {
     const known = Object.keys(GIFT_ERROR_MESSAGES).find((k) => error.message.includes(k))
