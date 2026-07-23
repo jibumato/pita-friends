@@ -6,6 +6,7 @@ import { activeTabOf, tabToScreen, type ScreenKey, type TabKey } from '../flow'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchUnreadTalkCount } from '../lib/queries'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 const TABS: { key: TabKey; label: string; Icon: typeof Home }[] = [
   { key: 'home', label: 'ホーム', Icon: Home },
@@ -23,6 +24,7 @@ export default function BottomTabs({
   onNavigate: (screen: ScreenKey) => void
 }) {
   const active = activeTabOf(current)
+  const mobile = useIsMobile()
   // 未読トーク数。画面を移動するたびにこのコンポーネントが再マウントされるので、
   // 都度取り直して最新の未読を反映する。
   const [unread, setUnread] = useState(0)
@@ -48,11 +50,15 @@ export default function BottomTabs({
     <div
       style={{
         display: 'flex',
-        justifyContent: 'space-around',
+        justifyContent: mobile ? 'space-around' : 'center',
+        gap: mobile ? 0 : 8,
         alignItems: 'center',
-        padding: '10px 8px 24px',
+        // PCでは上部に置く(flex order で視覚的に先頭へ)ナビバー
+        order: mobile ? 0 : -1,
+        padding: mobile ? '10px 8px 24px' : '10px 12px',
         background: C.white,
-        borderTop: `1.5px solid ${C.border}`,
+        borderTop: mobile ? `1.5px solid ${C.border}` : 'none',
+        borderBottom: mobile ? 'none' : `1.5px solid ${C.border}`,
       }}
     >
       {TABS.map(({ key, label, Icon }) => {
@@ -67,11 +73,14 @@ export default function BottomTabs({
             aria-current={on || undefined}
             style={{
               display: 'flex',
-              flexDirection: 'column',
+              flexDirection: mobile ? 'column' : 'row',
               alignItems: 'center',
-              gap: 3,
+              gap: mobile ? 3 : 7,
               cursor: 'pointer',
-              flex: 1,
+              flex: mobile ? 1 : 'none',
+              padding: mobile ? 0 : '7px 16px',
+              borderRadius: 8,
+              background: !mobile && on ? C.surfaceLavender : 'transparent',
             }}
           >
             <div style={{ position: 'relative', display: 'flex' }}>

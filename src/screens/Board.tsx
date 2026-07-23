@@ -237,6 +237,7 @@ export default function Board({ flow }: { flow: Flow }) {
             gap: 12,
           }}
         >
+          <div className="search-grid">
           {isBackendConfigured
             ? filteredReal.map((p) => <RealPostCard key={p.id} p={p} onJoined={handleJoined} />)
             : boardPosts.map((p) => (
@@ -334,6 +335,7 @@ export default function Board({ flow }: { flow: Flow }) {
                   </div>
                 </div>
               ))}
+          </div>
         </div>
       )}
 

@@ -680,38 +680,41 @@ export default function App() {
   if (state.screen === 'welcome') {
     return <LandingDesktop flow={flow} />
   }
-  // 一覧系(さがす)はGameRoom型に全幅グリッドで広げる。その他は読みやすい幅で中央寄せ。
-  const wide = state.screen === 'search'
+  // GameRoom型: 一覧系(さがす/募集)は全幅グリッド、ホーム/プロフィールは広め、
+  // フォーム・詳細は読みやすい幅で中央寄せ。すべてアプリ本体の中身を幅制約シェルに描く。
+  const shellWidth =
+    state.screen === 'search' || state.screen === 'board'
+      ? 'min(1040px, 96vw)'
+      : state.screen === 'home' || state.screen === 'profile'
+        ? 'min(760px, 94vw)'
+        : 440
   return (
     <div
       style={{
         minHeight: '100vh',
         display: 'flex',
-        alignItems: wide ? 'stretch' : 'center',
+        alignItems: 'stretch',
         justifyContent: 'center',
-        padding: wide ? '24px 0' : 24,
+        padding: '24px 0',
         boxSizing: 'border-box',
         background: `radial-gradient(1000px 500px at 50% -10%, ${C.surfaceLavender}, ${C.surface} 60%)`,
       }}
     >
-      <div style={wide ? wideShell : narrowShell}>{deviceEl2(deviceEl, wide)}</div>
+      <div
+        style={{
+          position: 'relative',
+          width: shellWidth,
+          maxWidth: '100%',
+          height: 'min(880px, 92vh)',
+          background: C.surface,
+          borderRadius: 20,
+          border: `1.5px solid ${C.border}`,
+          overflow: 'hidden',
+          boxShadow: '0 20px 50px rgba(40,30,80,.18)',
+        }}
+      >
+        {(deviceEl.props as { children: React.ReactNode }).children}
+      </div>
     </div>
   )
-}
-
-const wideShell: React.CSSProperties = {
-  position: 'relative',
-  width: 'min(1040px, 96vw)',
-  height: 'min(880px, 92vh)',
-  background: C.surface,
-  borderRadius: 20,
-  border: `1.5px solid ${C.border}`,
-  overflow: 'hidden',
-  boxShadow: '0 20px 50px rgba(40,30,80,.18)',
-}
-const narrowShell: React.CSSProperties = { display: 'contents' }
-
-/** wideのときはPhoneFrameの内側(children)だけを使い、幅制約を外して全幅で描く。 */
-function deviceEl2(el: React.ReactElement, wide: boolean): React.ReactNode {
-  return wide ? el.props.children : el
 }
