@@ -258,3 +258,5 @@ html { scroll-behavior: smooth; }
 .lp-cta { transition: transform .08s ease; }
 .lp-cta:active { transform: translate(2px, 2px); box-shadow: none !important; }
 @media (max-width: 720px) { .lp-nav { display: none !important; } }
+.lp-hostgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 520px) { .lp-hostgrid { grid-template-columns: 1fr; } }

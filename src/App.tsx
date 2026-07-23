@@ -672,9 +672,27 @@ export default function App() {
       </PhoneFrame>
   )
 
-  return mobile ? (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>{deviceEl}</div>
-  ) : (
-    <LandingDesktop flow={flow} device={deviceEl} />
+  if (mobile) {
+    return <div style={{ display: 'flex', flexDirection: 'column' }}>{deviceEl}</div>
+  }
+
+  // デスクトップ: ようこそ画面はGameRoom型のLP。入ったらアプリ本体(中央パネル)。
+  if (state.screen === 'welcome') {
+    return <LandingDesktop flow={flow} />
+  }
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        boxSizing: 'border-box',
+        background: `radial-gradient(1000px 500px at 50% -10%, ${C.surfaceLavender}, ${C.surface} 60%)`,
+      }}
+    >
+      {deviceEl}
+    </div>
   )
 }
