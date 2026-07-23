@@ -728,7 +728,7 @@ export default function App() {
   const fullBleed = state.screen === 'search' || state.screen === 'board'
   const maxContentWidth = fullBleed ? undefined : DESKTOP_WIDE_SCREENS.has(state.screen) ? 760 : 560
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: C.canvas }}>
+    <div style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: C.canvas }}>
       <DesktopTopBar flow={flow} />
       {/* ヒーローはトップバー直下に全幅で挟む(サイドバー/右レールの横には置かない)。 */}
       {showHeroRail && <DesktopHero flow={flow} />}
