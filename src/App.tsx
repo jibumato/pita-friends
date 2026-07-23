@@ -5,6 +5,7 @@ import {
   recommendedFemalePrefs,
   defaultHostSettings,
   coinsForDuration,
+  SEARCH_VERIFIED_FILTER,
   type ScreenKey,
   type Gender,
   type SafetyPrefs,
@@ -16,6 +17,10 @@ import type { ReportCategory } from './lib/database.types'
 import type { LegalDocKey } from './content/legalDocs'
 import PhoneFrame from './components/PhoneFrame'
 import LandingDesktop from './components/LandingDesktop'
+import DesktopTopBar from './components/DesktopTopBar'
+import DesktopSidebar from './components/DesktopSidebar'
+import DesktopHero from './components/DesktopHero'
+import DesktopRightRail from './components/DesktopRightRail'
 import { useIsMobile } from './hooks/useMediaQuery'
 import { loadPrefs, savePrefs } from './persist'
 import { isBackendConfigured } from './lib/supabase'
@@ -111,6 +116,9 @@ export type Flow = {
   theme: Theme
   coinBalance: number
   hostSettings: HostSettings
+  /** さがす画面の検索語・絞り込みチップ。デスクトップではトップバー/サイドバーからも操作する共通状態。 */
+  searchQuery: string
+  searchFilters: Record<string, boolean>
   bookingHost: BookingHost | null
   bookingDuration: BookingDuration
   bookingInsufficient: boolean
@@ -136,6 +144,8 @@ export type Flow = {
   closeSendFail: () => void
   reserveInvite: () => void
   buyCoins: (coins: number) => void
+  setSearchQuery: (q: string) => void
+  toggleSearchFilter: (f: string) => void
   setHostPref: <K extends keyof HostSettings>(key: K, value: HostSettings[K]) => void
   startBooking: (host: BookingHost) => void
   setBookingDuration: (min: BookingDuration) => void
@@ -190,6 +200,10 @@ const INITIAL = {
   theme: 'light' as Theme,
   coinBalance: 500,
   hostSettings: defaultHostSettings,
+  searchQuery: '',
+  searchFilters: (isBackendConfigured
+    ? {}
+    : { 今夜あそべる: true, Apex: true, [SEARCH_VERIFIED_FILTER]: true }) as Record<string, boolean>,
   bookingHost: null as BookingHost | null,
   bookingDuration: 60 as BookingDuration,
   bookingInsufficient: false,
@@ -558,6 +572,9 @@ export default function App() {
       setState((p) => ({ ...p, sendFailOpen: false, screen: 'home' }))
     },
     buyCoins: (coins) => setState((p) => ({ ...p, coinBalance: p.coinBalance + coins })),
+    setSearchQuery: (q) => setState((p) => ({ ...p, searchQuery: q })),
+    toggleSearchFilter: (f) =>
+      setState((p) => ({ ...p, searchFilters: { ...p.searchFilters, [f]: !p.searchFilters[f] } })),
     setHostPref: (key, value) => {
       const previous = state.hostSettings[key]
       setState((p) => ({
@@ -676,44 +693,47 @@ export default function App() {
     return <div style={{ display: 'flex', flexDirection: 'column' }}>{deviceEl}</div>
   }
 
-  // デスクトップ: ようこそ画面はGameRoom型のLP。入ったらアプリ本体(中央パネル)。
+  // デスクトップ: ようこそ画面はGameRoom型のLP。入ったらアプリ本体(トップバー+サイドナビ+中央パネル+右レール)。
   if (state.screen === 'welcome') {
     return <LandingDesktop flow={flow} />
   }
-  // GameRoom型: 一覧系(さがす/募集)は全幅グリッド、ホーム/プロフィールは広め、
-  // フォーム・詳細は読みやすい幅で中央寄せ。すべてアプリ本体の中身を幅制約シェルに描く。
-  const shellWidth =
-    state.screen === 'search' || state.screen === 'board'
-      ? 'min(1040px, 96vw)'
-      : state.screen === 'home' || state.screen === 'profile'
-        ? 'min(760px, 94vw)'
-        : 440
+  // ホーム/さがすの上部にはヒーローと右レール(コイン残高/ランキング/安心して遊べる)を表示。
+  const showHeroRail = state.screen === 'home' || state.screen === 'search'
+  // 一覧系(さがす/募集)はメイン列いっぱいのフラットな全幅グリッド(モックアップ準拠)。
+  // フォーム・詳細・ホームは読みやすい幅で中央寄せ。カード風の枠・影は付けず地の面に馴染ませる。
+  const fullBleed = state.screen === 'search' || state.screen === 'board'
+  const maxContentWidth = fullBleed ? undefined : state.screen === 'home' || state.screen === 'profile' ? 760 : 440
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'stretch',
-        justifyContent: 'center',
-        padding: '24px 0',
-        boxSizing: 'border-box',
-        background: `radial-gradient(1000px 500px at 50% -10%, ${C.surfaceLavender}, ${C.surface} 60%)`,
-      }}
-    >
-      <div
-        style={{
-          position: 'relative',
-          width: shellWidth,
-          maxWidth: '100%',
-          height: 'min(880px, 92vh)',
-          background: C.surface,
-          borderRadius: 20,
-          border: `1.5px solid ${C.border}`,
-          overflow: 'hidden',
-          boxShadow: '0 20px 50px rgba(40,30,80,.18)',
-        }}
-      >
-        {(deviceEl.props as { children: React.ReactNode }).children}
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: C.canvas }}>
+      <DesktopTopBar flow={flow} />
+      {/* ヒーローはトップバー直下に全幅で挟む(サイドバー/右レールの横には置かない)。 */}
+      {showHeroRail && <DesktopHero flow={flow} />}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <DesktopSidebar flow={flow} />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              justifyContent: 'center',
+              padding: fullBleed ? 0 : '28px 24px 60px',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: maxContentWidth,
+                minHeight: '100%',
+                background: C.surface,
+              }}
+            >
+              {(deviceEl.props as { children: React.ReactNode }).children}
+            </div>
+          </div>
+        </div>
+        {showHeroRail && <DesktopRightRail flow={flow} />}
       </div>
     </div>
   )

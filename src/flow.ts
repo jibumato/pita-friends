@@ -293,6 +293,11 @@ export const REPORT_CATEGORIES: { value: import('./lib/database.types').ReportCa
 ]
 
 export const GAMES = ['Apex', 'VALORANT', 'マイクラ'] as const
+
+/** さがす画面の絞り込みチップ。実データ接続時とデモ時で選択肢が異なる。 */
+export const SEARCH_VERIFIED_FILTER = '✓ 本人確認済みのみ'
+export const SEARCH_DEMO_FILTERS = ['今夜あそべる', 'Apex', 'ゴールド帯', 'エンジョイ', SEARCH_VERIFIED_FILTER]
+export const SEARCH_REAL_FILTERS = [...GAMES, SEARCH_VERIFIED_FILTER]
 export const WHENS = ['今夜 22:00〜', '明日 21:00〜', '日時を指定'] as const
 export const REVIEW_TAGS = ['時間ぴったり', 'マナー◎', 'また遊びたい', '盛り上げ上手'] as const
 

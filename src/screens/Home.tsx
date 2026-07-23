@@ -7,6 +7,7 @@ import BottomTabs from '../components/BottomTabs'
 import { Bell, Sun, MoonSmall, Moon } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import { isBackendConfigured } from '../lib/supabase'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
 import { coinsPer30 } from '../flow'
@@ -25,6 +26,7 @@ const ONLINE = [
 ]
 
 export default function HomeScreen({ flow }: { flow: Flow }) {
+  const mobile = useIsMobile()
   const card = usePress(`4px 4px 0 ${C.shadowCol}`)
   // 深夜オフライン状態(状態網羅 C1)のデモ切替
   const [night, setNight] = useState(false)
@@ -71,6 +73,8 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
   return (
     <Screen background={C.surface}>
       <StatusBar time={night ? '03:12' : '21:47'} />
+      {/* デスクトップではロゴ/通知/テーマ切替をDesktopTopBarが担うため、ここは非表示。 */}
+      {mobile && (
       <div
         style={{
           display: 'flex',
@@ -166,6 +170,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           </div>
         </div>
       </div>
+      )}
       <div
         style={{
           flex: 1,
