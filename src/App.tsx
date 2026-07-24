@@ -753,9 +753,9 @@ export default function App() {
   // 一覧・ダッシュボード系はメイン列いっぱいのフラットな全幅(モックアップ準拠)。
   // フォーム・詳細・ホームは読みやすい幅で中央寄せ。カード風の枠・影は付けず地の面に馴染ませる。
   const fullBleed = DESKTOP_FULL_BLEED_SCREENS.has(state.screen)
-  // ホームは全幅表示だが、超ワイド画面でカードが際限なく引き伸ばされ色面が強くなりすぎないよう上限を設ける。
-  const maxContentWidth =
-    state.screen === 'home' ? 1180 : fullBleed ? undefined : DESKTOP_WIDE_SCREENS.has(state.screen) ? 760 : 560
+  // フルブリード画面(ホーム含む)はメイン列いっぱいに広げ、ヒーローと横幅を揃える。
+  // フォーム・詳細系のみ読みやすい幅で中央寄せする。
+  const maxContentWidth = fullBleed ? undefined : DESKTOP_WIDE_SCREENS.has(state.screen) ? 760 : 560
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.canvas }}>
       <DesktopTopBar flow={flow} />
