@@ -99,15 +99,141 @@ function OnlineStrip({ flow, online }: { flow: Flow; online: OnlineUser[] }) {
   )
 }
 
+/** 「今夜のおすすめマッチ」カード1枚分の表示データ。 */
+type RecommendCardData = {
+  key: string
+  userId: string | null
+  initial: string
+  color: string
+  name: string
+  verified: boolean
+  chips: string[]
+  price30: number
+  compat: number | null
+  meta: string
+}
+
+/** デモ時のおすすめホスト(実データ接続時は fetchDiscoverableHosts から生成)。 */
+const DEMO_RECOMMENDED: RecommendCardData[] = [
+  { key: 'み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex', '今夜22時〜'], price30: 300, compat: 92, meta: '★4.8・マナー◎' },
+  { key: 'の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', '週末'], price30: 250, compat: 89, meta: '★4.9・マナー◎' },
+  { key: 'カ', userId: null, initial: 'カ', color: C.lime, name: 'かい', verified: false, chips: ['Overwatch', '平日夜'], price30: 200, compat: 85, meta: '★4.7・マナー◎' },
+  { key: 'あ', userId: null, initial: 'あ', color: C.avatarOrange, name: 'あおい', verified: true, chips: ['Fortnite', '今夜'], price30: 280, compat: 83, meta: '★4.8・マナー◎' },
+  { key: 'り', userId: null, initial: 'り', color: '#C9F2C7', name: 'りく', verified: false, chips: ['LoL', '深夜'], price30: 220, compat: 80, meta: '★4.6・マナー◎' },
+  { key: 'ゆ', userId: null, initial: 'ゆ', color: C.lavender, name: 'ゆうき', verified: true, chips: ['マイクラ', '平日'], price30: 180, compat: 78, meta: '★4.7・マナー◎' },
+]
+
+/** おすすめホストのカード(グリッドの1枚)。各カードで押下フィードバックを持たせるため独立コンポーネント。 */
+function RecommendCard({ data, onOpen }: { data: RecommendCardData; onOpen: () => void }) {
+  const press = usePress(`3px 3px 0 ${C.shadowCol}`)
+  return (
+    <div
+      className="pita-press"
+      onClick={onOpen}
+      {...clickable(onOpen, `${data.name} のプロフィールを見る`)}
+      style={{
+        cursor: 'pointer',
+        background: C.white,
+        border: `1.5px solid ${C.border}`,
+        borderRadius: 12,
+        padding: 13,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 9,
+        ...press.style,
+      }}
+    >
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 9,
+            background: data.color,
+            border: `1.5px solid ${C.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 18,
+            color: C.ink,
+            flex: 'none',
+          }}
+        >
+          {data.initial}
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 13.5, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {data.name}
+            </span>
+            {data.verified && (
+              <span
+                style={{
+                  fontSize: 8.5,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.border}`,
+                  padding: '1px 4px',
+                  borderRadius: 4,
+                  flex: 'none',
+                }}
+              >
+                ✓
+              </span>
+            )}
+          </div>
+          <span style={{ fontSize: 10, color: C.muted }}>{data.meta}</span>
+        </div>
+        {data.compat !== null && (
+          <span style={{ fontSize: 14, color: C.lavender, fontWeight: 700, flex: 'none' }}>{data.compat}%</span>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+        {data.chips.map((t) => (
+          <span
+            key={t}
+            style={{
+              fontSize: 10,
+              color: C.body,
+              background: C.surfaceLavender,
+              border: `1.5px solid ${C.border}`,
+              padding: '2px 8px',
+              borderRadius: 5,
+            }}
+          >
+            {t}
+          </span>
+        ))}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 1 }}>
+        <span style={{ fontSize: 11.5, color: C.ink }}>
+          30分 <b>{data.price30}</b> コイン
+        </span>
+        <span
+          style={{
+            fontSize: 10.5,
+            color: C.ink,
+            background: C.lime,
+            border: `1.5px solid ${C.border}`,
+            padding: '4px 11px',
+            borderRadius: 6,
+          }}
+        >
+          予約 ▶
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function HomeScreen({ flow }: { flow: Flow }) {
   const mobile = useIsMobile()
-  const card = usePress(`4px 4px 0 ${C.shadowCol}`)
   // 深夜オフライン状態(状態網羅 C1)のデモ切替
   const [night, setNight] = useState(false)
 
   const [pendingCount, setPendingCount] = useState<number | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
-  const [recommended, setRecommended] = useState<DiscoverableHost | null>(null)
+  const [recommended, setRecommended] = useState<DiscoverableHost[]>([])
   const [unreadNotifs, setUnreadNotifs] = useState(0)
 
   useEffect(() => {
@@ -128,8 +254,8 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
     fetchDiscoverableHosts(flow.userId)
       .then((hosts) => {
         if (!active || hosts.length === 0) return
-        const best = [...hosts].sort((a, b) => b.mannerScore - a.mannerScore)[0]
-        setRecommended(best)
+        const top = [...hosts].sort((a, b) => b.mannerScore - a.mannerScore).slice(0, 8)
+        setRecommended(top)
       })
       .catch(() => {
         /* おすすめが取れなくてもホーム自体は表示する */
@@ -352,109 +478,53 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           <NightHome flow={flow} />
         ) : (
         <>
-        {/* 今夜のおすすめマッチ */}
-        {(!isBackendConfigured || recommended) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ fontSize: 15, color: C.ink }}>▶ 今夜のおすすめマッチ</span>
-              <span style={{ fontSize: 10, color: C.lavender, fontWeight: 700 }}>タップでプロフィール →</span>
-            </div>
-            <div
-              className="pita-press"
-              onClick={() => (isBackendConfigured && recommended ? flow.openProfile(recommended.userId) : flow.go('profile'))}
-              {...card.handlers}
-              style={{
-                cursor: 'pointer',
-                background: C.white,
-                border: `1.5px solid ${C.border}`,
-                borderRadius: 12,
-                padding: 16,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
-                ...card.style,
-              }}
-            >
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 10,
-                    background: isBackendConfigured && recommended ? recommended.avatarColor : C.avatarAqua,
-                    border: `1.5px solid ${C.border}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 23,
-                    color: C.ink,
-                  }}
+        {/* 今夜のおすすめマッチ: 複数ホストをカードグリッドで表示(全幅を自然に埋める) */}
+        {(() => {
+          const cards: RecommendCardData[] = isBackendConfigured
+            ? recommended.map((h) => ({
+                key: h.userId,
+                userId: h.userId,
+                initial: h.avatarInitial,
+                color: h.avatarColor,
+                name: h.nickname,
+                verified: h.isVerified,
+                chips: h.games.slice(0, 2),
+                price30: coinsPer30(h.hourlyRate),
+                compat: null,
+                meta: `★${h.mannerScore.toFixed(1)}・マナー◎`,
+              }))
+            : DEMO_RECOMMENDED
+          if (cards.length === 0) return null
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 15, color: C.ink }}>▶ 今夜のおすすめマッチ</span>
+                <span
+                  onClick={() => flow.go('search')}
+                  {...clickable(() => flow.go('search'), 'もっと見る')}
+                  style={{ cursor: 'pointer', fontSize: 10, color: C.lavender, fontWeight: 700 }}
                 >
-                  {isBackendConfigured && recommended ? recommended.avatarInitial : 'み'}
-                </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 16, color: C.ink }}>
-                      {isBackendConfigured && recommended ? recommended.nickname : 'みなと'}
-                    </span>
-                    {(!isBackendConfigured || recommended?.isVerified) && (
-                      <span
-                        style={{
-                          fontSize: 9.5,
-                          color: C.ink,
-                          background: C.lime,
-                          border: `1.5px solid ${C.border}`,
-                          padding: '2px 7px',
-                          borderRadius: 4,
-                        }}
-                      >
-                        ✓ 本人確認済み
-                      </span>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 11, color: C.muted }}>
-                    {isBackendConfigured && recommended
-                      ? recommended.bio || `30分 ${coinsPer30(recommended.hourlyRate)} コイン`
-                      : '社会人 / 平日21時〜 / エンジョイ寄り'}
-                  </span>
-                </div>
-                {!isBackendConfigured && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      background: C.lavender,
-                      border: `1.5px solid ${C.border}`,
-                      borderRadius: 8,
-                      padding: '6px 9px',
-                    }}
-                  >
-                    <span style={{ fontSize: 18, color: C.lime }}>{flow.score}%</span>
-                    <span style={{ fontSize: 8.5, color: '#fff' }}>相性</span>
-                  </div>
-                )}
+                  もっと見る ›
+                </span>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {(isBackendConfigured && recommended ? recommended.games : ['Apex ゴールドⅡ', '今夜 22時〜']).map((t) => (
-                  <span
-                    key={t}
-                    style={{
-                      fontSize: 11,
-                      color: C.ink,
-                      background: C.surfaceLavender,
-                      padding: '4px 10px',
-                      borderRadius: 4,
-                      border: `1.5px solid ${C.border}`,
-                    }}
-                  >
-                    {t}
-                  </span>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+                  gap: 12,
+                }}
+              >
+                {cards.map((c) => (
+                  <RecommendCard
+                    key={c.key}
+                    data={c}
+                    onOpen={() => (c.userId ? flow.openProfile(c.userId) : flow.go('profile'))}
+                  />
                 ))}
               </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
         </>
         )}
       </div>
