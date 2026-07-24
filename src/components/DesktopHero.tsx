@@ -9,15 +9,26 @@ export default function DesktopHero({ flow }: { flow: Flow }) {
       style={{
         position: 'relative',
         flex: 'none',
-        height: 480,
+        minHeight: 480,
         borderBottom: `1.5px solid ${C.border}`,
         overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
       <img
         src="/hero.webp"
         alt="オンラインで一緒に遊ぶ2人"
-        style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 38%', display: 'block' }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: 'center 38%',
+          display: 'block',
+        }}
       />
       <div
         aria-hidden
@@ -31,16 +42,14 @@ export default function DesktopHero({ flow }: { flow: Flow }) {
       />
       <div
         style={{
-          position: 'absolute',
-          left: '50%',
-          top: '56%',
-          transform: 'translate(-50%,-50%)',
+          position: 'relative',
           color: C.ink,
           maxWidth: 640,
           textAlign: 'center',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          padding: '40px 0',
         }}
       >
         <img
