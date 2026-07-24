@@ -61,6 +61,13 @@ export default function DesktopSidebar({ flow }: { flow: Flow }) {
         padding: '18px 14px',
         borderRight: `1.5px solid ${C.border}`,
         background: C.white,
+        // トップバー(sticky)の下に貼り付き、右側の本文だけがスクロールする。
+        position: 'sticky',
+        top: 61,
+        alignSelf: 'flex-start',
+        height: 'calc(100vh - 61px)',
+        overflowY: 'auto',
+        boxSizing: 'border-box',
       }}
     >
       {TABS.map(({ key, label, Icon }) => {

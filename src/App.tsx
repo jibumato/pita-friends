@@ -759,11 +759,11 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.canvas }}>
       <DesktopTopBar flow={flow} />
-      <div style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
+      {/* ヒーローはサイドバーの上・全幅で表示し、ページと一緒にスクロールして流れていく。 */}
+      {showHero && <DesktopHero flow={flow} />}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start' }}>
         <DesktopSidebar flow={flow} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          {/* ヒーローはメイン列の先頭に置き、ページと一緒にスクロールして流れていく。 */}
-          {showHero && <DesktopHero flow={flow} />}
           <div
             style={{
               flex: 1,
