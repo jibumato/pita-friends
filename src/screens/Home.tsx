@@ -909,33 +909,32 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           </div>
         )}
 
-        {/* 受け取った誘い(承認制) */}
-        <div
-          onClick={() => flow.go('requests')}
-          style={{
-            cursor: 'pointer',
-            background: C.lime,
-            border: `1.5px solid ${C.border}`,
-            borderRadius: 10,
-            boxShadow: `2px 2px 0 ${C.shadowCol}`,
-            padding: '10px 13px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <span style={{ fontSize: 16 }}>🙌</span>
-          <span style={{ flex: 1, fontSize: 12, color: C.ink }}>
-            {isBackendConfigured
-              ? pendingCount === null
-                ? '確認中…'
-                : pendingCount > 0
-                  ? `${pendingCount}件の誘いが承認待ちです`
-                  : '承認待ちの誘いはありません'
-              : '2件の誘いが承認待ちです'}
-          </span>
-          <span style={{ fontSize: 11, color: C.ink }}>確認する ›</span>
-        </div>
+        {/* 受け取った誘い(承認制)。対応が必要なときだけ出す。
+            0件・取得中は出さない(常設すると本当に承認待ちのときの目立ちが弱まるため)。
+            誘い自体の導線はマイページ「受け取った誘い」に常設されている。 */}
+        {(isBackendConfigured ? (pendingCount ?? 0) > 0 : true) && (
+          <div
+            onClick={() => flow.go('requests')}
+            {...clickable(() => flow.go('requests'), '承認待ちの誘いを確認する')}
+            style={{
+              cursor: 'pointer',
+              background: C.lime,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 10,
+              boxShadow: `2px 2px 0 ${C.shadowCol}`,
+              padding: '10px 13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            <span style={{ fontSize: 16 }}>🙌</span>
+            <span style={{ flex: 1, fontSize: 12, color: C.ink }}>
+              {isBackendConfigured ? `${pendingCount}件の誘いが承認待ちです` : '2件の誘いが承認待ちです'}
+            </span>
+            <span style={{ fontSize: 11, color: C.ink }}>確認する ›</span>
+          </div>
+        )}
 
         {night ? (
           <NightHome flow={flow} />
