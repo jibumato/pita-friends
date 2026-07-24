@@ -11,8 +11,8 @@ import { isBackendConfigured } from '../lib/supabase'
 import { fetchBoardPosts, joinBoardPost, type BoardPostItem } from '../lib/queries'
 import { useIsMobile } from '../hooks/useMediaQuery'
 
-const DEMO_FILTERS = ['すべて', '今夜', 'Apex', 'まったり']
-const REAL_FILTERS = ['すべて', '今夜', 'Apex', 'エンジョイ']
+const DEMO_FILTERS = ['すべて', '自分の募集', '今夜', 'Apex', 'まったり']
+const REAL_FILTERS = ['すべて', '自分の募集', '今夜', 'Apex', 'エンジョイ']
 
 function RealPostCard({ p, onJoined }: { p: BoardPostItem; onJoined: (id: string, full: boolean) => void }) {
   const [busy, setBusy] = useState(false)
@@ -40,21 +40,40 @@ function RealPostCard({ p, onJoined }: { p: BoardPostItem; onJoined: (id: string
     <div
       style={{
         background: C.white,
-        border: `1.5px solid ${C.border}`,
+        border: p.isMine ? `1.5px solid ${C.lavender}` : `1.5px solid ${C.border}`,
         borderRadius: 12,
-        boxShadow: `3px 3px 0 ${C.shadowCol}`,
+        boxShadow: p.isMine ? `3px 3px 0 ${C.lavender}` : `3px 3px 0 ${C.shadowCol}`,
         padding: 14,
         display: 'flex',
         flexDirection: 'column',
         gap: 10,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 14, color: C.ink }}>
-          {p.game} {p.mood}
-        </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          {p.isMine && (
+            <span
+              style={{
+                flex: 'none',
+                fontSize: 9.5,
+                fontWeight: 700,
+                color: C.ink,
+                background: C.lavender,
+                border: `1.5px solid ${C.border}`,
+                padding: '2px 6px',
+                borderRadius: 4,
+              }}
+            >
+              自分の募集
+            </span>
+          )}
+          <span style={{ fontSize: 14, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {p.game} {p.mood}
+          </span>
+        </div>
         <span
           style={{
+            flex: 'none',
             fontSize: 11,
             color: C.ink,
             background: C.lime,
@@ -156,13 +175,15 @@ export default function Board({ flow }: { flow: Flow }) {
   }
 
   const filteredReal = (realPosts ?? []).filter((p) => {
+    if (filter === '自分の募集') return p.isMine
     if (filter === '今夜') return p.whenText.includes('今夜')
     if (filter === 'Apex') return p.game === 'Apex'
     if (filter === 'エンジョイ') return p.mood === 'エンジョイ'
     return true
   })
 
-  // デモ:「まったり」だけは掲示板が空(状態網羅 B2)になる従来の演出を維持
+  // デモの絞り込み。「自分の募集」は mine のみ、「まったり」は空(状態網羅 B2)。
+  const demoPosts = filter === '自分の募集' ? boardPosts.filter((p) => p.mine) : boardPosts
   const demoEmpty = filter === 'まったり'
 
   const empty = isBackendConfigured ? realPosts !== null && filteredReal.length === 0 : demoEmpty
@@ -263,24 +284,45 @@ export default function Board({ flow }: { flow: Flow }) {
           <div className="search-grid">
           {isBackendConfigured
             ? filteredReal.map((p) => <RealPostCard key={p.id} p={p} onJoined={handleJoined} />)
-            : boardPosts.map((p) => (
+            : demoPosts.map((p) => (
                 <div
                   key={p.title}
                   style={{
                     background: C.white,
-                    border: `1.5px solid ${C.border}`,
+                    border: p.mine ? `1.5px solid ${C.lavender}` : `1.5px solid ${C.border}`,
                     borderRadius: 12,
-                    boxShadow: `3px 3px 0 ${C.shadowCol}`,
+                    boxShadow: p.mine ? `3px 3px 0 ${C.lavender}` : `3px 3px 0 ${C.shadowCol}`,
                     padding: 14,
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 10,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 14, color: C.ink }}>{p.title}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      {p.mine && (
+                        <span
+                          style={{
+                            flex: 'none',
+                            fontSize: 9.5,
+                            fontWeight: 700,
+                            color: C.ink,
+                            background: C.lavender,
+                            border: `1.5px solid ${C.border}`,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                          }}
+                        >
+                          自分の募集
+                        </span>
+                      )}
+                      <span style={{ fontSize: 14, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.title}
+                      </span>
+                    </div>
                     <span
                       style={{
+                        flex: 'none',
                         fontSize: 11,
                         color: C.ink,
                         background: C.lime,
@@ -341,20 +383,24 @@ export default function Board({ flow }: { flow: Flow }) {
                     </span>
                     <span style={{ fontSize: 10.5, color: C.muted }}>{p.host.score}</span>
                     <div style={{ flex: 1 }} />
-                    <span
-                      onClick={() => flow.go('talk')}
-                      style={{
-                        cursor: 'pointer',
-                        fontSize: 12,
-                        color: C.ctaFg,
-                        background: C.ctaBg,
-                        padding: '7px 16px',
-                        borderRadius: 4,
-                        boxShadow: `2px 2px 0 ${C.lavender}`,
-                      }}
-                    >
-                      参加する
-                    </span>
+                    {p.mine ? (
+                      <span style={{ fontSize: 11, color: C.muted }}>あなたが募集中</span>
+                    ) : (
+                      <span
+                        onClick={() => flow.go('talk')}
+                        style={{
+                          cursor: 'pointer',
+                          fontSize: 12,
+                          color: C.ctaFg,
+                          background: C.ctaBg,
+                          padding: '7px 16px',
+                          borderRadius: 4,
+                          boxShadow: `2px 2px 0 ${C.lavender}`,
+                        }}
+                      >
+                        参加する
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
