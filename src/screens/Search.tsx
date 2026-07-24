@@ -134,7 +134,7 @@ export default function Search({ flow }: { flow: Flow }) {
             <span style={{ fontSize: 21, color: C.ink }}>▶ さがす</span>
             {!mobile && phase === 'results' && (
               <span style={{ fontSize: 11.5, color: C.muted }}>
-                {isBackendConfigured ? `${cards.length}人のホストが見つかりました` : '24人が条件にマッチ・相性順'}
+                {isBackendConfigured ? `${cards.length}人のホストが見つかりました` : `${cards.length}人が条件にマッチ・相性順`}
               </span>
             )}
           </div>
@@ -244,7 +244,7 @@ export default function Search({ flow }: { flow: Flow }) {
         >
           {mobile && (
             <span style={{ fontSize: 11.5, color: C.muted }}>
-              {isBackendConfigured ? `${cards.length}人のホストが見つかりました` : '24人が条件にマッチ · 相性順'}
+              {isBackendConfigured ? `${cards.length}人のホストが見つかりました` : `${cards.length}人が条件にマッチ · 相性順`}
             </span>
           )}
           <div
