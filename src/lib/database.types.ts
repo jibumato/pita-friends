@@ -81,6 +81,7 @@ export type Database = {
           bio: string
           voice_path: string | null
           voice_seconds: number | null
+          avatar_path: string | null
           created_at: string
           updated_at: string
         }
@@ -568,6 +569,18 @@ export type Database = {
         Returns: void
       }
       admin_clear_voice_greeting: {
+        Args: { p_user_id: string }
+        Returns: void
+      }
+      set_avatar: {
+        Args: { p_path: string }
+        Returns: void
+      }
+      clear_avatar: {
+        Args: Record<string, never>
+        Returns: void
+      }
+      admin_clear_avatar: {
         Args: { p_user_id: string }
         Returns: void
       }

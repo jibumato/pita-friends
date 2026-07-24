@@ -77,6 +77,7 @@ export default function Profile({ flow }: { flow: Flow }) {
   const name = useReal ? data?.nickname ?? '' : 'みなと'
   const initial = useReal ? data?.avatarInitial ?? '?' : 'み'
   const avatarColor = useReal ? data?.avatarColor ?? C.avatarAqua : C.avatarAqua
+  const avatarUrl = useReal ? data?.avatarUrl ?? null : null
   const verified = useReal ? !!data?.isVerified : true
   const subtitle = useReal
     ? data?.isHost
@@ -163,6 +164,7 @@ export default function Profile({ flow }: { flow: Flow }) {
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginTop: -32 }}>
             <div
               style={{
+                position: 'relative',
                 width: 86,
                 height: 86,
                 borderRadius: 16,
@@ -174,9 +176,18 @@ export default function Profile({ flow }: { flow: Flow }) {
                 justifyContent: 'center',
                 fontSize: 34,
                 color: C.ink,
+                overflow: 'hidden',
               }}
             >
-              {initial}
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                initial
+              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>

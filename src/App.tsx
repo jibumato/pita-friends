@@ -164,6 +164,8 @@ export type Flow = {
   /** バックエンド接続時、サインイン済みならSupabaseのユーザーID。デモモード/未サインインはnull。 */
   userId: string | null
   nickname: string
+  /** 本人のアイコン画像URL(未設定は null=頭文字＋カラー)。 */
+  avatarUrl: string | null
   mannerScore: number
   dotakyanCount: number
   confirmedCount: number
@@ -173,6 +175,8 @@ export type Flow = {
   /** ホスト設定の直近の書き込みエラー(本人確認未完了等)。表示専用、次の操作で上書きされる。 */
   hostSettingsError: string | null
   setNickname: (n: string) => void
+  /** 本人のアイコン画像URLを更新する(アップロード/削除後にUIへ反映)。 */
+  setAvatarUrl: (url: string | null) => void
   /** サインイン/起動時のセッション復元後に、本人のアカウントデータを読み込む。 */
   hydrateAccount: (userId: string) => Promise<void>
   setTheme: (t: Theme) => void
@@ -255,6 +259,7 @@ const INITIAL = {
   bookingError: null as string | null,
   userId: null as string | null,
   nickname: 'あおい',
+  avatarUrl: null as string | null,
   mannerScore: 4.8,
   dotakyanCount: 0,
   confirmedCount: 47,
@@ -284,6 +289,7 @@ export default function App() {
         ...p,
         userId,
         nickname: bundle.profile.nickname || p.nickname,
+        avatarUrl: bundle.avatarUrl,
         gender: bundle.profile.gender,
         safetyPrefs: {
           contactScope: bundle.safetyPrefs.contact_scope,
@@ -577,6 +583,7 @@ export default function App() {
         )
       }
     },
+    setAvatarUrl: (url) => setState((p) => ({ ...p, avatarUrl: url })),
     hydrateAccount,
     setSafetyPref: (key, value) => {
       setState((p) => ({ ...p, safetyPrefs: { ...p.safetyPrefs, [key]: value } }))

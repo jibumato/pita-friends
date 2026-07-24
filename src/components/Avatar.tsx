@@ -10,6 +10,8 @@ type AvatarProps = {
   color?: string
   size?: number
   verified?: boolean
+  /** アイコン画像URL。あれば頭文字ではなくこの画像を表示する。 */
+  url?: string | null
 }
 
 export default function Avatar({
@@ -17,6 +19,7 @@ export default function Avatar({
   color = C.avatarAqua,
   size = 56,
   verified = false,
+  url = null,
 }: AvatarProps) {
   const radius = Math.max(4, Math.round(size * 0.17))
   const fontSize = Math.round(size * 0.42)
@@ -26,23 +29,40 @@ export default function Avatar({
 
   return (
     <div style={{ position: 'relative', display: 'inline-flex' }}>
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: radius,
-          background: color,
-          border: `1.5px solid ${C.border}`,
-          boxShadow,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize,
-          color: C.ink,
-        }}
-      >
-        {initial}
-      </div>
+      {url ? (
+        <img
+          src={url}
+          alt=""
+          style={{
+            width: size,
+            height: size,
+            borderRadius: radius,
+            objectFit: 'cover',
+            background: color,
+            border: `1.5px solid ${C.border}`,
+            boxShadow,
+            display: 'block',
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: size,
+            height: size,
+            borderRadius: radius,
+            background: color,
+            border: `1.5px solid ${C.border}`,
+            boxShadow,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize,
+            color: C.ink,
+          }}
+        >
+          {initial}
+        </div>
+      )}
       {verified && (
         <div
           style={{
