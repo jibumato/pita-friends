@@ -296,17 +296,22 @@ export const REPORT_CATEGORIES: { value: import('./lib/database.types').ReportCa
   { value: 'other', label: 'その他' },
 ]
 
+// 人気タイトルは競合(Gamee)が前面に出しているシューター/対戦系を上位に。
 export const GAMES = [
   'Apex',
   'VALORANT',
-  'Overwatch 2',
-  'LoL',
-  'Fortnite',
   'スプラ',
-  'マイクラ',
+  'Overwatch 2',
+  'Fortnite',
+  'CoD',
+  'R6S',
+  'DbD',
+  'BF6',
   'モンハン',
-  'あつ森',
+  'LoL',
+  'マイクラ',
   '原神',
+  'あつ森',
 ] as const
 
 /** さがす画面の絞り込みチップ。実データ接続時とデモ時で選択肢が異なる。 */
