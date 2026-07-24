@@ -417,7 +417,6 @@ function RankingSection({
   rows: RankingEntry[]
   rookie?: boolean
 }) {
-  if (rows.length === 0) return null
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -430,11 +429,30 @@ function RankingSection({
           すべて見る ›
         </span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-        {rows.map((r) => (
-          <RankRow key={r.hostId} flow={flow} r={r} rookie={rookie} />
-        ))}
-      </div>
+      {rows.length === 0 ? (
+        <div
+          style={{
+            background: C.white,
+            border: `1.5px dashed ${C.border}`,
+            borderRadius: 12,
+            padding: '20px 16px',
+            textAlign: 'center',
+            fontSize: 11.5,
+            color: C.muted,
+            lineHeight: 1.7,
+          }}
+        >
+          まだランキングがありません。
+          <br />
+          プレイが記録されると、ここに上位ホストが表示されます。
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          {rows.map((r) => (
+            <RankRow key={r.hostId} flow={flow} r={r} rookie={rookie} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
