@@ -149,6 +149,17 @@ a:hover {
   }
 }
 
+/* ボイスプロフィール再生中のイコライザーバー */
+@keyframes vpBar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
 /* 待機アバターの浮遊 */
 @keyframes floaty {
   0%,
