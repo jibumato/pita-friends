@@ -296,7 +296,18 @@ export const REPORT_CATEGORIES: { value: import('./lib/database.types').ReportCa
   { value: 'other', label: 'その他' },
 ]
 
-export const GAMES = ['Apex', 'VALORANT', 'マイクラ'] as const
+export const GAMES = [
+  'Apex',
+  'VALORANT',
+  'Overwatch 2',
+  'LoL',
+  'Fortnite',
+  'スプラ',
+  'マイクラ',
+  'モンハン',
+  'あつ森',
+  '原神',
+] as const
 
 /** さがす画面の絞り込みチップ。実データ接続時とデモ時で選択肢が異なる。 */
 export const SEARCH_VERIFIED_FILTER = '✓ 本人確認済みのみ'
