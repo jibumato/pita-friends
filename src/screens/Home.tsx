@@ -43,14 +43,18 @@ const DEMO_ROOKIE: RankingEntry[] = [
 const GAME_EMOJI: Record<string, string> = {
   Apex: '🎯',
   VALORANT: '🔫',
-  'Overwatch 2': '🛡️',
-  LoL: '⚔️',
-  Fortnite: '🏝️',
   スプラ: '🦑',
-  マイクラ: '⛏️',
+  'Overwatch 2': '🛡️',
+  Fortnite: '🏝️',
+  CoD: '🪖',
+  R6S: '💣',
+  DbD: '🔪',
+  BF6: '🚁',
   モンハン: '🐲',
-  あつ森: '🌱',
+  LoL: '⚔️',
+  マイクラ: '⛏️',
   原神: '⚗️',
+  あつ森: '🌱',
 }
 
 /** ヒーロー直下のアイコン一覧(いろんな人を紹介する用)のデモデータ。 */
