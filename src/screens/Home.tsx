@@ -291,26 +291,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '12px 20px 4px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 6,
-              background: C.lime,
-              border: `1.5px solid ${C.border}`,
-              boxShadow: `3px 3px 0 ${C.lavender}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: C.ink,
-              fontSize: 16,
-            }}
-          >
-            ピ
-          </div>
-          <span style={{ fontSize: 21, color: C.ink, letterSpacing: '.05em' }}>ピタフレ</span>
-        </div>
+        <img src="/logo.webp" alt="ピタフレ" style={{ height: 34, display: 'block' }} />
         <div style={{ display: 'flex', gap: 8 }}>
           <div
             onClick={flow.toggleTheme}
