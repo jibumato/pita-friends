@@ -14,8 +14,21 @@ import {
   fetchDiscoverableHosts,
   fetchPendingInviteCount,
   fetchUnreadNotificationCount,
+  fetchHostRanking,
   type DiscoverableHost,
+  type RankingEntry,
 } from '../lib/queries'
+
+const MEDAL = ['🥇', '🥈', '🥉']
+
+/** デモ時の週間ランキング(実データ接続時は fetchHostRanking から取得)。 */
+const DEMO_RANKING: RankingEntry[] = [
+  { rank: 1, hostId: 'd1', nickname: 'ののか', avatarInitial: 'の', avatarColor: '#FFC7D9', completedCount: 58, mannerScore: 4.9, score: 98, isVerified: true },
+  { rank: 2, hostId: 'd2', nickname: 'みなと', avatarInitial: 'み', avatarColor: '#B3E5F2', completedCount: 51, mannerScore: 4.8, score: 94, isVerified: true },
+  { rank: 3, hostId: 'd3', nickname: 'あおい', avatarInitial: 'あ', avatarColor: '#E3DCFF', completedCount: 47, mannerScore: 4.8, score: 91, isVerified: true },
+  { rank: 4, hostId: 'd4', nickname: 'りく', avatarInitial: 'り', avatarColor: '#C9F2C7', completedCount: 40, mannerScore: 4.7, score: 87, isVerified: false },
+  { rank: 5, hostId: 'd5', nickname: 'そら', avatarInitial: 'そ', avatarColor: '#FBD79E', completedCount: 36, mannerScore: 4.7, score: 84, isVerified: true },
+]
 
 /** ヒーロー直下のアイコン一覧(いろんな人を紹介する用)のデモデータ。 */
 const ONLINE_STRIP = [
@@ -234,6 +247,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
   const [pendingCount, setPendingCount] = useState<number | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
   const [recommended, setRecommended] = useState<DiscoverableHost[]>([])
+  const [ranking, setRanking] = useState<RankingEntry[]>([])
   const [unreadNotifs, setUnreadNotifs] = useState(0)
 
   useEffect(() => {
@@ -259,6 +273,11 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
       })
       .catch(() => {
         /* おすすめが取れなくてもホーム自体は表示する */
+      })
+    fetchHostRanking('weekly', 5)
+      .then((rows) => active && setRanking(rows))
+      .catch(() => {
+        /* ランキングが取れなくてもホーム自体は表示する */
       })
     const unsubscribe = subscribeOnlineUsers(flow.userId, setOnlineUsers)
     return () => {
@@ -506,6 +525,88 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             </div>
           )
         })()}
+
+        {/* 今週のランキング: ハンバーガーメニューからホーム本文へ移設(デスクトップ)。
+            モバイルは上部にランキングカードの導線があるためここでは出さない。 */}
+        {!mobile &&
+          (() => {
+            const rows = isBackendConfigured ? ranking : DEMO_RANKING
+            if (rows.length === 0) return null
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 15, color: C.ink }}>🏆 今週のランキング</span>
+                  <span
+                    onClick={() => flow.go('ranking')}
+                    {...clickable(() => flow.go('ranking'), 'ランキングをすべて見る')}
+                    style={{ cursor: 'pointer', fontSize: 10, color: C.lavender, fontWeight: 700 }}
+                  >
+                    すべて見る ›
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+                    gap: 12,
+                  }}
+                >
+                  {rows.map((r) => (
+                    <div
+                      key={r.hostId}
+                      onClick={() => flow.go('ranking')}
+                      {...clickable(() => flow.go('ranking'), `${r.nickname} · ${r.rank}位`)}
+                      style={{
+                        cursor: 'pointer',
+                        background: C.white,
+                        border: `1.5px solid ${C.border}`,
+                        borderRadius: 12,
+                        boxShadow: `3px 3px 0 ${C.shadowCol}`,
+                        padding: 13,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                      }}
+                    >
+                      <span style={{ width: 22, fontSize: 16, textAlign: 'center', flex: 'none' }}>
+                        {MEDAL[r.rank - 1] ?? r.rank}
+                      </span>
+                      <div
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 8,
+                          background: r.avatarColor,
+                          border: `1.5px solid ${C.border}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 17,
+                          color: C.ink,
+                          flex: 'none',
+                        }}
+                      >
+                        {r.avatarInitial}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span
+                          style={{
+                            fontSize: 13, color: C.ink,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {r.nickname}
+                        </span>
+                        <span style={{ fontSize: 10, color: C.muted }}>
+                          ★{r.mannerScore.toFixed(1)} · {r.completedCount}回
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
         </>
         )}
       </div>
