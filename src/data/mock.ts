@@ -149,9 +149,18 @@ export type BoardPost = {
   slots: string
   tags: string[]
   host: { initial: string; color: string; name: string; score: string }
+  /** 自分が出した募集(自分の募集フィルタ・表示用)。 */
+  mine?: boolean
 }
 
 export const boardPosts: BoardPost[] = [
+  {
+    title: 'VALORANT 一緒にランク上げ',
+    slots: 'あと2人',
+    tags: ['今夜 22:30〜', 'VCどちらでも', 'エンジョイ'],
+    host: { initial: 'あ', color: C.lime, name: 'あおい', score: '★4.8' },
+    mine: true,
+  },
   {
     title: 'Apex ランク ゴールド帯',
     slots: 'あと2人',
