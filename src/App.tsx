@@ -416,13 +416,16 @@ export default function App() {
   const go = useCallback(
     (s: ScreenKey) => {
       clearTimer()
-      // openProfile 以外(plain go)でプロフィールへ来た場合は実データ対象を持たない=デモ表示
+      // openProfile 以外(plain go)でプロフィールへ来た場合は実データ対象を持たない=デモ表示。
+      // ただし戻り先はデモでも記録する(記録しないとプロフィールの戻るが常にホームへ飛び、
+      // さがす等から開いたときに元の一覧へ戻れなくなるため)。
       setState((p) => ({
         ...p,
         screen: s,
         reportTarget: null,
         sendFailOpen: false,
         profileUserId: s === 'profile' ? null : p.profileUserId,
+        profileReturn: s === 'profile' ? p.screen : p.profileReturn,
         inviteTarget: s === 'invite' ? null : p.inviteTarget,
       }))
     },
