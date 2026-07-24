@@ -9,7 +9,7 @@ import { clickable } from '../hooks/clickable'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { isBackendConfigured } from '../lib/supabase'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
-import { coinsPer30 } from '../flow'
+import { coinsPer30, GAMES } from '../flow'
 import {
   fetchDiscoverableHosts,
   fetchPendingInviteCount,
@@ -29,6 +29,29 @@ const DEMO_RANKING: RankingEntry[] = [
   { rank: 4, hostId: 'd4', nickname: 'りく', avatarInitial: 'り', avatarColor: '#C9F2C7', completedCount: 40, mannerScore: 4.7, score: 87, isVerified: false },
   { rank: 5, hostId: 'd5', nickname: 'そら', avatarInitial: 'そ', avatarColor: '#FBD79E', completedCount: 36, mannerScore: 4.7, score: 84, isVerified: true },
 ]
+
+/** デモ時の新人ランキング(実データ接続時は完了数の少ない=新人ホストから導出)。 */
+const DEMO_ROOKIE: RankingEntry[] = [
+  { rank: 1, hostId: 'r1', nickname: 'そうた', avatarInitial: 'そ', avatarColor: '#C9F2C7', completedCount: 8, mannerScore: 4.9, score: 70, isVerified: true },
+  { rank: 2, hostId: 'r2', nickname: 'みるく', avatarInitial: 'み', avatarColor: '#F5B8CE', completedCount: 6, mannerScore: 5.0, score: 66, isVerified: true },
+  { rank: 3, hostId: 'r3', nickname: 'かえで', avatarInitial: 'か', avatarColor: '#B3E5F2', completedCount: 5, mannerScore: 4.8, score: 61, isVerified: false },
+  { rank: 4, hostId: 'r4', nickname: 'ひかる', avatarInitial: 'ひ', avatarColor: '#FBD79E', completedCount: 4, mannerScore: 4.9, score: 58, isVerified: true },
+  { rank: 5, hostId: 'r5', nickname: 'ゆの', avatarInitial: 'ゆ', avatarColor: '#E3DCFF', completedCount: 3, mannerScore: 5.0, score: 55, isVerified: true },
+]
+
+/** ゲーム一覧タイルの絵文字(該当なしは 🎮)。 */
+const GAME_EMOJI: Record<string, string> = {
+  Apex: '🎯',
+  VALORANT: '🔫',
+  'Overwatch 2': '🛡️',
+  LoL: '⚔️',
+  Fortnite: '🏝️',
+  スプラ: '🦑',
+  マイクラ: '⛏️',
+  モンハン: '🐲',
+  あつ森: '🌱',
+  原神: '⚗️',
+}
 
 /** ヒーロー直下のアイコン一覧(いろんな人を紹介する用)のデモデータ。 */
 const ONLINE_STRIP = [
@@ -239,6 +262,143 @@ function RecommendCard({ data, onOpen }: { data: RecommendCardData; onOpen: () =
   )
 }
 
+/** ランキングのカード列(今週 / 新人 共通)。rookie は「NEW」バッジ表示に切替。 */
+function RankingSection({
+  flow,
+  title,
+  rows,
+  rookie,
+}: {
+  flow: Flow
+  title: string
+  rows: RankingEntry[]
+  rookie?: boolean
+}) {
+  if (rows.length === 0) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{ fontSize: 15, color: C.ink }}>{title}</span>
+        <span
+          onClick={() => flow.go('ranking')}
+          {...clickable(() => flow.go('ranking'), 'ランキングをすべて見る')}
+          style={{ cursor: 'pointer', fontSize: 10, color: C.lavender, fontWeight: 700 }}
+        >
+          すべて見る ›
+        </span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12 }}>
+        {rows.map((r) => (
+          <div
+            key={r.hostId}
+            onClick={() => flow.go('ranking')}
+            {...clickable(() => flow.go('ranking'), `${r.nickname} · ${rookie ? '新人' : `${r.rank}位`}`)}
+            style={{
+              cursor: 'pointer',
+              background: C.white,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 12,
+              boxShadow: `3px 3px 0 ${C.shadowCol}`,
+              padding: 13,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            {rookie ? (
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 4,
+                  padding: '2px 5px',
+                  flex: 'none',
+                }}
+              >
+                NEW
+              </span>
+            ) : (
+              <span style={{ width: 22, fontSize: 16, textAlign: 'center', flex: 'none' }}>
+                {MEDAL[r.rank - 1] ?? r.rank}
+              </span>
+            )}
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 8,
+                background: r.avatarColor,
+                border: `1.5px solid ${C.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 17,
+                color: C.ink,
+                flex: 'none',
+              }}
+            >
+              {r.avatarInitial}
+            </div>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 13, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {r.nickname}
+              </span>
+              <span style={{ fontSize: 10, color: C.muted }}>
+                ★{r.mannerScore.toFixed(1)} · {r.completedCount}回
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** ゲーム一覧: タップでそのゲームに絞ってさがす画面へ。 */
+function GameGrid({ flow }: { flow: Flow }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{ fontSize: 15, color: C.ink }}>🎮 ゲームからさがす</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+        {GAMES.map((g) => (
+          <div
+            key={g}
+            onClick={() => {
+              if (!flow.searchFilters[g]) flow.toggleSearchFilter(g)
+              flow.go('search')
+            }}
+            {...clickable(() => {
+              if (!flow.searchFilters[g]) flow.toggleSearchFilter(g)
+              flow.go('search')
+            }, `${g} でさがす`)}
+            style={{
+              cursor: 'pointer',
+              background: C.white,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 10,
+              boxShadow: `2px 2px 0 ${C.shadowCol}`,
+              padding: '12px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 9,
+            }}
+          >
+            <span style={{ fontSize: 18, flex: 'none' }}>{GAME_EMOJI[g] ?? '🎮'}</span>
+            <span style={{ fontSize: 12.5, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {g}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function HomeScreen({ flow }: { flow: Flow }) {
   const mobile = useIsMobile()
   // 深夜オフライン状態(状態網羅 C1)のデモ切替
@@ -274,7 +434,8 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
       .catch(() => {
         /* おすすめが取れなくてもホーム自体は表示する */
       })
-    fetchHostRanking('weekly', 5)
+    // 今週ランキングと新人ランキングの両方を1回の取得から導出するため多めに取る。
+    fetchHostRanking('weekly', 20)
       .then((rows) => active && setRanking(rows))
       .catch(() => {
         /* ランキングが取れなくてもホーム自体は表示する */
@@ -526,87 +687,33 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           )
         })()}
 
-        {/* 今週のランキング: ハンバーガーメニューからホーム本文へ移設(デスクトップ)。
-            モバイルは上部にランキングカードの導線があるためここでは出さない。 */}
-        {!mobile &&
-          (() => {
-            const rows = isBackendConfigured ? ranking : DEMO_RANKING
-            if (rows.length === 0) return null
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={{ fontSize: 15, color: C.ink }}>🏆 今週のランキング</span>
-                  <span
-                    onClick={() => flow.go('ranking')}
-                    {...clickable(() => flow.go('ranking'), 'ランキングをすべて見る')}
-                    style={{ cursor: 'pointer', fontSize: 10, color: C.lavender, fontWeight: 700 }}
-                  >
-                    すべて見る ›
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-                    gap: 12,
-                  }}
-                >
-                  {rows.map((r) => (
-                    <div
-                      key={r.hostId}
-                      onClick={() => flow.go('ranking')}
-                      {...clickable(() => flow.go('ranking'), `${r.nickname} · ${r.rank}位`)}
-                      style={{
-                        cursor: 'pointer',
-                        background: C.white,
-                        border: `1.5px solid ${C.border}`,
-                        borderRadius: 12,
-                        boxShadow: `3px 3px 0 ${C.shadowCol}`,
-                        padding: 13,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                      }}
-                    >
-                      <span style={{ width: 22, fontSize: 16, textAlign: 'center', flex: 'none' }}>
-                        {MEDAL[r.rank - 1] ?? r.rank}
-                      </span>
-                      <div
-                        style={{
-                          width: 38,
-                          height: 38,
-                          borderRadius: 8,
-                          background: r.avatarColor,
-                          border: `1.5px solid ${C.border}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 17,
-                          color: C.ink,
-                          flex: 'none',
-                        }}
-                      >
-                        {r.avatarInitial}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span
-                          style={{
-                            fontSize: 13, color: C.ink,
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {r.nickname}
-                        </span>
-                        <span style={{ fontSize: 10, color: C.muted }}>
-                          ★{r.mannerScore.toFixed(1)} · {r.completedCount}回
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })()}
+        {/* ゲーム一覧: タップでそのゲームに絞ってさがすへ(モバイル・デスクトップ共通)。 */}
+        <GameGrid flow={flow} />
+
+        {/* ランキング(デスクトップのみ。モバイルは上部のランキング導線カードから)。
+            今週=スコア上位、新人=完了数の少ない順(はじめたばかりの注目ホスト)。 */}
+        {!mobile && (
+          <>
+            <RankingSection
+              flow={flow}
+              title="🏆 今週のランキング"
+              rows={(isBackendConfigured ? ranking : DEMO_RANKING).slice(0, 5)}
+            />
+            <RankingSection
+              flow={flow}
+              title="🌱 新人ランキング"
+              rookie
+              rows={
+                isBackendConfigured
+                  ? [...ranking]
+                      .sort((a, b) => a.completedCount - b.completedCount)
+                      .slice(0, 5)
+                      .map((r, i) => ({ ...r, rank: i + 1 }))
+                  : DEMO_ROOKIE
+              }
+            />
+          </>
+        )}
         </>
         )}
       </div>
