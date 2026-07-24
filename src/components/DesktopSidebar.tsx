@@ -46,7 +46,9 @@ function FilterSection({ label, filters, flow }: { label: string; filters: strin
 }
 
 export default function DesktopSidebar({ flow }: { flow: Flow }) {
-  const active = activeTabOf(flow.screen)
+  // ランキングは専用のナビ項目を持つので、上部タブ(ホーム等)は点灯させない。
+  // activeTabOf は ranking を home タブに寄せるため、そのままだと「ホーム」と二重点灯する。
+  const active = flow.screen === 'ranking' ? null : activeTabOf(flow.screen)
 
   return (
     <div
