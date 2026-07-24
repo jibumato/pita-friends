@@ -297,7 +297,8 @@ export const REPORT_CATEGORIES: { value: import('./lib/database.types').ReportCa
 ]
 
 // 人気タイトルは競合(Gamee)が前面に出しているシューター/対戦系を上位に。
-// Switch人気作・VRChatも収録し、最後に「その他」でマイナー系も受け付ける。
+// Switch人気作・VRChatに加え、ゲーム以外の交流ジャンル(飲み/雑談/相談)も収録。
+// 最後の「その他」で一覧にないマイナー系も受け付ける。
 export const GAMES = [
   'Apex',
   'VALORANT',
@@ -306,17 +307,25 @@ export const GAMES = [
   'Fortnite',
   'CoD',
   'R6S',
-  'DbD',
+  'タルコフ',
+  '荒野行動',
   'BF6',
+  'DbD',
+  '第五人格',
   'モンハン',
+  'ARK',
   'LoL',
   'スマブラ',
   'マリカ',
   'ポケモン',
   'マイクラ',
   'あつ森',
+  'Among Us',
   '原神',
   'VRChat',
+  'オンライン飲み',
+  '雑談',
+  '相談',
   'その他',
 ] as const
 
