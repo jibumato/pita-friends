@@ -758,7 +758,14 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
         {/* ランキング(デスクトップのみ。モバイルは上部のランキング導線カードから)。
             今週=スコア上位、新人=完了数の少ない順(はじめたばかりの注目ホスト)。 */}
         {!mobile && (
-          <>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+              gap: 18,
+              alignItems: 'start',
+            }}
+          >
             <RankingSection
               flow={flow}
               title="🏆 今週のランキング"
@@ -777,7 +784,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   : DEMO_ROOKIE
               }
             />
-          </>
+          </div>
         )}
         </>
         )}
