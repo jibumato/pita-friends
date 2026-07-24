@@ -176,6 +176,18 @@ const DEMO_RECOMMENDED: RecommendCardData[] = [
   { key: 'ゆ', userId: null, initial: 'ゆ', color: C.lavender, name: 'ゆうき', verified: true, chips: ['マイクラ', '平日'], price30: 180, compat: 78, meta: '★4.7・マナー◎' },
 ]
 
+/** デモ時の人気ユーザー(実データ接続時は掲載ホストをマナー順に表示)。相性%は出さずプレイ実績で見せる。 */
+const DEMO_POPULAR: RecommendCardData[] = [
+  { key: 'p-の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', 'Apex'], price30: 250, compat: null, meta: '★4.9 · 320回プレイ' },
+  { key: 'p-み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex'], price30: 300, compat: null, meta: '★4.8 · 280回プレイ' },
+  { key: 'p-あ', userId: null, initial: 'あ', color: C.lavender, name: 'あおい', verified: true, chips: ['Fortnite'], price30: 280, compat: null, meta: '★4.8 · 260回プレイ' },
+  { key: 'p-れ', userId: null, initial: 'れ', color: C.avatarAqua, name: 'れん', verified: true, chips: ['Overwatch 2'], price30: 350, compat: null, meta: '★4.8 · 240回プレイ' },
+  { key: 'p-な', userId: null, initial: 'な', color: C.avatarPink, name: 'なな', verified: true, chips: ['スプラ', 'あつ森'], price30: 260, compat: null, meta: '★4.9 · 190回プレイ' },
+  { key: 'p-り', userId: null, initial: 'り', color: '#C9F2C7', name: 'りく', verified: false, chips: ['LoL'], price30: 220, compat: null, meta: '★4.7 · 210回プレイ' },
+  { key: 'p-か', userId: null, initial: 'か', color: C.lime, name: 'かい', verified: false, chips: ['Overwatch 2', 'VALORANT'], price30: 400, compat: null, meta: '★4.7 · 180回プレイ' },
+  { key: 'p-そ', userId: null, initial: 'そ', color: C.avatarOrange, name: 'そら', verified: true, chips: ['Apex'], price30: 200, compat: null, meta: '★4.7 · 170回プレイ' },
+]
+
 /** おすすめホストのカード(グリッドの1枚)。各カードで押下フィードバックを持たせるため独立コンポーネント。 */
 function RecommendCard({ data, onOpen }: { data: RecommendCardData; onOpen: () => void }) {
   const press = usePress(`3px 3px 0 ${C.shadowCol}`)
@@ -789,6 +801,57 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
 
         {/* ゲーム一覧: タップでそのゲームに絞ってさがすへ(モバイル・デスクトップ共通)。 */}
         <GameGrid flow={flow} />
+
+        {/* 人気のユーザー: 掲載ホストをカードで並べて探せる(モバイル・デスクトップ共通)。 */}
+        {(() => {
+          const popular: RecommendCardData[] = isBackendConfigured
+            ? [...recommended]
+                .sort((a, b) => b.mannerScore - a.mannerScore)
+                .slice(0, 12)
+                .map((h) => ({
+                  key: `pop-${h.userId}`,
+                  userId: h.userId,
+                  initial: h.avatarInitial,
+                  color: h.avatarColor,
+                  name: h.nickname,
+                  verified: h.isVerified,
+                  chips: h.games.slice(0, 2),
+                  price30: coinsPer30(h.hourlyRate),
+                  compat: null,
+                  meta: `★${h.mannerScore.toFixed(1)}・マナー◎`,
+                }))
+            : DEMO_POPULAR
+          if (popular.length === 0) return null
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 15, color: C.ink }}>🔥 人気のユーザー</span>
+                <span
+                  onClick={() => flow.go('search')}
+                  {...clickable(() => flow.go('search'), 'もっと見る')}
+                  style={{ cursor: 'pointer', fontSize: 10, color: C.lavender, fontWeight: 700 }}
+                >
+                  もっと見る ›
+                </span>
+              </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+                  gap: 12,
+                }}
+              >
+                {popular.map((c) => (
+                  <RecommendCard
+                    key={c.key}
+                    data={c}
+                    onOpen={() => (c.userId ? flow.openProfile(c.userId) : flow.go('profile'))}
+                  />
+                ))}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ランキング(デスクトップのみ。モバイルは上部のランキング導線カードから)。
             今週=スコア上位、新人=完了数の少ない順(はじめたばかりの注目ホスト)。 */}
