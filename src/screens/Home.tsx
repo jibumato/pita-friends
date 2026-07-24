@@ -262,7 +262,133 @@ function RecommendCard({ data, onOpen }: { data: RecommendCardData; onOpen: () =
   )
 }
 
-/** ランキングのカード列(今週 / 新人 共通)。rookie は「NEW」バッジ表示に切替。 */
+/** ランキングの1行(順位で強調度を変える: 1位が最も大きく、2〜3位も強調、以降はコンパクト)。 */
+function RankRow({ flow, r, rookie }: { flow: Flow; r: RankingEntry; rookie?: boolean }) {
+  const first = r.rank === 1
+  const podium = r.rank <= 3
+  const avatar = first ? 60 : podium ? 46 : 36
+  const nameSize = first ? 20 : podium ? 15.5 : 13
+  const pad = first ? '18px 18px' : podium ? '13px 15px' : '10px 14px'
+  const bg = first ? C.surfaceLavender : C.white
+  const border = first ? `2.5px solid ${C.border}` : `1.5px solid ${C.border}`
+  const shadow = first ? `6px 6px 0 ${C.lavender}` : podium ? `3px 3px 0 ${C.shadowCol}` : `2px 2px 0 ${C.shadowCol}`
+  const lead = podium ? MEDAL[r.rank - 1] : r.rank
+  const leadSize = first ? 34 : podium ? 24 : 15
+  const leadW = first ? 46 : podium ? 32 : 24
+  return (
+    <div
+      onClick={() => flow.go('ranking')}
+      {...clickable(() => flow.go('ranking'), `${r.nickname} · ${r.rank}位`)}
+      style={{
+        cursor: 'pointer',
+        background: bg,
+        border,
+        borderRadius: 14,
+        boxShadow: shadow,
+        padding: pad,
+        display: 'flex',
+        alignItems: 'center',
+        gap: first ? 14 : 11,
+      }}
+    >
+      <span
+        style={{
+          width: leadW,
+          fontSize: leadSize,
+          textAlign: 'center',
+          flex: 'none',
+          fontWeight: podium ? 400 : 800,
+          color: podium ? C.ink : C.muted,
+        }}
+      >
+        {lead}
+      </span>
+      <div
+        style={{
+          width: avatar,
+          height: avatar,
+          borderRadius: first ? 12 : 9,
+          background: r.avatarColor,
+          border: `1.5px solid ${C.border}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: first ? 26 : podium ? 20 : 16,
+          color: C.ink,
+          flex: 'none',
+        }}
+      >
+        {r.avatarInitial}
+      </div>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: first ? 4 : 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <span
+            style={{
+              fontSize: nameSize,
+              fontWeight: first ? 800 : 400,
+              color: C.ink,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {r.nickname}
+          </span>
+          {r.isVerified && (
+            <span
+              aria-label="本人確認済み"
+              style={{
+                fontSize: 8.5,
+                color: C.ink,
+                background: C.lime,
+                border: `1.5px solid ${C.border}`,
+                padding: '1px 4px',
+                borderRadius: 4,
+                flex: 'none',
+              }}
+            >
+              ✓
+            </span>
+          )}
+          {rookie && (
+            <span
+              style={{
+                fontSize: 8.5,
+                fontWeight: 800,
+                color: C.ink,
+                background: C.surfaceLavender,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 4,
+                padding: '1px 5px',
+                flex: 'none',
+              }}
+            >
+              NEW
+            </span>
+          )}
+        </div>
+        <span style={{ fontSize: first ? 12 : 10.5, color: C.muted }}>
+          ★{r.mannerScore.toFixed(1)} · {r.completedCount}回プレイ
+        </span>
+      </div>
+      <div style={{ flex: 'none', textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+        <span style={{ fontSize: first ? 9 : 8, color: C.muted, letterSpacing: '.08em' }}>スコア</span>
+        <span
+          style={{
+            fontSize: first ? 24 : podium ? 16 : 14,
+            fontWeight: 800,
+            color: first ? C.lavender : C.ink,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {r.score}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** ランキング(今週 / 新人 共通)。順位で強調度を変えた縦積み表示。 */
 function RankingSection({
   flow,
   title,
@@ -287,70 +413,9 @@ function RankingSection({
           すべて見る ›
         </span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
         {rows.map((r) => (
-          <div
-            key={r.hostId}
-            onClick={() => flow.go('ranking')}
-            {...clickable(() => flow.go('ranking'), `${r.nickname} · ${rookie ? '新人' : `${r.rank}位`}`)}
-            style={{
-              cursor: 'pointer',
-              background: C.white,
-              border: `1.5px solid ${C.border}`,
-              borderRadius: 12,
-              boxShadow: `3px 3px 0 ${C.shadowCol}`,
-              padding: 13,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}
-          >
-            {rookie ? (
-              <span
-                style={{
-                  fontSize: 9,
-                  fontWeight: 800,
-                  color: C.ink,
-                  background: C.lime,
-                  border: `1.5px solid ${C.border}`,
-                  borderRadius: 4,
-                  padding: '2px 5px',
-                  flex: 'none',
-                }}
-              >
-                NEW
-              </span>
-            ) : (
-              <span style={{ width: 22, fontSize: 16, textAlign: 'center', flex: 'none' }}>
-                {MEDAL[r.rank - 1] ?? r.rank}
-              </span>
-            )}
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 8,
-                background: r.avatarColor,
-                border: `1.5px solid ${C.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 17,
-                color: C.ink,
-                flex: 'none',
-              }}
-            >
-              {r.avatarInitial}
-            </div>
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 13, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {r.nickname}
-              </span>
-              <span style={{ fontSize: 10, color: C.muted }}>
-                ★{r.mannerScore.toFixed(1)} · {r.completedCount}回
-              </span>
-            </div>
-          </div>
+          <RankRow key={r.hostId} flow={flow} r={r} rookie={rookie} />
         ))}
       </div>
     </div>
