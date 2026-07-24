@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
@@ -164,6 +164,9 @@ type RecommendCardData = {
   price30: number
   compat: number | null
   meta: string
+  /** ボイスプロフィール(人気ユーザーのカードで直接再生する)。URLが無くても秒数があればデモ再生。 */
+  voiceUrl?: string | null
+  voiceSeconds?: number | null
 }
 
 /** デモ時のおすすめホスト(実データ接続時は fetchDiscoverableHosts から生成)。 */
@@ -178,14 +181,14 @@ const DEMO_RECOMMENDED: RecommendCardData[] = [
 
 /** デモ時の人気ユーザー(実データ接続時は掲載ホストをマナー順に表示)。相性%は出さずプレイ実績で見せる。 */
 const DEMO_POPULAR: RecommendCardData[] = [
-  { key: 'p-の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', 'Apex'], price30: 250, compat: null, meta: '★4.9 · 320回プレイ' },
-  { key: 'p-み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex'], price30: 300, compat: null, meta: '★4.8 · 280回プレイ' },
-  { key: 'p-あ', userId: null, initial: 'あ', color: C.lavender, name: 'あおい', verified: true, chips: ['Fortnite'], price30: 280, compat: null, meta: '★4.8 · 260回プレイ' },
-  { key: 'p-れ', userId: null, initial: 'れ', color: C.avatarAqua, name: 'れん', verified: true, chips: ['Overwatch 2'], price30: 350, compat: null, meta: '★4.8 · 240回プレイ' },
-  { key: 'p-な', userId: null, initial: 'な', color: C.avatarPink, name: 'なな', verified: true, chips: ['スプラ', 'あつ森'], price30: 260, compat: null, meta: '★4.9 · 190回プレイ' },
-  { key: 'p-り', userId: null, initial: 'り', color: '#C9F2C7', name: 'りく', verified: false, chips: ['LoL'], price30: 220, compat: null, meta: '★4.7 · 210回プレイ' },
-  { key: 'p-か', userId: null, initial: 'か', color: C.lime, name: 'かい', verified: false, chips: ['Overwatch 2', 'VALORANT'], price30: 400, compat: null, meta: '★4.7 · 180回プレイ' },
-  { key: 'p-そ', userId: null, initial: 'そ', color: C.avatarOrange, name: 'そら', verified: true, chips: ['Apex'], price30: 200, compat: null, meta: '★4.7 · 170回プレイ' },
+  { key: 'p-の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', 'Apex'], price30: 250, compat: null, meta: '★4.9 · 320回プレイ', voiceSeconds: 9 },
+  { key: 'p-み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex'], price30: 300, compat: null, meta: '★4.8 · 280回プレイ', voiceSeconds: 12 },
+  { key: 'p-あ', userId: null, initial: 'あ', color: C.lavender, name: 'あおい', verified: true, chips: ['Fortnite'], price30: 280, compat: null, meta: '★4.8 · 260回プレイ', voiceSeconds: 7 },
+  { key: 'p-れ', userId: null, initial: 'れ', color: C.avatarAqua, name: 'れん', verified: true, chips: ['Overwatch 2'], price30: 350, compat: null, meta: '★4.8 · 240回プレイ', voiceSeconds: 10 },
+  { key: 'p-な', userId: null, initial: 'な', color: C.avatarPink, name: 'なな', verified: true, chips: ['スプラ', 'あつ森'], price30: 260, compat: null, meta: '★4.9 · 190回プレイ', voiceSeconds: 8 },
+  { key: 'p-り', userId: null, initial: 'り', color: '#C9F2C7', name: 'りく', verified: false, chips: ['LoL'], price30: 220, compat: null, meta: '★4.7 · 210回プレイ', voiceSeconds: 6 },
+  { key: 'p-か', userId: null, initial: 'か', color: C.lime, name: 'かい', verified: false, chips: ['Overwatch 2', 'VALORANT'], price30: 400, compat: null, meta: '★4.7 · 180回プレイ', voiceSeconds: 11 },
+  { key: 'p-そ', userId: null, initial: 'そ', color: C.avatarOrange, name: 'そら', verified: true, chips: ['Apex'], price30: 200, compat: null, meta: '★4.7 · 170回プレイ', voiceSeconds: 8 },
 ]
 
 /** おすすめホストのカード(グリッドの1枚)。各カードで押下フィードバックを持たせるため独立コンポーネント。 */
@@ -286,6 +289,192 @@ function RecommendCard({ data, onOpen }: { data: RecommendCardData; onOpen: () =
         >
           予約 ▶
         </span>
+      </div>
+    </div>
+  )
+}
+
+/** 人気ユーザーのカード。アイコンを大きく(カードの約6割)し、その場でボイスプロフィールを再生できる。 */
+function PopularUserCard({ data, onOpen }: { data: RecommendCardData; onOpen: () => void }) {
+  const press = usePress(`3px 3px 0 ${C.shadowCol}`)
+  const [playing, setPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasVoice = !!data.voiceUrl || data.voiceSeconds != null
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
+
+  const toggleVoice = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation()
+    if (data.voiceUrl) {
+      const a = audioRef.current
+      if (!a) return
+      if (playing) {
+        a.pause()
+        a.currentTime = 0
+        setPlaying(false)
+      } else {
+        a.currentTime = 0
+        a.play().then(() => setPlaying(true)).catch(() => {})
+      }
+    } else {
+      // デモ: 音源が無いので秒数ぶんだけ再生状態を演出する。
+      if (playing) {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        setPlaying(false)
+      } else {
+        setPlaying(true)
+        timerRef.current = setTimeout(() => setPlaying(false), (data.voiceSeconds ?? 8) * 1000)
+      }
+    }
+  }
+
+  return (
+    <div
+      className="pita-press"
+      onClick={onOpen}
+      {...clickable(onOpen, `${data.name} のプロフィールを見る`)}
+      style={{
+        cursor: 'pointer',
+        background: C.white,
+        border: `1.5px solid ${C.border}`,
+        borderRadius: 12,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        ...press.style,
+      }}
+    >
+      {/* アイコン(カードの約6割)。オンライン中や本人確認バッジ・ボイス再生を重ねる。 */}
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          aspectRatio: '1 / 1',
+          background: data.color,
+          borderBottom: `1.5px solid ${C.border}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 56,
+          color: C.ink,
+        }}
+      >
+        {data.initial}
+        {data.verified && (
+          <span
+            style={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              fontSize: 9,
+              color: C.ink,
+              background: C.lime,
+              border: `1.5px solid ${C.border}`,
+              padding: '2px 6px',
+              borderRadius: 4,
+            }}
+          >
+            ✓ 確認済み
+          </span>
+        )}
+        {hasVoice && (
+          <span
+            onClick={toggleVoice}
+            role="button"
+            tabIndex={0}
+            aria-label={playing ? 'ボイスプロフィールを停止' : 'ボイスプロフィールを再生'}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') toggleVoice(e)
+            }}
+            style={{
+              position: 'absolute',
+              left: 8,
+              bottom: 8,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              cursor: 'pointer',
+              background: C.lime,
+              color: C.ink,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 20,
+              boxShadow: `2px 2px 0 ${C.border}`,
+              padding: '5px 11px',
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            {playing ? (
+              <>
+                <span style={{ display: 'inline-flex', alignItems: 'flex-end', gap: 2, height: 12 }} aria-hidden>
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      style={{
+                        width: 2.5,
+                        height: 12,
+                        background: C.ink,
+                        borderRadius: 2,
+                        transformOrigin: 'bottom',
+                        animation: `vpBar .8s ease-in-out ${i * 0.16}s infinite`,
+                      }}
+                    />
+                  ))}
+                </span>
+                再生中
+              </>
+            ) : (
+              <>▶ ボイス{data.voiceSeconds ? ` ${data.voiceSeconds}秒` : ''}</>
+            )}
+          </span>
+        )}
+        {data.voiceUrl && (
+          <audio ref={audioRef} src={data.voiceUrl} preload="none" onEnded={() => setPlaying(false)} />
+        )}
+      </div>
+      {/* 情報(残り約4割) */}
+      <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: 14, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {data.name}
+          </span>
+          <span style={{ fontSize: 10, color: C.muted }}>{data.meta}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {data.chips.map((t) => (
+            <span
+              key={t}
+              style={{
+                fontSize: 10,
+                color: C.body,
+                background: C.surfaceLavender,
+                border: `1.5px solid ${C.border}`,
+                padding: '2px 8px',
+                borderRadius: 5,
+              }}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 1 }}>
+          <span style={{ fontSize: 11.5, color: C.ink }}>
+            30分 <b>{data.price30}</b> コイン
+          </span>
+          <span
+            style={{
+              fontSize: 10.5,
+              color: C.ink,
+              background: C.lime,
+              border: `1.5px solid ${C.border}`,
+              padding: '4px 11px',
+              borderRadius: 6,
+            }}
+          >
+            予約 ▶
+          </span>
+        </div>
       </div>
     </div>
   )
@@ -819,6 +1008,8 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   price30: coinsPer30(h.hourlyRate),
                   compat: null,
                   meta: `★${h.mannerScore.toFixed(1)}・マナー◎`,
+                  voiceUrl: h.voiceUrl,
+                  voiceSeconds: h.voiceSeconds,
                 }))
             : DEMO_POPULAR
           if (popular.length === 0) return null
@@ -842,7 +1033,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                 }}
               >
                 {popular.map((c) => (
-                  <RecommendCard
+                  <PopularUserCard
                     key={c.key}
                     data={c}
                     onOpen={() => (c.userId ? flow.openProfile(c.userId) : flow.go('profile'))}

@@ -111,6 +111,9 @@ export type DiscoverableHost = {
   bio: string
   mannerScore: number
   isVerified: boolean
+  /** ボイスプロフィールの公開URL(未登録は null)。カードから直接再生できる。 */
+  voiceUrl: string | null
+  voiceSeconds: number | null
 }
 
 /**
@@ -131,7 +134,7 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
   if (userIds.length === 0) return []
 
   const [{ data: profiles, error: profilesError }, { data: stats, error: statsError }] = await Promise.all([
-    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color').in('id', userIds),
+    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color, voice_path, voice_seconds').in('id', userIds),
     sb.from('profile_trust_stats').select('user_id, manner_score, is_verified').in('user_id', userIds),
   ])
   if (profilesError) throw profilesError
@@ -155,6 +158,8 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
         bio: h.bio,
         mannerScore: stat?.manner_score ?? 4.5,
         isVerified: stat?.is_verified ?? false,
+        voiceUrl: profile.voice_path ? voiceGreetingUrl(profile.voice_path) : null,
+        voiceSeconds: profile.voice_seconds ?? null,
       }
     })
 }
