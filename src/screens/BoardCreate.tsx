@@ -110,7 +110,7 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
           gap: 16,
         }}
       >
-        <Field label="ゲーム（必須）">
+        <Field label="ゲーム・ジャンル（必須）">
           <SegRow options={[...GAMES]} value={game} onPick={setGame} />
         </Field>
         <Field label="目的・温度感">

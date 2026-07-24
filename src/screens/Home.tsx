@@ -48,17 +48,25 @@ const GAME_EMOJI: Record<string, string> = {
   Fortnite: '🏝️',
   CoD: '🪖',
   R6S: '💣',
-  DbD: '🔪',
+  タルコフ: '🎒',
+  荒野行動: '🪂',
   BF6: '🚁',
+  DbD: '🔪',
+  第五人格: '🎭',
   モンハン: '🐲',
+  ARK: '🦖',
   LoL: '⚔️',
   スマブラ: '🥊',
   マリカ: '🏎️',
   ポケモン: '⚡',
   マイクラ: '⛏️',
   あつ森: '🌱',
+  'Among Us': '🚀',
   原神: '⚗️',
   VRChat: '🥽',
+  オンライン飲み: '🍻',
+  雑談: '💬',
+  相談: '🤝',
   その他: '🕹️',
 }
 
@@ -436,7 +444,7 @@ function GameGrid({ flow }: { flow: Flow }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontSize: 15, color: C.ink }}>🎮 ゲームからさがす</span>
+        <span style={{ fontSize: 15, color: C.ink }}>🎮 ゲーム・ジャンルからさがす</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
         {GAMES.map((g) => (
