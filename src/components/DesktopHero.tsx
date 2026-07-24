@@ -47,7 +47,7 @@ export default function DesktopHero({ flow }: { flow: Flow }) {
           src="/logo.webp"
           alt="ピタフレ"
           style={{
-            height: 56,
+            height: 168,
             display: 'block',
             filter: 'drop-shadow(0 2px 6px rgba(255,255,255,.85))',
           }}
