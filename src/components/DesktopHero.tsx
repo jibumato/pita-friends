@@ -43,19 +43,15 @@ export default function DesktopHero({ flow }: { flow: Flow }) {
           alignItems: 'center',
         }}
       >
-        <span
+        <img
+          src="/logo.webp"
+          alt="ピタフレ"
           style={{
-            fontSize: 12.5,
-            color: C.ink,
-            background: C.lime,
-            border: `1.5px solid ${C.border}`,
-            borderRadius: 20,
-            padding: '4px 14px',
-            fontWeight: 800,
+            height: 56,
+            display: 'block',
+            filter: 'drop-shadow(0 2px 6px rgba(255,255,255,.85))',
           }}
-        >
-          近日公開 🔜
-        </span>
+        />
         <h1
           style={{
             margin: '12px 0 10px',
