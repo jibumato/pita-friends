@@ -6,7 +6,7 @@ import { ChevronLeft, DotsHorizontal, Heart } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchPublicProfile, type PublicProfile } from '../lib/queries'
-import { coinsPer30 } from '../flow'
+import { coinsPer30, screenNames } from '../flow'
 
 /* ---- デモ(モック)用の固定データ ---- */
 const MOCK_STATS = [
@@ -71,7 +71,8 @@ export default function Profile({ flow }: { flow: Flow }) {
     }
   }, [useReal, targetId])
 
-  const back = () => flow.go(useReal ? flow.profileReturn : 'home')
+  // 戻り先は開いた画面(さがす/ホーム/募集…)。デモ・実データを問わず元の一覧に戻す。
+  const back = () => flow.go(flow.profileReturn)
 
   // 表示値(実データ or モック)
   const name = useReal ? data?.nickname ?? '' : 'みなと'
@@ -133,8 +134,30 @@ export default function Profile({ flow }: { flow: Flow }) {
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 40px' }}>
-          <div onClick={back} style={{ cursor: 'pointer' }}>
+          {/* 戻る: 下部ナビが隠れる画面なので、アイコンだけでなくラベル付きの
+              十分な当たり判定を持たせて「出口」が一目で分かるようにする。 */}
+          <div
+            onClick={back}
+            role="button"
+            tabIndex={0}
+            aria-label={`${screenNames[flow.profileReturn]}に戻る`}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') back()
+            }}
+            style={{
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 3,
+              margin: '-8px -6px',
+              padding: '8px 10px 8px 6px',
+              borderRadius: 8,
+              color: '#fff',
+              fontSize: 12.5,
+            }}
+          >
             <ChevronLeft color="#fff" />
+            {screenNames[flow.profileReturn]}
           </div>
           {/* ⋯: 実データの相手なら通報/ブロックを開く */}
           <div

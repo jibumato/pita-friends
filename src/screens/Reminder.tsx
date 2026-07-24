@@ -4,6 +4,7 @@ import Screen, { DotPattern } from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import Avatar from '../components/Avatar'
 import PitaButton from '../components/PitaButton'
+import { ChevronLeft } from '../components/Icon'
 
 export default function Reminder({ flow }: { flow: Flow }) {
   return (
@@ -11,6 +12,32 @@ export default function Reminder({ flow }: { flow: Flow }) {
       <DotPattern />
       <div style={{ position: 'relative' }}>
         <StatusBar time="21:58" dark />
+      </div>
+      {/* 合流以外の出口。これが無いとトークから開いたあと戻れなくなる。 */}
+      <div style={{ position: 'relative', padding: '4px 20px 0' }}>
+        <span
+          onClick={() => flow.go('talk')}
+          role="button"
+          tabIndex={0}
+          aria-label="トークに戻る"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') flow.go('talk')
+          }}
+          style={{
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 3,
+            padding: '8px 10px 8px 6px',
+            marginLeft: -6,
+            borderRadius: 8,
+            color: '#fff',
+            fontSize: 12.5,
+          }}
+        >
+          <ChevronLeft color="#fff" />
+          トークにもどる
+        </span>
       </div>
       <div
         style={{
