@@ -857,9 +857,10 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
       </div>
       )}
       <div
+        className="pita-scroll"
         style={{
           flex: 1,
-          overflow: 'hidden',
+          overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
           gap: 18,
