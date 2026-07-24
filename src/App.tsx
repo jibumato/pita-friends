@@ -15,6 +15,7 @@ import {
 } from './flow'
 import type { ReportCategory } from './lib/database.types'
 import type { LegalDocKey } from './content/legalDocs'
+import type { PersonalityResult } from './content/personality'
 import PhoneFrame from './components/PhoneFrame'
 import LandingDesktop from './components/LandingDesktop'
 import DesktopTopBar from './components/DesktopTopBar'
@@ -76,6 +77,7 @@ import Ranking from './screens/Ranking'
 import AdminVerifications from './screens/AdminVerifications'
 import BlockList from './screens/BlockList'
 import LegalDoc from './screens/LegalDoc'
+import Personality from './screens/Personality'
 
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
@@ -109,6 +111,7 @@ const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
   'hostSettings',
   'legalDoc',
   'boardCreate',
+  'personality',
 ])
 
 /** 予約対象のホスト(さがす画面のカードから渡す最小情報)。 */
@@ -150,6 +153,8 @@ export type Flow = {
   searchFilters: Record<string, boolean>
   /** setup画面が新規オンボーディングか、マイページからの編集かを区別する。 */
   editingProfile: boolean
+  /** ゲーム相性診断の結果(未診断はnull)。 */
+  personalityResult: PersonalityResult | null
   bookingHost: BookingHost | null
   bookingDuration: BookingDuration
   bookingInsufficient: boolean
@@ -181,6 +186,8 @@ export type Flow = {
   startEditProfile: () => void
   /** 編集モードのsetupを保存してマイページへ戻る。 */
   finishEditProfile: () => void
+  /** ゲーム相性診断の結果を保存する(nullでクリア)。 */
+  setPersonalityResult: (r: PersonalityResult | null) => void
   setHostPref: <K extends keyof HostSettings>(key: K, value: HostSettings[K]) => void
   startBooking: (host: BookingHost) => void
   setBookingDuration: (min: BookingDuration) => void
@@ -240,6 +247,7 @@ const INITIAL = {
     ? {}
     : { 今夜あそべる: true, Apex: true, [SEARCH_VERIFIED_FILTER]: true }) as Record<string, boolean>,
   editingProfile: false,
+  personalityResult: null as PersonalityResult | null,
   bookingHost: null as BookingHost | null,
   bookingDuration: 60 as BookingDuration,
   bookingInsufficient: false,
@@ -385,8 +393,9 @@ export default function App() {
       safetyPrefs: state.safetyPrefs,
       coinBalance: state.coinBalance,
       hostSettings: state.hostSettings,
+      personalityResult: state.personalityResult,
     })
-  }, [state.theme, state.gender, state.safetyPrefs, state.coinBalance, state.hostSettings])
+  }, [state.theme, state.gender, state.safetyPrefs, state.coinBalance, state.hostSettings, state.personalityResult])
 
   const clearTimer = useCallback(() => {
     if (timer.current) {
@@ -613,6 +622,7 @@ export default function App() {
       setState((p) => ({ ...p, searchFilters: { ...p.searchFilters, [f]: !p.searchFilters[f] } })),
     startEditProfile: () => setState((p) => ({ ...p, editingProfile: true, screen: 'setup' })),
     finishEditProfile: () => setState((p) => ({ ...p, editingProfile: false, screen: 'mypage' })),
+    setPersonalityResult: (r) => setState((p) => ({ ...p, personalityResult: r })),
     setHostPref: (key, value) => {
       const previous = state.hostSettings[key]
       setState((p) => ({
@@ -720,6 +730,7 @@ export default function App() {
         {state.screen === 'adminVerifications' && <AdminVerifications flow={flow} />}
         {state.screen === 'blockList' && <BlockList flow={flow} />}
         {state.screen === 'legalDoc' && <LegalDoc flow={flow} />}
+        {state.screen === 'personality' && <Personality flow={flow} />}
         {flow.reportTarget && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
           </>
