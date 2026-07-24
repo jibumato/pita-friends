@@ -21,6 +21,7 @@ import LandingDesktop from './components/LandingDesktop'
 import DesktopTopBar from './components/DesktopTopBar'
 import DesktopSidebar from './components/DesktopSidebar'
 import DesktopHero from './components/DesktopHero'
+import DesktopFooter from './components/DesktopFooter'
 import { useIsMobile } from './hooks/useMediaQuery'
 import { loadPrefs, savePrefs } from './persist'
 import { isBackendConfigured } from './lib/supabase'
@@ -758,7 +759,7 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.canvas }}>
       <DesktopTopBar flow={flow} />
-      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
         <DesktopSidebar flow={flow} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           {/* ヒーローはメイン列の先頭に置き、ページと一緒にスクロールして流れていく。 */}
@@ -786,6 +787,7 @@ export default function App() {
           </div>
         </div>
       </div>
+      <DesktopFooter flow={flow} />
     </div>
   )
 }
