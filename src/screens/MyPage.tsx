@@ -11,9 +11,11 @@ import { fetchFriendCount, fetchPendingInviteCount } from '../lib/queries'
 import { coinsPer30 } from '../flow'
 import VoiceRecorder from '../components/VoiceRecorder'
 import { useIsMobile } from '../hooks/useMediaQuery'
+import { TYPES } from '../content/personality'
 
 export default function MyPage({ flow }: { flow: Flow }) {
   const mobile = useIsMobile()
+  const personalityType = flow.personalityResult ? TYPES[flow.personalityResult.typeId] : null
   const [friendCount, setFriendCount] = useState<number | null>(null)
   const [pendingCount, setPendingCount] = useState<number | null>(null)
 
@@ -182,6 +184,48 @@ export default function MyPage({ flow }: { flow: Flow }) {
             }}
           >
             チャージ
+          </span>
+        </div>
+
+        {/* ゲーム相性診断 */}
+        <div
+          onClick={() => flow.go('personality')}
+          style={{
+            cursor: 'pointer',
+            background: C.white,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 12,
+            boxShadow: `3px 3px 0 ${C.shadowCol}`,
+            padding: '13px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 8,
+              background: personalityType ? C[personalityType.colorToken] : C.surfaceLavender,
+              border: `1.5px solid ${C.border}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 19,
+              flex: 'none',
+            }}
+          >
+            {personalityType ? personalityType.emoji : '🎮'}
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 13, color: C.ink }}>ゲーム相性診断</span>
+            <span style={{ fontSize: 10.5, color: C.muted }}>
+              {personalityType ? `あなたは「${personalityType.name}」` : '12問であなたの遊び方タイプがわかる'}
+            </span>
+          </div>
+          <span style={{ fontSize: 11, color: C.lavender, fontWeight: 700 }}>
+            {personalityType ? '結果を見る ›' : '診断する ›'}
           </span>
         </div>
 

@@ -5,6 +5,7 @@
  */
 import { defaultSafetyPrefs, defaultHostSettings, type Gender, type SafetyPrefs, type HostSettings } from './flow'
 import type { Theme } from './App'
+import type { PersonalityResult } from './content/personality'
 
 const KEY = 'pita:prefs:v1'
 
@@ -14,6 +15,7 @@ export type PersistedPrefs = {
   safetyPrefs: SafetyPrefs
   coinBalance: number
   hostSettings: HostSettings
+  personalityResult: PersonalityResult | null
 }
 
 /** 保存済みの設定を読み出す(壊れていれば無視)。 */
@@ -36,6 +38,11 @@ export function loadPrefs(): Partial<PersistedPrefs> {
     }
     if (data.hostSettings && typeof data.hostSettings === 'object') {
       out.hostSettings = { ...defaultHostSettings, ...data.hostSettings }
+    }
+    // 診断結果は形が合っていそうなときだけ復元(壊れていれば未診断扱い)
+    const pr = data.personalityResult
+    if (pr && typeof pr === 'object' && pr.scores && typeof pr.typeId === 'string') {
+      out.personalityResult = pr
     }
     return out
   } catch {
