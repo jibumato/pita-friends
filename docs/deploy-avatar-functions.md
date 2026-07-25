@@ -44,10 +44,11 @@ service role は RLS を素通りするため、Edge Function 側で以下を強
 3. 関数名に `avatar-upload` を入力
 4. エディタの中身を全部消し、`supabase/functions/avatar-upload/index.ts` の中身を貼り付け
 5. **Deploy** を押す
-6. 同じ手順で残りの3つも作る
+6. 同じ手順で残りも作る/貼り直す
    - `avatar-delete` … アイコンを既定に戻す
    - `voice-upload` … ボイスプロフィールの保存
    - `voice-delete` … ボイスプロフィールの削除
+   - `record-ip` … IP記録(既存。同じ理由で401になるため貼り直しが必要)
 
 ### 方法B: CLI
 
@@ -56,11 +57,13 @@ supabase functions deploy avatar-upload
 supabase functions deploy avatar-delete
 supabase functions deploy voice-upload
 supabase functions deploy voice-delete
+supabase functions deploy record-ip
 ```
 
 ### 重要: Verify JWT を OFF にする
 
-デプロイ後、**4つすべての関数で必ず設定を変更する**。
+デプロイ後、**5つすべての関数で必ず設定を変更する**
+(`avatar-upload` / `avatar-delete` / `voice-upload` / `voice-delete` / `record-ip`)。
 
 1. Edge Functions → 対象の関数 → **Settings** タブ
 2. **「Verify JWT with legacy secret」を OFF** にして保存
