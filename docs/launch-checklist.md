@@ -25,8 +25,8 @@
 
 ## B. Supabase 本番設定
 
-1. ☐ **マイグレーション全適用**: SQL Editorで `supabase/schema-all.sql`(0001〜0015)
-   を未適用分まで実行(手順: `docs/apply-migrations.md`)
+1. ✅ **マイグレーション全適用**: `supabase/schema-all.sql`(0001〜0029)まで適用済み(2026-07-25)
+   (手順: `docs/apply-migrations.md`)
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ☐ **リダイレクトURLの登録**: Authentication → URL Configuration →
