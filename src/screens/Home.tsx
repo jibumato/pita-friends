@@ -852,6 +852,10 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '14px 20px 0',
         }}
       >
+        {/* 最上部: 今あそべる人。「今すぐ誰かと遊びたい」が来訪の主目的なので、
+            ランキング等の回遊導線より先に出す。深夜オフライン時は隠す。 */}
+        {!night && <OnlineStrip flow={flow} online={onlineUsers} />}
+
         {/* ランキングへの導線(デスクトップはサイドバー/メニューに常設済みのため、モバイルのみ表示) */}
         {mobile && (
           <div
@@ -876,9 +880,6 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             <span style={{ fontSize: 11, color: C.lavender, fontWeight: 700 }}>見る ›</span>
           </div>
         )}
-
-        {/* ヒーロー直下: 今あそべる人のアイコン一覧(コンパクト)。深夜オフライン時は隠す。 */}
-        {!night && <OnlineStrip flow={flow} online={onlineUsers} />}
 
         {/* デモ: 通常 / 深夜オフライン 状態の切替。実データ接続時は非表示。 */}
         {!isBackendConfigured && (
