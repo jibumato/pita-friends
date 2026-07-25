@@ -9,6 +9,7 @@ import { Coin } from '../components/Icon'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchFriendCount, fetchPendingInviteCount } from '../lib/queries'
 import { coinsPer30 } from '../flow'
+import { mannerScoreLabel, dotakyanLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import VoiceRecorder from '../components/VoiceRecorder'
 import AvatarEditor from '../components/AvatarEditor'
 import { presenceStatusLabel, presenceStatusDot } from '../lib/presenceLabel'
@@ -36,10 +37,13 @@ export default function MyPage({ flow }: { flow: Flow }) {
     }
   }, [])
 
-  const dotakyanRate =
-    flow.confirmedCount >= 3 ? `${Math.round((flow.dotakyanCount / flow.confirmedCount) * 100)}%` : '—'
+  // 実績が少ないうちは数値を出さない(docs/trust-safety-spec.md §1.2 / §2.2)
+  const dotakyanRate = dotakyanLabel(
+    flow.confirmedCount > 0 ? Math.round((flow.dotakyanCount / flow.confirmedCount) * 100) : 0,
+    flow.confirmedCount,
+  )
   const STATS = [
-    { v: `★${flow.mannerScore.toFixed(1)}`, l: 'マナー', fg: C.lavender },
+    { v: mannerScoreLabel(flow.mannerScore, flow.reviewCount) ?? NEW_MEMBER_LABEL, l: 'マナー', fg: C.lavender },
     { v: dotakyanRate, l: 'ドタキャン', fg: C.ink },
     { v: String(flow.confirmedCount), l: 'プレイ回数', fg: C.ink },
     { v: isBackendConfigured ? (friendCount === null ? '…' : String(friendCount)) : '12', l: 'フレンド', fg: C.ink },
@@ -165,7 +169,8 @@ export default function MyPage({ flow }: { flow: Flow }) {
                   gap: 1,
                 }}
               >
-                <span style={{ fontSize: 15, color: s.fg }}>{s.v}</span>
+                {/* 「実績これから」のような文言も入るため、長さに応じて縮める */}
+                <span style={{ fontSize: s.v.length > 5 ? 10 : 15, color: s.fg, textAlign: 'center' }}>{s.v}</span>
                 <span style={{ fontSize: 9, color: C.muted }}>{s.l}</span>
               </div>
             ))}

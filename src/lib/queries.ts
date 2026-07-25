@@ -34,6 +34,8 @@ export type AccountBundle = {
   wallet: { balance: number }
   trustStats: {
     manner_score: number
+    /** レビュー件数。3件未満はスコアを出さない(docs/trust-safety-spec.md §1.2)。 */
+    review_count: number
     dotakyan_count: number
     confirmed_count: number
     is_verified: boolean
@@ -54,7 +56,7 @@ export async function fetchAccountBundle(userId: string): Promise<AccountBundle 
     sb.from('coin_wallets').select('balance, bonus_balance').eq('user_id', userId).single(),
     sb
       .from('profile_trust_stats')
-      .select('manner_score, dotakyan_count, confirmed_count, is_verified')
+      .select('manner_score, review_count, dotakyan_count, confirmed_count, is_verified')
       .eq('user_id', userId)
       .single(),
   ])
@@ -117,6 +119,8 @@ export type DiscoverableHost = {
   games: string[]
   bio: string
   mannerScore: number
+  /** レビュー件数。3件未満はスコアを出さない(docs/trust-safety-spec.md §1.2)。 */
+  reviewCount: number
   isVerified: boolean
   /** ボイスプロフィールの公開URL(未登録は null)。カードから直接再生できる。 */
   voiceUrl: string | null
@@ -148,7 +152,7 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
 
   const [{ data: profiles, error: profilesError }, { data: stats, error: statsError }] = await Promise.all([
     sb.from('profiles').select('id, nickname, avatar_initial, avatar_color, voice_path, voice_seconds, avatar_path, last_seen_at, presence_status').in('id', userIds),
-    sb.from('profile_trust_stats').select('user_id, manner_score, is_verified').in('user_id', userIds),
+    sb.from('profile_trust_stats').select('user_id, manner_score, review_count, is_verified').in('user_id', userIds),
   ])
   if (profilesError) throw profilesError
   if (statsError) throw statsError
@@ -170,6 +174,7 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
         games: h.games,
         bio: h.bio,
         mannerScore: stat?.manner_score ?? 4.5,
+        reviewCount: stat?.review_count ?? 0,
         isVerified: stat?.is_verified ?? false,
         voiceUrl: profile.voice_path ? voiceGreetingUrl(profile.voice_path) : null,
         voiceSeconds: profile.voice_seconds ?? null,
@@ -1179,6 +1184,8 @@ export type PublicProfile = {
   avatarColor: string
   isVerified: boolean
   mannerScore: number
+  /** レビュー件数。3件未満はスコアを出さない(docs/trust-safety-spec.md §1.2)。 */
+  reviewCount: number
   dotakyanRate: number
   confirmedCount: number
   isHost: boolean
@@ -1200,7 +1207,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     sb.from('profiles').select('nickname, avatar_initial, avatar_color, voice_path, voice_seconds, avatar_path, last_seen_at, presence_status').eq('id', userId).single(),
     sb
       .from('profile_trust_stats')
-      .select('manner_score, dotakyan_count, confirmed_count, is_verified')
+      .select('manner_score, review_count, dotakyan_count, confirmed_count, is_verified')
       .eq('user_id', userId)
       .single(),
     sb.from('host_settings').select('is_host, hourly_rate, games, bio').eq('user_id', userId).single(),
@@ -1239,6 +1246,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     avatarColor: profileRes.data.avatar_color || '#B3E5F2',
     isVerified: trust?.is_verified ?? false,
     mannerScore: trust?.manner_score ?? 4.5,
+    reviewCount: trust?.review_count ?? 0,
     dotakyanRate: denom > 0 ? Math.round((dotakyan / denom) * 100) : 0,
     confirmedCount: confirmed,
     isHost: host?.is_host ?? false,

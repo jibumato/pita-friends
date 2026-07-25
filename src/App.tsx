@@ -171,6 +171,8 @@ export type Flow = {
   /** 本人のアイコン画像URL(未設定は null=頭文字＋カラー)。 */
   avatarUrl: string | null
   mannerScore: number
+  /** 自分のレビュー件数。3件未満はスコアを出さない(docs/trust-safety-spec.md §1.2)。 */
+  reviewCount: number
   dotakyanCount: number
   confirmedCount: number
   isVerified: boolean
@@ -275,6 +277,7 @@ const INITIAL = {
   confirmedCount: 47,
   isVerified: true,
   isAdmin: false,
+  reviewCount: 0,
   presenceStatus: 'online' as PresenceStatus,
   hostSettingsError: null as string | null,
 }
@@ -318,6 +321,7 @@ export default function App() {
         },
         coinBalance: bundle.wallet.balance,
         mannerScore: bundle.trustStats.manner_score,
+        reviewCount: bundle.trustStats.review_count,
         dotakyanCount: bundle.trustStats.dotakyan_count,
         confirmedCount: bundle.trustStats.confirmed_count,
         isVerified: bundle.trustStats.is_verified,
