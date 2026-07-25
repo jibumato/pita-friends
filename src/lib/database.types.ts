@@ -13,6 +13,8 @@
  */
 
 export type Gender = 'female' | 'male' | 'na'
+/** 本人が選ぶオンライン時の状態。ready=今すぐ遊べる / online=オンライン / busy=取り込み中。 */
+export type PresenceStatus = 'ready' | 'online' | 'busy'
 export type ContactScope = 'verified' | 'sameGender' | 'all'
 export type VerificationStatus = 'pending' | 'verified' | 'rejected'
 export type CoinTxType =
@@ -82,6 +84,8 @@ export type Database = {
           voice_path: string | null
           voice_seconds: number | null
           avatar_path: string | null
+          last_seen_at: string | null
+          presence_status: PresenceStatus
           created_at: string
           updated_at: string
         }
@@ -582,6 +586,14 @@ export type Database = {
       }
       admin_clear_avatar: {
         Args: { p_user_id: string }
+        Returns: void
+      }
+      touch_presence: {
+        Args: Record<string, never>
+        Returns: void
+      }
+      set_presence_status: {
+        Args: { p_status: PresenceStatus }
         Returns: void
       }
       host_ranking: {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
+import OnlineBadge from '../components/OnlineBadge'
 import StatusBar from '../components/StatusBar'
 import BottomTabs from '../components/BottomTabs'
 import { Chat } from '../components/Icon'
@@ -108,22 +109,32 @@ export default function TalkList({ flow }: { flow: Flow }) {
                     borderBottom: `1.5px solid ${C.divider}`,
                   }}
                 >
-                  <div
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 10,
-                      background: t.partnerColor,
-                      border: `1.5px solid ${C.border}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 20,
-                      color: C.ink,
-                      flex: 'none',
-                    }}
-                  >
-                    {t.partnerInitial}
+                  <div style={{ position: 'relative', flex: 'none' }}>
+                    <div
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 10,
+                        background: t.partnerColor,
+                        border: `1.5px solid ${C.border}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 20,
+                        color: C.ink,
+                      }}
+                    >
+                      {t.partnerInitial}
+                    </div>
+                    <span style={{ position: 'absolute', bottom: -2, right: -2, display: 'inline-flex' }}>
+                      <OnlineBadge
+                        variant="dot"
+                        lastSeenAt={t.partnerLastSeenAt}
+                        status={t.partnerPresenceStatus}
+                        size={13}
+                        ringColor={C.white}
+                      />
+                    </span>
                   </div>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>

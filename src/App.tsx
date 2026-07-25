@@ -13,7 +13,7 @@ import {
   type BookingDuration,
   type ReportTarget,
 } from './flow'
-import type { ReportCategory } from './lib/database.types'
+import type { ReportCategory, PresenceStatus } from './lib/database.types'
 import type { LegalDocKey } from './content/legalDocs'
 import type { PersonalityResult } from './content/personality'
 import PhoneFrame from './components/PhoneFrame'
@@ -39,6 +39,8 @@ import {
   createInvite as createInviteRemote,
   recordDevice,
   recordIp,
+  touchPresence,
+  setPresenceStatus as setPresenceStatusRemote,
 } from './lib/queries'
 
 import Welcome from './screens/Welcome'
@@ -83,6 +85,8 @@ import Personality from './screens/Personality'
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
 const AUTO_ADVANCE_MS = 2400
+/** last_seen_at を更新する間隔。オンライン判定の窓(5分)より短くする。 */
+const PRESENCE_HEARTBEAT_MS = 90_000
 
 /**
  * デスクトップのメイン列の幅を画面種別ごとに決める。
@@ -172,9 +176,13 @@ export type Flow = {
   isVerified: boolean
   /** admins テーブルに登録された運営アカウントか(本人確認の審査画面へのアクセス可否)。 */
   isAdmin: boolean
+  /** 自分のオンライン時の状態(今すぐ遊べる/オンライン/取り込み中)。 */
+  presenceStatus: PresenceStatus
   /** ホスト設定の直近の書き込みエラー(本人確認未完了等)。表示専用、次の操作で上書きされる。 */
   hostSettingsError: string | null
   setNickname: (n: string) => void
+  /** 自分の状態を切り替える(実データ接続時はDBにも保存)。 */
+  setPresenceStatus: (s: PresenceStatus) => void
   /** 本人のアイコン画像URLを更新する(アップロード/削除後にUIへ反映)。 */
   setAvatarUrl: (url: string | null) => void
   /** サインイン/起動時のセッション復元後に、本人のアカウントデータを読み込む。 */
@@ -265,6 +273,7 @@ const INITIAL = {
   confirmedCount: 47,
   isVerified: true,
   isAdmin: false,
+  presenceStatus: 'online' as PresenceStatus,
   hostSettingsError: null as string | null,
 }
 
@@ -290,6 +299,7 @@ export default function App() {
         userId,
         nickname: bundle.profile.nickname || p.nickname,
         avatarUrl: bundle.avatarUrl,
+        presenceStatus: bundle.presenceStatus,
         gender: bundle.profile.gender,
         safetyPrefs: {
           contactScope: bundle.safetyPrefs.contact_scope,
@@ -379,6 +389,23 @@ export default function App() {
     })
     return stop
   }, [state.userId, state.safetyPrefs.showOnline, state.nickname])
+
+  // last_seen_at の更新(ハートビート)。Realtime Presence は「いま開いている人」
+  // しか出せないため、少し前までいた人を「5分前」等で出せるように記録しておく。
+  // タブが裏に回っている間は送らない(離席中に在席扱いされないように)。
+  useEffect(() => {
+    if (!isBackendConfigured || !state.userId || !state.safetyPrefs.showOnline) return
+    const beat = () => {
+      if (document.visibilityState === 'visible') void touchPresence().catch(() => undefined)
+    }
+    beat()
+    const id = window.setInterval(beat, PRESENCE_HEARTBEAT_MS)
+    document.addEventListener('visibilitychange', beat)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', beat)
+    }
+  }, [state.userId, state.safetyPrefs.showOnline])
 
   // 端末ID・IPを記録(ギフトの自己取引/IP共有検知に使う)。ログイン後に一度だけ。
   useEffect(() => {
@@ -575,6 +602,14 @@ export default function App() {
       if (isBackendConfigured && state.userId) {
         updateProfileRemote(state.userId, { gender: g }).catch((err) =>
           console.warn('[pita-friends] gender更新に失敗:', err),
+        )
+      }
+    },
+    setPresenceStatus: (next) => {
+      setState((p) => ({ ...p, presenceStatus: next }))
+      if (isBackendConfigured && state.userId) {
+        setPresenceStatusRemote(next).catch((err) =>
+          console.warn('[pita-friends] ステータスの保存に失敗:', err),
         )
       }
     },
