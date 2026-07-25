@@ -1324,33 +1324,31 @@ export function avatarImageUrl(path: string): string {
 
 /**
  * 選んだ画像をアップロードして自分のアイコンに設定する(B方式=即公開)。
- * 本人フォルダ配下に固定パスで上書き保存。戻り値は公開URL。
- * キャッシュ回避のため URL に更新時刻を付ける。
+ * 戻り値は公開URL(キャッシュ回避のため更新時刻付き)。
+ *
+ * 保存は Edge Function(avatar-upload)経由で行う。ブラウザから
+ * storage.upload() を直接呼ぶと、ポリシー・バケット設定・JWTが全て
+ * 正しいにもかかわらず avatars バケットの RLS で必ず拒否されたため。
+ * 保存先パスはサーバ側で {uid}/avatar.webp を組み立てるので、
+ * 他人のフォルダには書き込めない。
  */
 export async function uploadAvatar(blob: Blob): Promise<string> {
   const sb = requireSupabase()
-  const { data: auth } = await sb.auth.getUser()
-  const me = auth.user?.id
-  if (!me) throw new Error('ログインが必要です')
-  const path = `${me}/avatar.webp`
-  const { error: upErr } = await sb.storage.from(AVATAR_BUCKET).upload(path, blob, {
-    upsert: true,
-    contentType: blob.type || 'image/webp',
-  })
-  if (upErr) throw upErr
-  const { error } = await sb.rpc('set_avatar', { p_path: path })
+  const form = new FormData()
+  form.append('file', new File([blob], 'avatar.webp', { type: blob.type || 'image/webp' }))
+  const { data, error } = await sb.functions.invoke<{ ok: boolean; url: string }>(
+    'avatar-upload',
+    { body: form },
+  )
   if (error) throw error
-  return `${avatarImageUrl(path)}?v=${Date.now()}`
+  if (!data?.url) throw new Error('アップロードに失敗しました')
+  return data.url
 }
 
 /** 自分のアイコン画像を削除して既定アバターに戻す。 */
 export async function deleteAvatar(): Promise<void> {
-  const sb = requireSupabase()
-  const { data: auth } = await sb.auth.getUser()
-  const me = auth.user?.id
-  if (!me) return
-  await sb.rpc('clear_avatar')
-  await sb.storage.from(AVATAR_BUCKET).remove([`${me}/avatar.webp`]).catch(() => undefined)
+  const { error } = await requireSupabase().functions.invoke('avatar-delete')
+  if (error) throw error
 }
 
 /** 管理者がアイコン画像を削除する(通報対応)。 */
