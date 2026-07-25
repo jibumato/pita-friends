@@ -54,6 +54,22 @@ supabase functions deploy avatar-upload
 supabase functions deploy avatar-delete
 ```
 
+### 重要: Verify JWT を OFF にする
+
+デプロイ後、**両方の関数で必ず設定を変更する**。
+
+1. Edge Functions → 対象の関数 → **Settings** タブ
+2. **「Verify JWT with legacy secret」を OFF** にして保存
+
+これをしないと **401 Unauthorized** で必ず失敗する。
+このプロジェクトでは JWT 署名鍵を新方式へローテーションした影響で、
+**Storage と Edge Function のプラットフォーム側 JWT 検証が機能していない**
+(PostgREST=DB操作だけは正常に動くため気づきにくい)。
+
+OFF にしても安全性は落ちない。関数の中で
+`auth.getUser(token)` により Auth API でトークンを検証しており、
+そこで特定した uid 以外のパスには書き込めないようにしているため。
+
 ### 必要なシークレット
 
 いずれも Supabase が自動で注入する標準の環境変数のため、**追加設定は不要**。
@@ -69,6 +85,23 @@ supabase functions deploy avatar-delete
 # 必要なら
 supabase secrets set APP_URL=https://pita-friends.example.com
 ```
+
+## トラブルシューティング
+
+### 401 Unauthorized になる
+
+上の「Verify JWT を OFF にする」を実施したか確認する。
+それでも 401 の場合は関数の **Logs** に `[avatar-upload] auth ...` が出ているか見る。
+
+- **ログがある** → 関数内の検証で弾かれている。メッセージが原因
+- **ログが無い**(booted/shutdown のみ) → プラットフォーム側で弾かれている。
+  Verify JWT の設定を再確認する
+
+### 参考: 過去にはまった実装ミス
+
+`auth.getUser()` を**引数なし**で呼ぶと、クライアント自身が保持するセッション
+(サーバ環境では常に空)を見にいくため、必ず 401 になる。
+必ず `auth.getUser(token)` とトークンを明示的に渡すこと。
 
 ## 動作確認
 
