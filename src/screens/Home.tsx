@@ -72,25 +72,25 @@ const GAME_EMOJI: Record<string, string> = {
 
 /** ヒーロー直下のアイコン一覧(いろんな人を紹介する用)のデモデータ。 */
 const ONLINE_STRIP = [
-  { initial: 'る', color: C.avatarOrange },
-  { initial: 'そ', color: C.avatarAqua },
-  { initial: 'ひ', color: C.avatarPink },
-  { initial: 'カ', color: C.lime },
-  { initial: 'み', color: C.avatarAqua },
-  { initial: 'あ', color: C.lavender },
-  { initial: 'り', color: '#C9F2C7' },
-  { initial: 'の', color: '#FFC7D9' },
-  { initial: 'ゆ', color: C.avatarOrange },
-  { initial: 'は', color: C.avatarAqua },
-  { initial: 'な', color: C.avatarPink },
-  { initial: 'れ', color: '#C9F2C7' },
+  { initial: 'る', name: 'るか', color: C.avatarOrange },
+  { initial: 'そ', name: 'そら', color: C.avatarAqua },
+  { initial: 'ひ', name: 'ひなた', color: C.avatarPink },
+  { initial: 'カ', name: 'カイト', color: C.lime },
+  { initial: 'み', name: 'みなと', color: C.avatarAqua },
+  { initial: 'あ', name: 'あおい', color: C.lavender },
+  { initial: 'り', name: 'りく', color: '#C9F2C7' },
+  { initial: 'の', name: 'ののか', color: '#FFC7D9' },
+  { initial: 'ゆ', name: 'ゆうき', color: C.avatarOrange },
+  { initial: 'は', name: 'はると', color: C.avatarAqua },
+  { initial: 'な', name: 'なな', color: C.avatarPink },
+  { initial: 'れ', name: 'れん', color: '#C9F2C7' },
 ]
 
 /** ヒーロー直下に置く、今あそべる人のアイコンのみ横並び(コンパクト)。 */
 function OnlineStrip({ flow, online }: { flow: Flow; online: OnlineUser[] }) {
   const items = isBackendConfigured
-    ? online.map((u) => ({ key: u.userId, initial: u.avatarInitial, color: u.avatarColor, userId: u.userId }))
-    : ONLINE_STRIP.map((u, i) => ({ key: `${u.initial}-${i}`, initial: u.initial, color: u.color, userId: null as string | null }))
+    ? online.map((u) => ({ key: u.userId, initial: u.avatarInitial, name: u.nickname, color: u.avatarColor, userId: u.userId }))
+    : ONLINE_STRIP.map((u, i) => ({ key: `${u.initial}-${i}`, initial: u.initial, name: u.name, color: u.color, userId: null as string | null }))
 
   if (isBackendConfigured && items.length === 0) return null
 
@@ -113,38 +113,61 @@ function OnlineStrip({ flow, online }: { flow: Flow; online: OnlineUser[] }) {
           <div
             key={u.key}
             onClick={() => (u.userId ? flow.openProfile(u.userId) : flow.go('profile'))}
-            {...clickable(() => (u.userId ? flow.openProfile(u.userId) : flow.go('profile')), 'プロフィールを見る')}
-            style={{ position: 'relative', flex: 'none', cursor: 'pointer' }}
+            {...clickable(() => (u.userId ? flow.openProfile(u.userId) : flow.go('profile')), `${u.name} のプロフィールを見る`)}
+            style={{
+              flex: 'none',
+              width: 52,
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 4,
+            }}
           >
-            <div
+            <div style={{ position: 'relative' }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  background: u.color,
+                  border: `1.5px solid ${C.border}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 17,
+                  color: C.ink,
+                }}
+              >
+                {u.initial}
+              </div>
+              <span
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  bottom: 1,
+                  right: 1,
+                  width: 11,
+                  height: 11,
+                  borderRadius: '50%',
+                  background: '#5FC26A',
+                  border: `2px solid ${C.surface}`,
+                }}
+              />
+            </div>
+            {/* 名前は1行に収める(長いニックネームは…で省略) */}
+            <span
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                background: u.color,
-                border: `1.5px solid ${C.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 17,
-                color: C.ink,
+                maxWidth: '100%',
+                fontSize: 9.5,
+                color: C.muted,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
-              {u.initial}
-            </div>
-            <span
-              aria-hidden
-              style={{
-                position: 'absolute',
-                bottom: 1,
-                right: 1,
-                width: 11,
-                height: 11,
-                borderRadius: '50%',
-                background: '#5FC26A',
-                border: `2px solid ${C.surface}`,
-              }}
-            />
+              {u.name}
+            </span>
           </div>
         ))}
       </div>
