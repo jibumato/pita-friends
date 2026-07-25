@@ -46,16 +46,20 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization') ?? ''
     if (!authHeader.startsWith('Bearer ')) {
+      console.error('[avatar-upload] auth', 'missing bearer')
       return json({ error: 'unauthorized' }, 401)
     }
 
-    // 呼び出し元の本人確認。ここで得た id 以外のパスには書かせない。
-    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const { data: userData, error: userErr } = await userClient.auth.getUser()
+    // 呼び出し元の本人確認。
+    // getUser() は引数なしだとクライアント自身のセッション(サーバでは常に空)を
+    // 見てしまうため、必ずトークンを明示的に渡してAuth APIに検証させる。
+    const token = authHeader.slice('Bearer '.length)
+    const userClient = createClient(SUPABASE_URL, ANON_KEY)
+    const { data: userData, error: userErr } = await userClient.auth.getUser(token)
     const uid = userData?.user?.id
     if (userErr || !uid) {
+      // 401の原因を後から追えるように残す(ログが無いと調査できないため)
+      console.error('[avatar-upload] auth', userErr?.message ?? 'no user')
       return json({ error: 'unauthorized' }, 401)
     }
 
