@@ -14,12 +14,15 @@ import type {
   AccountRequestType,
   PayoutStatus,
   BankAccountType,
+  PresenceStatus,
 } from './database.types'
 
 export type AccountBundle = {
   profile: { nickname: string; gender: Gender }
   /** 本人のアイコン画像URL(未設定は null)。 */
   avatarUrl: string | null
+  /** 本人が選んでいる状態(今すぐ遊べる/オンライン/取り込み中)。 */
+  presenceStatus: PresenceStatus
   safetyPrefs: {
     contact_scope: ContactScope
     approval_required: boolean
@@ -41,7 +44,7 @@ export type AccountBundle = {
 export async function fetchAccountBundle(userId: string): Promise<AccountBundle | null> {
   const sb = requireSupabase()
   const [profileRes, safetyRes, hostRes, walletRes, trustRes] = await Promise.all([
-    sb.from('profiles').select('nickname, gender, avatar_path').eq('id', userId).single(),
+    sb.from('profiles').select('nickname, gender, avatar_path, presence_status').eq('id', userId).single(),
     sb
       .from('safety_prefs')
       .select('contact_scope, approval_required, show_online, discoverable, block_low_trust')
@@ -66,6 +69,7 @@ export async function fetchAccountBundle(userId: string): Promise<AccountBundle 
   return {
     profile: { nickname: profileRes.data.nickname, gender: profileRes.data.gender },
     avatarUrl: profileRes.data.avatar_path ? avatarImageUrl(profileRes.data.avatar_path) : null,
+    presenceStatus: profileRes.data.presence_status ?? 'online',
     safetyPrefs: safetyRes.data,
     hostSettings: hostRes.data,
     // 予約に使えるのは有償＋ボーナスの合計(消費は有償が先。0016)
@@ -119,6 +123,10 @@ export type DiscoverableHost = {
   voiceSeconds: number | null
   /** アイコン画像の公開URL(未設定は null=頭文字＋カラー)。 */
   avatarUrl: string | null
+  /** 最終在席時刻(ISO)。オンライン状態を非公開にしている人は null。 */
+  lastSeenAt: string | null
+  /** 本人が選んだ状態(ready/online/busy)。 */
+  presenceStatus: PresenceStatus
 }
 
 /**
@@ -139,7 +147,7 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
   if (userIds.length === 0) return []
 
   const [{ data: profiles, error: profilesError }, { data: stats, error: statsError }] = await Promise.all([
-    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color, voice_path, voice_seconds, avatar_path').in('id', userIds),
+    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color, voice_path, voice_seconds, avatar_path, last_seen_at, presence_status').in('id', userIds),
     sb.from('profile_trust_stats').select('user_id, manner_score, is_verified').in('user_id', userIds),
   ])
   if (profilesError) throw profilesError
@@ -166,6 +174,8 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
         voiceUrl: profile.voice_path ? voiceGreetingUrl(profile.voice_path) : null,
         voiceSeconds: profile.voice_seconds ?? null,
         avatarUrl: profile.avatar_path ? avatarImageUrl(profile.avatar_path) : null,
+        lastSeenAt: profile.last_seen_at ?? null,
+        presenceStatus: profile.presence_status ?? 'online',
       }
     })
 }
@@ -331,6 +341,9 @@ export type ChatThread = {
   lastMessage: string | null
   lastMessageAt: string | null
   unreadCount: number
+  /** 相手のオンライン表示用(非公開なら null)。 */
+  partnerLastSeenAt: string | null
+  partnerPresenceStatus: PresenceStatus
 }
 
 /** 自分が参加している約束(promise)を、トークルーム一覧として取得する。 */
@@ -352,7 +365,7 @@ export async function fetchChatThreads(): Promise<ChatThread[]> {
   const promiseIds = promises.map((p) => p.id)
 
   const [{ data: profiles }, { data: stats }, { data: lastMsgs }, { data: reads }] = await Promise.all([
-    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color').in('id', partnerIds),
+    sb.from('profiles').select('id, nickname, avatar_initial, avatar_color, last_seen_at, presence_status').in('id', partnerIds),
     sb.from('profile_trust_stats').select('user_id, is_verified').in('user_id', partnerIds),
     sb
       .from('messages')
@@ -394,6 +407,8 @@ export async function fetchChatThreads(): Promise<ChatThread[]> {
       lastMessage: last?.body ?? null,
       lastMessageAt: last?.created_at ?? p.created_at,
       unreadCount: unreadByPromise.get(p.id) ?? 0,
+      partnerLastSeenAt: partner?.last_seen_at ?? null,
+      partnerPresenceStatus: partner?.presence_status ?? 'online',
     }
   })
 }
@@ -1173,6 +1188,8 @@ export type PublicProfile = {
   voiceUrl: string | null
   voiceSeconds: number | null
   avatarUrl: string | null
+  lastSeenAt: string | null
+  presenceStatus: PresenceStatus
   latestReview: { stars: number; tags: string[]; reviewerName: string } | null
 }
 
@@ -1180,7 +1197,7 @@ export type PublicProfile = {
 export async function fetchPublicProfile(userId: string): Promise<PublicProfile | null> {
   const sb = requireSupabase()
   const [profileRes, trustRes, hostRes, reviewRes] = await Promise.all([
-    sb.from('profiles').select('nickname, avatar_initial, avatar_color, voice_path, voice_seconds, avatar_path').eq('id', userId).single(),
+    sb.from('profiles').select('nickname, avatar_initial, avatar_color, voice_path, voice_seconds, avatar_path, last_seen_at, presence_status').eq('id', userId).single(),
     sb
       .from('profile_trust_stats')
       .select('manner_score, dotakyan_count, confirmed_count, is_verified')
@@ -1231,6 +1248,8 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     avatarUrl: profileRes.data.avatar_path ? avatarImageUrl(profileRes.data.avatar_path) : null,
     voiceUrl: profileRes.data.voice_path ? voiceGreetingUrl(profileRes.data.voice_path) : null,
     voiceSeconds: profileRes.data.voice_seconds ?? null,
+    lastSeenAt: profileRes.data.last_seen_at ?? null,
+    presenceStatus: profileRes.data.presence_status ?? 'online',
     latestReview,
   }
 }
@@ -1305,38 +1324,55 @@ export function avatarImageUrl(path: string): string {
 
 /**
  * 選んだ画像をアップロードして自分のアイコンに設定する(B方式=即公開)。
- * 本人フォルダ配下に固定パスで上書き保存。戻り値は公開URL。
- * キャッシュ回避のため URL に更新時刻を付ける。
+ * 戻り値は公開URL(キャッシュ回避のため更新時刻付き)。
+ *
+ * 保存は Edge Function(avatar-upload)経由で行う。ブラウザから
+ * storage.upload() を直接呼ぶと、ポリシー・バケット設定・JWTが全て
+ * 正しいにもかかわらず avatars バケットの RLS で必ず拒否されたため。
+ * 保存先パスはサーバ側で {uid}/avatar.webp を組み立てるので、
+ * 他人のフォルダには書き込めない。
  */
 export async function uploadAvatar(blob: Blob): Promise<string> {
   const sb = requireSupabase()
-  const { data: auth } = await sb.auth.getUser()
-  const me = auth.user?.id
-  if (!me) throw new Error('ログインが必要です')
-  const path = `${me}/avatar.webp`
-  const { error: upErr } = await sb.storage.from(AVATAR_BUCKET).upload(path, blob, {
-    upsert: true,
-    contentType: blob.type || 'image/webp',
-  })
-  if (upErr) throw upErr
-  const { error } = await sb.rpc('set_avatar', { p_path: path })
+  const form = new FormData()
+  form.append('file', new File([blob], 'avatar.webp', { type: blob.type || 'image/webp' }))
+  const { data, error } = await sb.functions.invoke<{ ok: boolean; url: string }>(
+    'avatar-upload',
+    { body: form },
+  )
   if (error) throw error
-  return `${avatarImageUrl(path)}?v=${Date.now()}`
+  if (!data?.url) throw new Error('アップロードに失敗しました')
+  return data.url
 }
 
 /** 自分のアイコン画像を削除して既定アバターに戻す。 */
 export async function deleteAvatar(): Promise<void> {
-  const sb = requireSupabase()
-  const { data: auth } = await sb.auth.getUser()
-  const me = auth.user?.id
-  if (!me) return
-  await sb.rpc('clear_avatar')
-  await sb.storage.from(AVATAR_BUCKET).remove([`${me}/avatar.webp`]).catch(() => undefined)
+  const { error } = await requireSupabase().functions.invoke('avatar-delete')
+  if (error) throw error
 }
 
 /** 管理者がアイコン画像を削除する(通報対応)。 */
 export async function adminClearAvatar(userId: string): Promise<void> {
   const { error } = await requireSupabase().rpc('admin_clear_avatar', { p_user_id: userId })
+  if (error) throw error
+}
+
+/* ============================================================
+ * オンラインステータス。schema: 0026_presence_status。
+ * Realtime Presence(いま開いている人)を補い、last_seen_at で
+ * 「5分前」「1時間前」といった直近の在席も出せるようにする。
+ * オンライン状態を非公開にしている人は last_seen_at が null のまま。
+ * ============================================================ */
+
+/** 自分の在席を記録する。非公開設定ならサーバー側で無視される。 */
+export async function touchPresence(): Promise<void> {
+  const { error } = await requireSupabase().rpc('touch_presence')
+  if (error) throw error
+}
+
+/** 自分の状態(今すぐ遊べる/オンライン/取り込み中)を設定する。 */
+export async function setPresenceStatus(status: PresenceStatus): Promise<void> {
+  const { error } = await requireSupabase().rpc('set_presence_status', { p_status: status })
   if (error) throw error
 }
 

@@ -12,6 +12,8 @@ import { fetchDiscoverableHosts } from '../lib/queries'
 import { subscribeOnlineUsers } from '../lib/presence'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { clickable } from '../hooks/clickable'
+import OnlineBadge from '../components/OnlineBadge'
+import type { PresenceStatus } from '../lib/database.types'
 import { GAMES, coinsPer30, SEARCH_VERIFIED_FILTER as VERIFIED_FILTER, SEARCH_DEMO_FILTERS as DEMO_FILTERS, SEARCH_REAL_FILTERS as REAL_FILTERS } from '../flow'
 
 type Phase = 'loading' | 'results' | 'empty' | 'error'
@@ -29,6 +31,8 @@ type DisplayCard = {
   hourlyRate?: number
   bookingHost?: BookingHost
   avatarUrl?: string | null
+  lastSeenAt?: string | null
+  presenceStatus?: PresenceStatus
 }
 
 function fromMock(u: (typeof searchUsers)[number]): DisplayCard {
@@ -97,6 +101,8 @@ export default function Search({ flow }: { flow: Flow }) {
             userId: h.userId,
           },
           avatarUrl: h.avatarUrl,
+          lastSeenAt: h.lastSeenAt,
+          presenceStatus: h.presenceStatus,
         }))
         setRealCards(cards)
         setPhase(cards.length > 0 ? 'results' : 'empty')
@@ -382,7 +388,15 @@ export default function Search({ flow }: { flow: Flow }) {
                       </span>
                     )}
                   </div>
-                  <span style={{ fontSize: 10.5, color: C.muted }}>{u.scoreLabel}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 10.5, color: C.muted }}>{u.scoreLabel}</span>
+                    <OnlineBadge
+                      live={online}
+                      lastSeenAt={u.lastSeenAt}
+                      status={u.presenceStatus}
+                      fontSize={10}
+                    />
+                  </div>
                 </div>
               </div>
               <span

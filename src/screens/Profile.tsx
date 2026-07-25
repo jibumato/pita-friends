@@ -7,6 +7,8 @@ import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchPublicProfile, type PublicProfile } from '../lib/queries'
 import { coinsPer30, screenNames } from '../flow'
+import OnlineBadge from '../components/OnlineBadge'
+import { subscribeOnlineUsers } from '../lib/presence'
 
 /* ---- デモ(モック)用の固定データ ---- */
 const MOCK_STATS = [
@@ -50,6 +52,7 @@ export default function Profile({ flow }: { flow: Flow }) {
   const targetId = flow.profileUserId
   const useReal = isBackendConfigured && !!targetId
 
+  const [live, setLive] = useState(false)
   const [data, setData] = useState<PublicProfile | null>(null)
   const [loading, setLoading] = useState(useReal)
   const [error, setError] = useState<string | null>(null)
@@ -70,6 +73,12 @@ export default function Profile({ flow }: { flow: Flow }) {
       active = false
     }
   }, [useReal, targetId])
+
+  // Realtime Presence でいま接続中かを見る(last_seen_at より確実なので優先)。
+  useEffect(() => {
+    if (!useReal || !targetId) return
+    return subscribeOnlineUsers(flow.userId, (users) => setLive(users.some((u) => u.userId === targetId)))
+  }, [useReal, targetId, flow.userId])
 
   // 戻り先は開いた画面(さがす/ホーム/募集…)。デモ・実データを問わず元の一覧に戻す。
   const back = () => flow.go(flow.profileReturn)
@@ -230,7 +239,15 @@ export default function Profile({ flow }: { flow: Flow }) {
                   </span>
                 )}
               </div>
-              <span style={{ fontSize: 11, color: C.muted }}>{subtitle}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, color: C.muted }}>{subtitle}</span>
+                <OnlineBadge
+                  live={live}
+                  lastSeenAt={data?.lastSeenAt}
+                  status={data?.presenceStatus}
+                  fontSize={10.5}
+                />
+              </div>
             </div>
           </div>
 

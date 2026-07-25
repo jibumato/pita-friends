@@ -11,6 +11,8 @@ import { fetchFriendCount, fetchPendingInviteCount } from '../lib/queries'
 import { coinsPer30 } from '../flow'
 import VoiceRecorder from '../components/VoiceRecorder'
 import AvatarEditor from '../components/AvatarEditor'
+import { presenceStatusLabel, presenceStatusDot } from '../lib/presenceLabel'
+import type { PresenceStatus } from '../lib/database.types'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { TYPES } from '../content/personality'
 
@@ -100,6 +102,53 @@ export default function MyPage({ flow }: { flow: Flow }) {
               編集
             </span>
           </div>
+          {/* 自分の状態。オンライン=誘ってよい とは限らないので本人が意思表示できるようにする。
+              オンライン状態を非公開にしている間は相手に届かないため、その旨を出す。 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {(['ready', 'online', 'busy'] as PresenceStatus[]).map((st) => {
+                const sel = flow.presenceStatus === st
+                return (
+                  <span
+                    key={st}
+                    onClick={() => flow.setPresenceStatus(st)}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={sel}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') flow.setPresenceStatus(st)
+                    }}
+                    style={{
+                      cursor: 'pointer',
+                      flex: 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 5,
+                      fontSize: 11,
+                      color: C.ink,
+                      background: sel ? C.lime : C.white,
+                      border: `1.5px solid ${C.border}`,
+                      borderRadius: 6,
+                      padding: '7px 4px',
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      style={{ width: 7, height: 7, borderRadius: '50%', background: presenceStatusDot[st], flex: 'none' }}
+                    />
+                    {presenceStatusLabel[st]}
+                  </span>
+                )
+              })}
+            </div>
+            {!flow.safetyPrefs.showOnline && (
+              <span style={{ fontSize: 9.5, color: C.placeholder, lineHeight: 1.6 }}>
+                いまはオンライン状態を非公開にしています。相手には表示されません（安心設定で変更できます）。
+              </span>
+            )}
+          </div>
+
           <div style={{ display: 'flex', gap: 8 }}>
             {STATS.map((s) => (
               <div

@@ -6,9 +6,11 @@ import BottomTabs from '../components/BottomTabs'
 import { Bell, Sun, MoonSmall, Moon } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
+import OnlineBadge from '../components/OnlineBadge'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { isBackendConfigured } from '../lib/supabase'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
+import type { PresenceStatus } from '../lib/database.types'
 import { coinsPer30, GAMES } from '../flow'
 import {
   fetchDiscoverableHosts,
@@ -89,8 +91,8 @@ const ONLINE_STRIP = [
 /** ヒーロー直下に置く、今あそべる人のアイコンのみ横並び(コンパクト)。 */
 function OnlineStrip({ flow, online }: { flow: Flow; online: OnlineUser[] }) {
   const items = isBackendConfigured
-    ? online.map((u) => ({ key: u.userId, initial: u.avatarInitial, name: u.nickname, color: u.avatarColor, userId: u.userId }))
-    : ONLINE_STRIP.map((u, i) => ({ key: `${u.initial}-${i}`, initial: u.initial, name: u.name, color: u.color, userId: null as string | null }))
+    ? online.map((u) => ({ key: u.userId, initial: u.avatarInitial, name: u.nickname, color: u.avatarColor, userId: u.userId, status: 'online' as PresenceStatus }))
+    : ONLINE_STRIP.map((u, i) => ({ key: `${u.initial}-${i}`, initial: u.initial, name: u.name, color: u.color, userId: null as string | null, status: 'online' as PresenceStatus }))
 
   if (isBackendConfigured && items.length === 0) return null
 
@@ -141,19 +143,9 @@ function OnlineStrip({ flow, online }: { flow: Flow; online: OnlineUser[] }) {
               >
                 {u.initial}
               </div>
-              <span
-                aria-hidden
-                style={{
-                  position: 'absolute',
-                  bottom: 1,
-                  right: 1,
-                  width: 11,
-                  height: 11,
-                  borderRadius: '50%',
-                  background: '#5FC26A',
-                  border: `2px solid ${C.surface}`,
-                }}
-              />
+              <span style={{ position: 'absolute', bottom: 1, right: 1, display: 'inline-flex' }}>
+                <OnlineBadge variant="dot" live status={u.status} size={11} ringColor={C.surface} />
+              </span>
             </div>
             {/* 名前は1行に収める(長いニックネームは…で省略) */}
             <span
@@ -192,28 +184,35 @@ type RecommendCardData = {
   voiceSeconds?: number | null
   /** アイコン画像URL。あれば頭文字＋カラーの代わりに表示する。 */
   avatarUrl?: string | null
+  /** オンライン表示用。live=いま接続中、lastSeenAt=最終在席。 */
+  live?: boolean
+  lastSeenAt?: string | null
+  presenceStatus?: PresenceStatus
 }
+
+/** デモの在席状態(実データ接続時は profiles.last_seen_at と Realtime から出す)。 */
+const demoAgo = (min: number) => new Date(Date.now() - min * 60_000).toISOString()
 
 /** デモ時のおすすめホスト(実データ接続時は fetchDiscoverableHosts から生成)。 */
 const DEMO_RECOMMENDED: RecommendCardData[] = [
-  { key: 'み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex', '今夜22時〜'], price30: 300, compat: 92, meta: '★4.8・マナー◎' },
-  { key: 'の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', '週末'], price30: 250, compat: 89, meta: '★4.9・マナー◎' },
-  { key: 'カ', userId: null, initial: 'カ', color: C.lime, name: 'かい', verified: false, chips: ['Overwatch', '平日夜'], price30: 200, compat: 85, meta: '★4.7・マナー◎' },
-  { key: 'あ', userId: null, initial: 'あ', color: C.avatarOrange, name: 'あおい', verified: true, chips: ['Fortnite', '今夜'], price30: 280, compat: 83, meta: '★4.8・マナー◎' },
-  { key: 'り', userId: null, initial: 'り', color: '#C9F2C7', name: 'りく', verified: false, chips: ['LoL', '深夜'], price30: 220, compat: 80, meta: '★4.6・マナー◎' },
-  { key: 'ゆ', userId: null, initial: 'ゆ', color: C.lavender, name: 'ゆうき', verified: true, chips: ['マイクラ', '平日'], price30: 180, compat: 78, meta: '★4.7・マナー◎' },
+  { key: 'み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex', '今夜22時〜'], price30: 300, compat: 92, meta: '★4.8・マナー◎' , live: true, presenceStatus: 'ready' },
+  { key: 'の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', '週末'], price30: 250, compat: 89, meta: '★4.9・マナー◎' , live: true },
+  { key: 'カ', userId: null, initial: 'カ', color: C.lime, name: 'かい', verified: false, chips: ['Overwatch', '平日夜'], price30: 200, compat: 85, meta: '★4.7・マナー◎' , lastSeenAt: demoAgo(25) },
+  { key: 'あ', userId: null, initial: 'あ', color: C.avatarOrange, name: 'あおい', verified: true, chips: ['Fortnite', '今夜'], price30: 280, compat: 83, meta: '★4.8・マナー◎' , live: true },
+  { key: 'り', userId: null, initial: 'り', color: '#C9F2C7', name: 'りく', verified: false, chips: ['LoL', '深夜'], price30: 220, compat: 80, meta: '★4.6・マナー◎' , lastSeenAt: demoAgo(90) },
+  { key: 'ゆ', userId: null, initial: 'ゆ', color: C.lavender, name: 'ゆうき', verified: true, chips: ['マイクラ', '平日'], price30: 180, compat: 78, meta: '★4.7・マナー◎' , lastSeenAt: demoAgo(2) },
 ]
 
 /** デモ時の人気ユーザー(実データ接続時は掲載ホストをマナー順に表示)。相性%は出さずプレイ実績で見せる。 */
 const DEMO_POPULAR: RecommendCardData[] = [
-  { key: 'p-の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', 'Apex'], price30: 250, compat: null, meta: '★4.9 · 320回プレイ', voiceSeconds: 9 },
-  { key: 'p-み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex'], price30: 300, compat: null, meta: '★4.8 · 280回プレイ', voiceSeconds: 12 },
-  { key: 'p-あ', userId: null, initial: 'あ', color: C.lavender, name: 'あおい', verified: true, chips: ['Fortnite'], price30: 280, compat: null, meta: '★4.8 · 260回プレイ', voiceSeconds: 7 },
-  { key: 'p-れ', userId: null, initial: 'れ', color: C.avatarAqua, name: 'れん', verified: true, chips: ['Overwatch 2'], price30: 350, compat: null, meta: '★4.8 · 240回プレイ', voiceSeconds: 10 },
-  { key: 'p-な', userId: null, initial: 'な', color: C.avatarPink, name: 'なな', verified: true, chips: ['スプラ', 'あつ森'], price30: 260, compat: null, meta: '★4.9 · 190回プレイ', voiceSeconds: 8 },
-  { key: 'p-り', userId: null, initial: 'り', color: '#C9F2C7', name: 'りく', verified: false, chips: ['LoL'], price30: 220, compat: null, meta: '★4.7 · 210回プレイ', voiceSeconds: 6 },
-  { key: 'p-か', userId: null, initial: 'か', color: C.lime, name: 'かい', verified: false, chips: ['Overwatch 2', 'VALORANT'], price30: 400, compat: null, meta: '★4.7 · 180回プレイ', voiceSeconds: 11 },
-  { key: 'p-そ', userId: null, initial: 'そ', color: C.avatarOrange, name: 'そら', verified: true, chips: ['Apex'], price30: 200, compat: null, meta: '★4.7 · 170回プレイ', voiceSeconds: 8 },
+  { key: 'p-の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', 'Apex'], price30: 250, compat: null, meta: '★4.9 · 320回プレイ', voiceSeconds: 9 , live: true, presenceStatus: 'ready' },
+  { key: 'p-み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex'], price30: 300, compat: null, meta: '★4.8 · 280回プレイ', voiceSeconds: 12 , live: true },
+  { key: 'p-あ', userId: null, initial: 'あ', color: C.lavender, name: 'あおい', verified: true, chips: ['Fortnite'], price30: 280, compat: null, meta: '★4.8 · 260回プレイ', voiceSeconds: 7 , lastSeenAt: demoAgo(12) },
+  { key: 'p-れ', userId: null, initial: 'れ', color: C.avatarAqua, name: 'れん', verified: true, chips: ['Overwatch 2'], price30: 350, compat: null, meta: '★4.8 · 240回プレイ', voiceSeconds: 10 , live: true, presenceStatus: 'busy' },
+  { key: 'p-な', userId: null, initial: 'な', color: C.avatarPink, name: 'なな', verified: true, chips: ['スプラ', 'あつ森'], price30: 260, compat: null, meta: '★4.9 · 190回プレイ', voiceSeconds: 8 , lastSeenAt: demoAgo(48) },
+  { key: 'p-り', userId: null, initial: 'り', color: '#C9F2C7', name: 'りく', verified: false, chips: ['LoL'], price30: 220, compat: null, meta: '★4.7 · 210回プレイ', voiceSeconds: 6 , lastSeenAt: demoAgo(3) },
+  { key: 'p-か', userId: null, initial: 'か', color: C.lime, name: 'かい', verified: false, chips: ['Overwatch 2', 'VALORANT'], price30: 400, compat: null, meta: '★4.7 · 180回プレイ', voiceSeconds: 11 , lastSeenAt: demoAgo(180) },
+  { key: 'p-そ', userId: null, initial: 'そ', color: C.avatarOrange, name: 'そら', verified: true, chips: ['Apex'], price30: 200, compat: null, meta: '★4.7 · 170回プレイ', voiceSeconds: 8 , live: true },
 ]
 
 /** おすすめホストのカード(グリッドの1枚)。各カードで押下フィードバックを持たせるため独立コンポーネント。 */
@@ -280,7 +279,15 @@ function RecommendCard({ data, onOpen }: { data: RecommendCardData; onOpen: () =
               </span>
             )}
           </div>
-          <span style={{ fontSize: 10, color: C.muted }}>{data.meta}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 10, color: C.muted }}>{data.meta}</span>
+            <OnlineBadge
+              live={data.live}
+              lastSeenAt={data.lastSeenAt}
+              status={data.presenceStatus}
+              fontSize={9.5}
+            />
+          </div>
         </div>
         {data.compat !== null && (
           <span style={{ fontSize: 14, color: C.lavender, fontWeight: 700, flex: 'none' }}>{data.compat}%</span>
@@ -416,6 +423,15 @@ function PopularUserCard({ data, onOpen }: { data: RecommendCardData; onOpen: ()
             ✓ 確認済み
           </span>
         )}
+        {/* オンライン状態(右上)。非公開・未記録なら何も出ない。 */}
+        <span style={{ position: 'absolute', top: 8, right: 8 }}>
+          <OnlineBadge
+            live={data.live}
+            lastSeenAt={data.lastSeenAt}
+            status={data.presenceStatus}
+            fontSize={9.5}
+          />
+        </span>
         {hasVoice && (
           <span
             onClick={toggleVoice}
@@ -748,6 +764,8 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
   const [recommended, setRecommended] = useState<DiscoverableHost[]>([])
   const [ranking, setRanking] = useState<RankingEntry[]>([])
   const [unreadNotifs, setUnreadNotifs] = useState(0)
+  /** いまRealtimeで在席が確認できているユーザー。カードのオンライン表示に使う。 */
+  const liveIds = new Set(onlineUsers.map((u) => u.userId))
 
   useEffect(() => {
     if (!isBackendConfigured) return
@@ -994,6 +1012,9 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                 compat: null,
                 meta: `★${h.mannerScore.toFixed(1)}・マナー◎`,
                 avatarUrl: h.avatarUrl,
+                live: liveIds.has(h.userId),
+                lastSeenAt: h.lastSeenAt,
+                presenceStatus: h.presenceStatus,
               }))
             : DEMO_RECOMMENDED
           if (cards.length === 0) return null
@@ -1051,6 +1072,9 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   voiceUrl: h.voiceUrl,
                   voiceSeconds: h.voiceSeconds,
                   avatarUrl: h.avatarUrl,
+                  live: liveIds.has(h.userId),
+                  lastSeenAt: h.lastSeenAt,
+                  presenceStatus: h.presenceStatus,
                 }))
             : DEMO_POPULAR
           if (popular.length === 0) return null
