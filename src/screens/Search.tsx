@@ -11,6 +11,7 @@ import { isBackendConfigured } from '../lib/supabase'
 import { fetchDiscoverableHosts } from '../lib/queries'
 import { subscribeOnlineUsers } from '../lib/presence'
 import { useIsMobile } from '../hooks/useMediaQuery'
+import { clickable } from '../hooks/clickable'
 import { GAMES, coinsPer30, SEARCH_VERIFIED_FILTER as VERIFIED_FILTER, SEARCH_DEMO_FILTERS as DEMO_FILTERS, SEARCH_REAL_FILTERS as REAL_FILTERS } from '../flow'
 
 type Phase = 'loading' | 'results' | 'empty' | 'error'
@@ -130,7 +131,7 @@ export default function Search({ flow }: { flow: Flow }) {
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:47" />
-      <div style={{ padding: '12px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ flex: 'none', padding: '12px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span style={{ fontSize: 21, color: C.ink }}>▶ さがす</span>
@@ -205,29 +206,54 @@ export default function Search({ flow }: { flow: Flow }) {
                 <span style={{ fontSize: 13, color: C.placeholder }}>ゲーム名・プレイスタイルで検索</span>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-              {(isBackendConfigured ? REAL_FILTERS : DEMO_FILTERS).map((f) => {
-                const sel = !!selected[f]
-                const isVerify = f.startsWith('✓')
-                return (
-                  <span
-                    key={f}
-                    onClick={() => flow.toggleSearchFilter(f)}
-                    style={{
-                      cursor: 'pointer',
-                      fontSize: 12,
-                      color: sel ? (isVerify ? C.ink : C.lime) : C.ink,
-                      background: sel ? (isVerify ? C.lime : C.ink) : C.white,
-                      border: `1.5px solid ${C.border}`,
-                      padding: '7px 13px',
-                      borderRadius: 4,
-                    }}
-                  >
-                    {f}
-                  </span>
-                )
-              })}
+            {/* ゲームの絞り込みは実データだと27件あり、折り返すと画面の大半を
+                占めて結果や空状態が押し出されてしまう。高さ1行の横スクロールに
+                固定し、「本人確認済みのみ」は常に見える別行に置く。 */}
+            <div
+              className="pita-scroll"
+              style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 2 }}
+            >
+              {(isBackendConfigured ? REAL_FILTERS : DEMO_FILTERS)
+                .filter((f) => f !== VERIFIED_FILTER)
+                .map((f) => {
+                  const sel = !!selected[f]
+                  return (
+                    <span
+                      key={f}
+                      onClick={() => flow.toggleSearchFilter(f)}
+                      {...clickable(() => flow.toggleSearchFilter(f), `${f}で絞り込む`)}
+                      style={{
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        fontSize: 12,
+                        color: sel ? C.lime : C.ink,
+                        background: sel ? C.ink : C.white,
+                        border: `1.5px solid ${C.border}`,
+                        padding: '7px 13px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      {f}
+                    </span>
+                  )
+                })}
             </div>
+            <span
+              onClick={() => flow.toggleSearchFilter(VERIFIED_FILTER)}
+              {...clickable(() => flow.toggleSearchFilter(VERIFIED_FILTER), '本人確認済みのみで絞り込む')}
+              style={{
+                cursor: 'pointer',
+                alignSelf: 'flex-start',
+                fontSize: 12,
+                color: C.ink,
+                background: selected[VERIFIED_FILTER] ? C.lime : C.white,
+                border: `1.5px solid ${C.border}`,
+                padding: '7px 13px',
+                borderRadius: 4,
+              }}
+            >
+              {VERIFIED_FILTER}
+            </span>
           </>
         )}
       </div>
