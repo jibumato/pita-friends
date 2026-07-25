@@ -14,6 +14,9 @@ Q9でお願いした開示運用のご回答を待ってから**行います。
 参照ファイル(フルテキストが必要な場合): `terms-of-service-draft.md` /
 `privacy-policy-draft.md` / `tokushoho-draft.md` / `src/content/legalDocs.ts`
 
+なお、事前の検討で修正が必要と考えた条文については、こちら側の**修正案**を
+`lawyer-review-round2-amendments.md` にまとめてあります。あわせてご確認ください。
+
 ---
 
 **Q12. 収納代行の受領権限授与の条文(第8条4項)は意図どおりか。**
