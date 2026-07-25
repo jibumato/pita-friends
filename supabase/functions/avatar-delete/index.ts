@@ -7,7 +7,14 @@
 // 他人の画像は消せない。
 // ============================================================
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
-import { corsHeaders } from '../_shared/cors.ts'
+
+// CORSヘッダーはこのファイル内に持つ(_shared からの import にすると
+// ダッシュボードの「Via Editor」で単体デプロイできなくなるため)。
+const corsHeaders = {
+  'Access-Control-Allow-Origin': Deno.env.get('APP_URL') ?? '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''

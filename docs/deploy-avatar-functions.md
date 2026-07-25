@@ -34,7 +34,20 @@ service role は RLS を素通りするため、Edge Function 側で以下を強
 
 ## デプロイ
 
-Stripe の関数と同じ手順。
+2つの関数はどちらも1ファイルで完結している(共有ファイルを import していない)ため、
+**ダッシュボードから貼り付けるだけでデプロイできる**。CLI でも可。
+
+### 方法A: ダッシュボード(おすすめ・CLI不要)
+
+1. Supabase ダッシュボード → 左メニュー **Edge Functions**
+2. 右上の **「Deploy a new function」→「Via Editor」**
+3. 関数名に `avatar-upload` を入力
+4. エディタの中身を全部消し、`supabase/functions/avatar-upload/index.ts` の中身を貼り付け
+5. **Deploy** を押す
+6. 同じ手順で `avatar-delete` も作る
+   （`supabase/functions/avatar-delete/index.ts` の中身を貼り付け）
+
+### 方法B: CLI
 
 ```bash
 supabase functions deploy avatar-upload
