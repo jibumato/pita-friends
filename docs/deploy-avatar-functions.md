@@ -1,4 +1,4 @@
-# アイコン画像アップロードの Edge Function デプロイ手順
+# アイコン画像・ボイスプロフィールの Edge Function デプロイ手順
 
 ## なぜ Edge Function 経由なのか
 
@@ -44,15 +44,35 @@ service role は RLS を素通りするため、Edge Function 側で以下を強
 3. 関数名に `avatar-upload` を入力
 4. エディタの中身を全部消し、`supabase/functions/avatar-upload/index.ts` の中身を貼り付け
 5. **Deploy** を押す
-6. 同じ手順で `avatar-delete` も作る
-   （`supabase/functions/avatar-delete/index.ts` の中身を貼り付け）
+6. 同じ手順で残りの3つも作る
+   - `avatar-delete` … アイコンを既定に戻す
+   - `voice-upload` … ボイスプロフィールの保存
+   - `voice-delete` … ボイスプロフィールの削除
 
 ### 方法B: CLI
 
 ```bash
 supabase functions deploy avatar-upload
 supabase functions deploy avatar-delete
+supabase functions deploy voice-upload
+supabase functions deploy voice-delete
 ```
+
+### 重要: Verify JWT を OFF にする
+
+デプロイ後、**4つすべての関数で必ず設定を変更する**。
+
+1. Edge Functions → 対象の関数 → **Settings** タブ
+2. **「Verify JWT with legacy secret」を OFF** にして保存
+
+これをしないと **401 Unauthorized** で必ず失敗する。
+このプロジェクトでは JWT 署名鍵を新方式へローテーションした影響で、
+**Storage と Edge Function のプラットフォーム側 JWT 検証が機能していない**
+(PostgREST=DB操作だけは正常に動くため気づきにくい)。
+
+OFF にしても安全性は落ちない。関数の中で
+`auth.getUser(token)` により Auth API でトークンを検証しており、
+そこで特定した uid 以外のパスには書き込めないようにしているため。
 
 ### 必要なシークレット
 
@@ -70,13 +90,39 @@ supabase functions deploy avatar-delete
 supabase secrets set APP_URL=https://pita-friends.example.com
 ```
 
+## トラブルシューティング
+
+### 401 Unauthorized になる
+
+上の「Verify JWT を OFF にする」を実施したか確認する。
+それでも 401 の場合は関数の **Logs** に `[avatar-upload] auth ...` が出ているか見る。
+
+- **ログがある** → 関数内の検証で弾かれている。メッセージが原因
+- **ログが無い**(booted/shutdown のみ) → プラットフォーム側で弾かれている。
+  Verify JWT の設定を再確認する
+
+### 参考: 過去にはまった実装ミス
+
+`auth.getUser()` を**引数なし**で呼ぶと、クライアント自身が保持するセッション
+(サーバ環境では常に空)を見にいくため、必ず 401 になる。
+必ず `auth.getUser(token)` とトークンを明示的に渡すこと。
+
 ## 動作確認
+
+アイコン画像:
 
 1. アプリにログイン
 2. マイページのアイコン、またはプロフィール編集画面からアイコン画像を選ぶ
 3. 画像が即座に差し替わること
 4. 「既定に戻す」で頭文字＋カラーに戻ること
 5. リロードしても状態が保たれること
+
+ボイスプロフィール:
+
+1. マイページの「声を録音する」で録音（マイク許可が必要）
+2. 「この挨拶を公開」で保存できること
+3. 再生できること
+4. 「削除」で消えること
 
 失敗する場合は Edge Function のログを確認する。
 

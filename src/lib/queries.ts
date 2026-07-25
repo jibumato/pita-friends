@@ -1275,33 +1275,31 @@ export async function fetchOwnVoiceGreeting(): Promise<OwnVoice> {
 }
 
 /**
- * 録音した音声挨拶をアップロードして公開する(B方式=即公開)。
- * 原資は本人フォルダ配下に固定パスで上書き保存。戻り値は公開URL。
+ * 録音した音声挨拶をアップロードして公開する(B方式=即公開)。戻り値は公開URL。
+ *
+ * 保存は Edge Function(voice-upload)経由で行う。アイコン画像と同じく、
+ * ブラウザから storage.upload() を直接呼ぶと RLS で拒否されるため。
+ * 保存先パスはサーバ側で {uid}/greeting.webm を組み立てるので、
+ * 他人のフォルダには書き込めない。
  */
 export async function uploadVoiceGreeting(blob: Blob, seconds: number): Promise<string> {
   const sb = requireSupabase()
-  const { data: auth } = await sb.auth.getUser()
-  const me = auth.user?.id
-  if (!me) throw new Error('ログインが必要です')
-  const path = `${me}/greeting.webm`
-  const { error: upErr } = await sb.storage.from(VOICE_BUCKET).upload(path, blob, {
-    upsert: true,
-    contentType: blob.type || 'audio/webm',
-  })
-  if (upErr) throw upErr
-  const { error } = await sb.rpc('set_voice_greeting', { p_path: path, p_seconds: Math.max(1, Math.min(15, Math.round(seconds))) })
+  const form = new FormData()
+  form.append('file', new File([blob], 'greeting.webm', { type: blob.type || 'audio/webm' }))
+  form.append('seconds', String(Math.max(1, Math.min(15, Math.round(seconds)))))
+  const { data, error } = await sb.functions.invoke<{ ok: boolean; url: string }>(
+    'voice-upload',
+    { body: form },
+  )
   if (error) throw error
-  return voiceGreetingUrl(path)
+  if (!data?.url) throw new Error('アップロードに失敗しました')
+  return data.url
 }
 
 /** 自分の音声挨拶を削除する。 */
 export async function deleteVoiceGreeting(): Promise<void> {
-  const sb = requireSupabase()
-  const { data: auth } = await sb.auth.getUser()
-  const me = auth.user?.id
-  if (!me) return
-  await sb.rpc('clear_voice_greeting')
-  await sb.storage.from(VOICE_BUCKET).remove([`${me}/greeting.webm`]).catch(() => undefined)
+  const { error } = await requireSupabase().functions.invoke('voice-delete')
+  if (error) throw error
 }
 
 /** 管理者が音声挨拶を削除する(通報対応)。 */

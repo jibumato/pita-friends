@@ -1,10 +1,13 @@
 // ============================================================
-// avatar-delete
+// voice-delete
 // ------------------------------------------------------------
-// アイコン画像を削除して既定アバター(頭文字＋カラー)に戻す。
-// avatar-upload と同じ理由で、Storage の削除も service role で行う。
-// 削除対象は必ずサーバ側で {uid}/avatar.webp を組み立てるため、
-// 他人の画像は消せない。
+// ボイスプロフィールを削除する。
+// voice-upload と同じ理由で、Storage の削除も service role で行う。
+// 削除対象は必ずサーバ側で {uid}/greeting.webm を組み立てるため、
+// 他人の音声は消せない。
+//
+// デプロイ後に Settings で「Verify JWT」を OFF にすること
+// (詳細は docs/deploy-avatar-functions.md)。
 // ============================================================
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
@@ -20,7 +23,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
-const BUCKET = 'avatars'
+const BUCKET = 'voice-greetings'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -29,7 +32,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization') ?? ''
     if (!authHeader.startsWith('Bearer ')) {
-      console.error('[avatar-delete] auth', 'missing bearer')
+      console.error('[voice-delete] auth', 'missing bearer')
       return json({ error: 'unauthorized' }, 401)
     }
 
@@ -41,8 +44,7 @@ Deno.serve(async (req) => {
     const { data: userData, error: userErr } = await userClient.auth.getUser(token)
     const uid = userData?.user?.id
     if (userErr || !uid) {
-      // 401の原因を後から追えるように残す(ログが無いと調査できないため)
-      console.error('[avatar-delete] auth', userErr?.message ?? 'no user')
+      console.error('[voice-delete] auth', userErr?.message ?? 'no user')
       return json({ error: 'unauthorized' }, 401)
     }
 
@@ -50,25 +52,25 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     })
 
-    // 先に参照を外す(ファイル削除が失敗しても既定アバターに戻るようにする)
+    // 先に参照を外す(ファイル削除が失敗しても公開は止まるようにする)
     const { error: updErr } = await admin
       .from('profiles')
-      .update({ avatar_path: null })
+      .update({ voice_path: null, voice_seconds: null })
       .eq('id', uid)
     if (updErr) {
-      console.error('[avatar-delete] profiles', updErr.message)
+      console.error('[voice-delete] profiles', updErr.message)
       return json({ error: 'update_failed' }, 500)
     }
 
-    const { error: rmErr } = await admin.storage.from(BUCKET).remove([`${uid}/avatar.webp`])
+    const { error: rmErr } = await admin.storage.from(BUCKET).remove([`${uid}/greeting.webm`])
     if (rmErr) {
       // 実体が消せなくても公開参照は外れているため、成功として返す
-      console.warn('[avatar-delete] storage', rmErr.message)
+      console.warn('[voice-delete] storage', rmErr.message)
     }
 
     return json({ ok: true }, 200)
   } catch (e) {
-    console.error('[avatar-delete]', e)
+    console.error('[voice-delete]', e)
     return json({ error: 'internal_error' }, 500)
   }
 })

@@ -83,7 +83,9 @@ export default function VoiceRecorder() {
       setSaved({ url, seconds: draft.seconds })
       URL.revokeObjectURL(draft.url)
       setDraft(null)
-    } catch {
+    } catch (err) {
+      // 原因調査用に生のエラーを残す(画面には分かりやすい文言だけ出す)
+      console.warn('[pita-friends] ボイスプロフィールの保存に失敗:', err)
       setError('保存に失敗しました。もう一度お試しください。')
     } finally {
       setBusy(false)
@@ -96,7 +98,8 @@ export default function VoiceRecorder() {
     try {
       await deleteVoiceGreeting()
       setSaved(null)
-    } catch {
+    } catch (err) {
+      console.warn('[pita-friends] ボイスプロフィールの削除に失敗:', err)
       setError('削除に失敗しました。')
     } finally {
       setBusy(false)
