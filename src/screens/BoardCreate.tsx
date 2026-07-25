@@ -6,7 +6,8 @@ import StatusBar from '../components/StatusBar'
 import { SubHeader, Toggle } from '../components/Ui'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
-import { createBoardPost } from '../lib/queries'
+import { createBoardPost, recordContentFlag } from '../lib/queries'
+import { inspectText, guardWarningText, type GuardHit } from '../lib/contentGuard'
 import { GAMES, WHENS } from '../flow'
 import type { BoardMood, BoardVc, BoardAudience } from '../lib/database.types'
 
@@ -67,10 +68,28 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** 「みまもり」検知のヒット(空でなければ確認を挟む)。 */
+  const [hits, setHits] = useState<GuardHit[]>([])
   const submit = usePress(`3px 3px 0 ${C.lavender}`)
+
+  function handleSubmitClick() {
+    if (busy) return
+    if (hits.length === 0) {
+      const result = inspectText(note)
+      if (result.hits.length > 0) {
+        // 投稿はブロックせず、確認を挟む(docs/trust-safety-spec.md §4.2)
+        setHits(result.hits)
+        return
+      }
+    }
+    void handleSubmit()
+  }
 
   async function handleSubmit() {
     if (busy) return
+    if (hits.length > 0) {
+      for (const h of hits) void recordContentFlag(h.category, 'board', h.matched, true)
+    }
     if (!isBackendConfigured) {
       flow.go('board')
       return
@@ -198,11 +217,43 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
           />
         </Field>
         {error && <span style={{ fontSize: 11, color: C.avatarPink, lineHeight: 1.6 }}>{error}</span>}
+        {/* 「みまもり」検知の確認。投稿はブロックせず本人の判断に委ねる。 */}
+        {hits.length > 0 && (
+          <div
+            style={{
+              background: C.avatarPink,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 8,
+              padding: '10px 12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            <span style={{ fontSize: 11, color: C.ink, lineHeight: 1.6 }}>
+              {guardWarningText(hits)}このまま投稿しますか?
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span
+                onClick={() => setHits([])}
+                style={{ flex: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11.5, color: C.ink, background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '8px 0' }}
+              >
+                書き直す
+              </span>
+              <span
+                onClick={() => void handleSubmit()}
+                style={{ flex: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11.5, color: C.ink, background: C.lime, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '8px 0' }}
+              >
+                このまま投稿
+              </span>
+            </div>
+          </div>
+        )}
       </div>
       <div style={{ padding: '12px 20px 26px', background: C.white, borderTop: `1.5px solid ${C.border}` }}>
         <div
           className="pita-press"
-          onClick={handleSubmit}
+          onClick={handleSubmitClick}
           {...(busy ? {} : submit.handlers)}
           style={{
             cursor: busy ? 'not-allowed' : 'pointer',

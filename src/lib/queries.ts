@@ -3,7 +3,7 @@
  * バックエンド未設定時は呼び出さないこと(呼び出し側で isBackendConfigured
  * を確認する、または requireSupabase() が例外を投げる)。
  */
-import { requireSupabase } from './supabase'
+import { requireSupabase, isBackendConfigured } from './supabase'
 import type { ContactScope, Gender, CoinPack } from '../flow'
 import type {
   ReportCategory,
@@ -1366,6 +1366,27 @@ export async function adminClearAvatar(userId: string): Promise<void> {
 export async function touchPresence(): Promise<void> {
   const { error } = await requireSupabase().rpc('touch_presence')
   if (error) throw error
+}
+
+/**
+ * 「みまもり」一次検知のヒットを記録する(docs/trust-safety-spec.md §4.2)。
+ * 送信はブロックしないため、記録の失敗もユーザー操作を止めない。
+ * 本文は送らず、一致した断片のみを渡す。
+ */
+export async function recordContentFlag(
+  category: 'contact' | 'money' | 'dating',
+  surface: 'message' | 'board' | 'profile',
+  matched: string,
+  proceeded: boolean,
+): Promise<void> {
+  if (!isBackendConfigured) return
+  const { error } = await requireSupabase().rpc('record_content_flag', {
+    p_category: category,
+    p_surface: surface,
+    p_matched: matched,
+    p_proceeded: proceeded,
+  })
+  if (error) console.warn('[pita-friends] みまもり記録に失敗:', error.message)
 }
 
 /** 自分の状態(今すぐ遊べる/オンライン/取り込み中)を設定する。 */
