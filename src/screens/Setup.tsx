@@ -3,8 +3,8 @@ import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
-import Avatar from '../components/Avatar'
-import { ChevronLeft, Upload, Shield } from '../components/Icon'
+import AvatarEditor from '../components/AvatarEditor'
+import { ChevronLeft, Shield } from '../components/Icon'
 import { GAMES, genderLabel, type Gender } from '../flow'
 import { usePress } from '../hooks/usePress'
 
@@ -68,29 +68,7 @@ export default function Setup({ flow }: { flow: Flow }) {
         }}
       >
         <span style={{ fontSize: 22, color: C.ink }}>{editing ? 'プロフィールを編集' : 'プロフィールをつくる'}</span>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <div style={{ position: 'relative' }}>
-            <Avatar initial="あ" color={C.lime} size={80} />
-            <div
-              style={{
-                position: 'absolute',
-                right: -4,
-                bottom: -4,
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                background: C.fill,
-                border: `1.5px solid ${C.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Upload />
-            </div>
-          </div>
-          <span style={{ fontSize: 10, color: C.placeholder }}>アイコンを選ぶ</span>
-        </div>
+        <AvatarEditor flow={flow} size={80} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 12, color: C.muted }}>ニックネーム</span>
           <input

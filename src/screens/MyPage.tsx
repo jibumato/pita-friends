@@ -10,6 +10,7 @@ import { isBackendConfigured } from '../lib/supabase'
 import { fetchFriendCount, fetchPendingInviteCount } from '../lib/queries'
 import { coinsPer30 } from '../flow'
 import VoiceRecorder from '../components/VoiceRecorder'
+import AvatarEditor from '../components/AvatarEditor'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { TYPES } from '../content/personality'
 
@@ -71,22 +72,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
           }}
         >
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div
-              style={{
-                width: 54,
-                height: 54,
-                borderRadius: 10,
-                background: C.avatarOrange,
-                border: `1.5px solid ${C.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 22,
-                color: C.ink,
-              }}
-            >
-              {flow.nickname.charAt(0) || '?'}
-            </div>
+            <AvatarEditor flow={flow} size={54} compact />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 16, color: C.ink }}>{flow.nickname || 'ニックネーム未設定'}</span>

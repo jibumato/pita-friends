@@ -190,6 +190,8 @@ type RecommendCardData = {
   /** ボイスプロフィール(人気ユーザーのカードで直接再生する)。URLが無くても秒数があればデモ再生。 */
   voiceUrl?: string | null
   voiceSeconds?: number | null
+  /** アイコン画像URL。あれば頭文字＋カラーの代わりに表示する。 */
+  avatarUrl?: string | null
 }
 
 /** デモ時のおすすめホスト(実データ接続時は fetchDiscoverableHosts から生成)。 */
@@ -248,9 +250,14 @@ function RecommendCard({ data, onOpen }: { data: RecommendCardData; onOpen: () =
             fontSize: 18,
             color: C.ink,
             flex: 'none',
+            overflow: 'hidden',
           }}
         >
-          {data.initial}
+          {data.avatarUrl ? (
+            <img src={data.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            data.initial
+          )}
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -383,7 +390,15 @@ function PopularUserCard({ data, onOpen }: { data: RecommendCardData; onOpen: ()
           color: C.ink,
         }}
       >
-        {data.initial}
+        {data.avatarUrl ? (
+          <img
+            src={data.avatarUrl}
+            alt=""
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          data.initial
+        )}
         {data.verified && (
           <span
             style={{
@@ -978,6 +993,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                 price30: coinsPer30(h.hourlyRate),
                 compat: null,
                 meta: `★${h.mannerScore.toFixed(1)}・マナー◎`,
+                avatarUrl: h.avatarUrl,
               }))
             : DEMO_RECOMMENDED
           if (cards.length === 0) return null
@@ -1034,6 +1050,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   meta: `★${h.mannerScore.toFixed(1)}・マナー◎`,
                   voiceUrl: h.voiceUrl,
                   voiceSeconds: h.voiceSeconds,
+                  avatarUrl: h.avatarUrl,
                 }))
             : DEMO_POPULAR
           if (popular.length === 0) return null

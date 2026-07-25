@@ -28,6 +28,7 @@ type DisplayCard = {
   tags: string[]
   hourlyRate?: number
   bookingHost?: BookingHost
+  avatarUrl?: string | null
 }
 
 function fromMock(u: (typeof searchUsers)[number]): DisplayCard {
@@ -95,6 +96,7 @@ export default function Search({ flow }: { flow: Flow }) {
             hourlyRate: h.hourlyRate,
             userId: h.userId,
           },
+          avatarUrl: h.avatarUrl,
         }))
         setRealCards(cards)
         setPhase(cards.length > 0 ? 'results' : 'empty')
@@ -333,9 +335,18 @@ export default function Search({ flow }: { flow: Flow }) {
                     justifyContent: 'center',
                     fontSize: 20,
                     color: C.ink,
+                    overflow: 'hidden',
                   }}
                 >
-                  {u.initial}
+                  {u.avatarUrl ? (
+                    <img
+                      src={u.avatarUrl}
+                      alt=""
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    u.initial
+                  )}
                   {online && (
                     <span
                       aria-hidden
