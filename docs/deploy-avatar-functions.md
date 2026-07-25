@@ -1,4 +1,4 @@
-# アイコン画像アップロードの Edge Function デプロイ手順
+# アイコン画像・ボイスプロフィールの Edge Function デプロイ手順
 
 ## なぜ Edge Function 経由なのか
 
@@ -44,19 +44,23 @@ service role は RLS を素通りするため、Edge Function 側で以下を強
 3. 関数名に `avatar-upload` を入力
 4. エディタの中身を全部消し、`supabase/functions/avatar-upload/index.ts` の中身を貼り付け
 5. **Deploy** を押す
-6. 同じ手順で `avatar-delete` も作る
-   （`supabase/functions/avatar-delete/index.ts` の中身を貼り付け）
+6. 同じ手順で残りの3つも作る
+   - `avatar-delete` … アイコンを既定に戻す
+   - `voice-upload` … ボイスプロフィールの保存
+   - `voice-delete` … ボイスプロフィールの削除
 
 ### 方法B: CLI
 
 ```bash
 supabase functions deploy avatar-upload
 supabase functions deploy avatar-delete
+supabase functions deploy voice-upload
+supabase functions deploy voice-delete
 ```
 
 ### 重要: Verify JWT を OFF にする
 
-デプロイ後、**両方の関数で必ず設定を変更する**。
+デプロイ後、**4つすべての関数で必ず設定を変更する**。
 
 1. Edge Functions → 対象の関数 → **Settings** タブ
 2. **「Verify JWT with legacy secret」を OFF** にして保存
@@ -105,11 +109,20 @@ supabase secrets set APP_URL=https://pita-friends.example.com
 
 ## 動作確認
 
+アイコン画像:
+
 1. アプリにログイン
 2. マイページのアイコン、またはプロフィール編集画面からアイコン画像を選ぶ
 3. 画像が即座に差し替わること
 4. 「既定に戻す」で頭文字＋カラーに戻ること
 5. リロードしても状態が保たれること
+
+ボイスプロフィール:
+
+1. マイページの「声を録音する」で録音（マイク許可が必要）
+2. 「この挨拶を公開」で保存できること
+3. 再生できること
+4. 「削除」で消えること
 
 失敗する場合は Edge Function のログを確認する。
 
