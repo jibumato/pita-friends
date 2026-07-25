@@ -17,6 +17,26 @@ import { uploadAvatar, deleteAvatar } from '../lib/queries'
 
 const OUTPUT_SIZE = 512
 
+/**
+ * アップロード失敗の理由を、利用者が次に何をすればよいか分かる文言にする。
+ * 生のSQLエラー(row-level security policy 等)をそのまま出すと意味が伝わらないため。
+ */
+function uploadErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? '')
+  if (/row-level security|violates row-level/i.test(raw)) {
+    // 保存先の権限設定(Storageのポリシー)が未適用のときに出る。
+    return '画像を保存する権限がありません。ログインし直しても直らない場合は、時間をおいてお試しください。'
+  }
+  if (/mime type|not supported/i.test(raw)) {
+    return 'この形式の画像は使えません。JPEG・PNG・WebP のいずれかをお試しください。'
+  }
+  if (/exceeded|too large|payload/i.test(raw)) {
+    return '画像のサイズが大きすぎます。別の画像でお試しください。'
+  }
+  if (/ログインが必要/.test(raw)) return raw
+  return '画像をアップロードできませんでした。時間をおいてお試しください。'
+}
+
 /** 選んだ画像を正方形に中央クロップし、512pxのWebP Blobに変換する。 */
 async function toSquareWebp(file: File): Promise<Blob> {
   const url = URL.createObjectURL(file)
@@ -82,7 +102,9 @@ export default function AvatarEditor({
         flow.setAvatarUrl(URL.createObjectURL(blob))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '画像をアップロードできませんでした。')
+      // 画面には分かりやすい文言を出しつつ、原因調査用に生のエラーを残す。
+      console.warn('[pita-friends] アイコン画像のアップロードに失敗:', err)
+      setError(uploadErrorMessage(err))
     } finally {
       setBusy(false)
     }
