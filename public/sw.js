@@ -6,7 +6,7 @@
  * Viteはアセット名をハッシュ化するため、事前プリキャッシュではなく取得時キャッシュにしている。
  */
 // ロゴ等の静的アセットを差し替えたらここを上げる(キャッシュ優先のため古い版が残り続ける)
-const CACHE = 'pita-friends-v3'
+const CACHE = 'pita-friends-v4'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.ico', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (event) => {
