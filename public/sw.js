@@ -5,7 +5,8 @@
  * - クロスオリジン(Google Fonts等)は素通し
  * Viteはアセット名をハッシュ化するため、事前プリキャッシュではなく取得時キャッシュにしている。
  */
-const CACHE = 'pita-friends-v1'
+// ロゴ等の静的アセットを差し替えたらここを上げる(キャッシュ優先のため古い版が残り続ける)
+const CACHE = 'pita-friends-v2'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/pita.svg', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (event) => {
