@@ -24,15 +24,22 @@ export function EmptyState({
   const shadow = ctaVariant === 'confirm' ? `3px 3px 0 ${C.shadowCol}` : `3px 3px 0 ${C.lavender}`
   const btn = usePress(shadow)
   return (
+    // 余白があれば中央、無ければ上から並べてスクロール。justify-content:center だと
+    // 収まらないとき上下にはみ出し、アイコンが上の要素に重なりCTAが見切れる。
+    <div
+      className="pita-scroll"
+      style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+    >
     <div
       style={{
-        flex: 1,
+        margin: 'auto',
+        width: '100%',
+        boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
         gap: 18,
-        padding: '0 34px',
+        padding: '20px 34px',
         textAlign: 'center',
       }}
     >
@@ -77,6 +84,7 @@ export function EmptyState({
         </div>
       )}
     </div>
+    </div>
   )
 }
 
@@ -94,15 +102,21 @@ export function ErrorState({
 }) {
   const btn = usePress(`3px 3px 0 ${C.lavender}`)
   return (
+    // EmptyStateと同様、収まらないときは中央寄せをやめてスクロールさせる。
+    <div
+      className="pita-scroll"
+      style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+    >
     <div
       style={{
-        flex: 1,
+        margin: 'auto',
+        width: '100%',
+        boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
         gap: 18,
-        padding: '0 30px',
+        padding: '20px 30px',
         textAlign: 'center',
       }}
     >
@@ -144,6 +158,7 @@ export function ErrorState({
         ↻ 再読み込み
       </div>
       {code && <span style={{ fontSize: 11, color: C.placeholder }}>エラーコード: {code}</span>}
+    </div>
     </div>
   )
 }
