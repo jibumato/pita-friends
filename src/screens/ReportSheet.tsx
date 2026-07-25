@@ -8,7 +8,8 @@ export default function ReportSheet({ flow }: { flow: Flow }) {
   const target = flow.reportTarget
   const [selected, setSelected] = useState<ReportCategory | null>(null)
   const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
+  /** 完了時の表示内容。通報を伴うかで文言が変わる。 */
+  const [done, setDone] = useState<null | 'report' | 'block'>(null)
   const [error, setError] = useState<string | null>(null)
 
   const nickname = target?.nickname ?? 'この相手'
@@ -19,9 +20,23 @@ export default function ReportSheet({ flow }: { flow: Flow }) {
     setError(null)
     try {
       await flow.submitReport(selected, alsoBlock)
-      setDone(true)
+      setDone('report')
     } catch (e) {
       setError(e instanceof Error ? e.message : '送信に失敗しました。時間をおいて再度お試しください')
+      setBusy(false)
+    }
+  }
+
+  /** 通報を伴わない単純な関係遮断(docs/trust-safety-spec.md §7.3)。理由の選択は不要。 */
+  async function blockOnly() {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      await flow.blockOnly()
+      setDone('block')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'ブロックに失敗しました。時間をおいて再度お試しください')
       setBusy(false)
     }
   }
@@ -64,9 +79,13 @@ export default function ReportSheet({ flow }: { flow: Flow }) {
 
         {done ? (
           <>
-            <span style={{ fontSize: 16, color: C.ink }}>受け付けました</span>
+            <span style={{ fontSize: 16, color: C.ink }}>
+              {done === 'block' ? 'ブロックしました' : '受け付けました'}
+            </span>
             <span style={{ fontSize: 12, color: C.body, lineHeight: 1.7, whiteSpace: 'pre-line' }}>
-              {'通報ありがとうございます。運営が内容を確認します。\n悪質と判断した場合は、身分証ベースで再登録できないよう措置します。通報したことは相手に通知されません。'}
+              {done === 'block'
+                ? `${nickname} さんからの誘い・メッセージは届かなくなり、おたがいの検索結果にも表示されなくなります。ブロックしたことは相手に通知されません。設定の「ブロックリスト」からいつでも解除できます。`
+                : '通報ありがとうございます。運営が内容を確認します。\n悪質と判断した場合は、身分証ベースで再登録できないよう措置します。通報したことは相手に通知されません。'}
             </span>
             <div
               onClick={flow.closeReport}
@@ -85,9 +104,9 @@ export default function ReportSheet({ flow }: { flow: Flow }) {
           </>
         ) : (
           <>
-            <span style={{ fontSize: 16, color: C.ink }}>{nickname} さんを通報 / ブロック</span>
+            <span style={{ fontSize: 16, color: C.ink }}>{nickname} さんへの対応</span>
             <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
-              当てはまる理由を選んでください。運営が確認し、悪質なユーザーには利用制限を行います。通報は相手に通知されません。
+              運営に知らせる場合は理由を選んでください。関わりを断つだけなら理由の選択は不要です。いずれも相手に通知されません。
             </span>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -144,6 +163,8 @@ export default function ReportSheet({ flow }: { flow: Flow }) {
 
             {error && <span style={{ fontSize: 11, color: C.avatarPink, lineHeight: 1.6 }}>{error}</span>}
 
+            {/* 3導線(§7.3): ブロック+通報 / 通報のみ / ブロックのみ。
+                前2つは理由の選択が要る。ブロックのみは理由なしで実行できる。 */}
             <div
               onClick={() => submit(true)}
               style={{
@@ -168,9 +189,29 @@ export default function ReportSheet({ flow }: { flow: Flow }) {
                 fontSize: 12.5,
                 color: selected && !busy ? C.ink : C.muted,
                 cursor: selected && !busy ? 'pointer' : 'not-allowed',
+                border: `1.5px solid ${selected && !busy ? C.border : C.placeholder}`,
+                borderRadius: 8,
+                padding: '11px 0',
+                background: C.white,
               }}
             >
-              ブロックせず通報だけする
+              通報だけする（ブロックしない）
+            </div>
+
+            <div
+              onClick={() => void blockOnly()}
+              style={{
+                textAlign: 'center',
+                fontSize: 12.5,
+                color: busy ? C.muted : C.ink,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                border: `1.5px solid ${busy ? C.placeholder : C.border}`,
+                borderRadius: 8,
+                padding: '11px 0',
+                background: C.white,
+              }}
+            >
+              ブロックだけする（通報しない）
             </div>
 
             <span
