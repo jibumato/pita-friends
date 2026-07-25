@@ -12,6 +12,7 @@ import { fetchDiscoverableHosts } from '../lib/queries'
 import { subscribeOnlineUsers } from '../lib/presence'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { clickable } from '../hooks/clickable'
+import { mannerScoreLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import OnlineBadge from '../components/OnlineBadge'
 import type { PresenceStatus } from '../lib/database.types'
 import { GAMES, coinsPer30, SEARCH_VERIFIED_FILTER as VERIFIED_FILTER, SEARCH_DEMO_FILTERS as DEMO_FILTERS, SEARCH_REAL_FILTERS as REAL_FILTERS } from '../flow'
@@ -90,7 +91,10 @@ export default function Search({ flow }: { flow: Flow }) {
           name: h.nickname,
           verified: h.isVerified,
           meta: h.bio || 'よろしくお願いします！',
-          scoreLabel: `★${h.mannerScore.toFixed(1)}・マナー◎`,
+          // レビュー3件未満はスコアを出さない(docs/trust-safety-spec.md §1.2)
+          scoreLabel: mannerScoreLabel(h.mannerScore, h.reviewCount)
+            ? `${mannerScoreLabel(h.mannerScore, h.reviewCount)}・マナー◎`
+            : NEW_MEMBER_LABEL,
           tags: h.games,
           hourlyRate: h.hourlyRate,
           bookingHost: {

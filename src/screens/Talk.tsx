@@ -25,7 +25,8 @@ import {
   type ThreadPartner,
 } from '../lib/queries'
 import { REVIEW_TAGS } from '../flow'
-import { containsWarningPattern } from '../lib/ngWords'
+import { inspectText, guardWarningText, type GuardHit } from '../lib/contentGuard'
+import { recordContentFlag } from '../lib/queries'
 
 function Bubble({ side, children }: { side: 'left' | 'right'; children: React.ReactNode }) {
   const left = side === 'left'
@@ -210,7 +211,8 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
-  const [warn, setWarn] = useState(false)
+  /** 検知ヒット(空でなければ確認バナーを出す)。 */
+  const [hits, setHits] = useState<GuardHit[]>([])
   const [sending, setSending] = useState(false)
   const [booking, setBooking] = useState<BookingInfo | null>(null)
   const [completing, setCompleting] = useState(false)
@@ -268,9 +270,13 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
     setSending(true)
     setError(null)
     try {
+      // 警告を見たうえで送った場合は「続行した」として記録する(§4.2)
+      if (hits.length > 0) {
+        for (const h of hits) void recordContentFlag(h.category, 'message', h.matched, true)
+      }
       await sendMessage(promiseId, body)
       setDraft('')
-      setWarn(false)
+      setHits([])
     } catch (e) {
       setError(e instanceof Error ? e.message : '送信に失敗しました')
     } finally {
@@ -280,9 +286,13 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
 
   function handleSendClick() {
     if (!draft.trim()) return
-    if (!warn && containsWarningPattern(draft)) {
-      setWarn(true)
-      return
+    if (hits.length === 0) {
+      const result = inspectText(draft)
+      if (result.hits.length > 0) {
+        // 送信はブロックせず、確認を挟む(§4.2-2)
+        setHits(result.hits)
+        return
+      }
     }
     void doSend()
   }
@@ -616,7 +626,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
 
       <div style={{ padding: '0 20px', background: C.surface }}>
         {error && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{error}</span>}
-        {warn && (
+        {hits.length > 0 && (
           <div
             style={{
               background: C.avatarPink,
@@ -630,11 +640,11 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
             }}
           >
             <span style={{ fontSize: 11, color: C.ink, lineHeight: 1.6 }}>
-              外部への連絡先交換や金銭のやり取りはアプリ内で完結させてください。それでも送信しますか?
+              {guardWarningText(hits)}それでも送信しますか?
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
               <span
-                onClick={() => setWarn(false)}
+                onClick={() => setHits([])}
                 style={{ flex: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11.5, color: C.ink, background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 0' }}
               >
                 やめる

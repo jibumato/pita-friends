@@ -7,6 +7,7 @@ import { Bell, Sun, MoonSmall, Moon } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import OnlineBadge from '../components/OnlineBadge'
+import { mannerScoreLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { isBackendConfigured } from '../lib/supabase'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
@@ -1010,7 +1011,9 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                 chips: h.games.slice(0, 2),
                 price30: coinsPer30(h.hourlyRate),
                 compat: null,
-                meta: `★${h.mannerScore.toFixed(1)}・マナー◎`,
+                meta: mannerScoreLabel(h.mannerScore, h.reviewCount)
+                  ? `${mannerScoreLabel(h.mannerScore, h.reviewCount)}・マナー◎`
+                  : NEW_MEMBER_LABEL,
                 avatarUrl: h.avatarUrl,
                 live: liveIds.has(h.userId),
                 lastSeenAt: h.lastSeenAt,
@@ -1068,7 +1071,9 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   chips: h.games.slice(0, 2),
                   price30: coinsPer30(h.hourlyRate),
                   compat: null,
-                  meta: `★${h.mannerScore.toFixed(1)}・マナー◎`,
+                  meta: mannerScoreLabel(h.mannerScore, h.reviewCount)
+                    ? `${mannerScoreLabel(h.mannerScore, h.reviewCount)}・マナー◎`
+                    : NEW_MEMBER_LABEL,
                   voiceUrl: h.voiceUrl,
                   voiceSeconds: h.voiceSeconds,
                   avatarUrl: h.avatarUrl,

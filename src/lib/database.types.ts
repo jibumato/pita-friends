@@ -596,6 +596,15 @@ export type Database = {
         Args: { p_status: PresenceStatus }
         Returns: void
       }
+      record_content_flag: {
+        Args: {
+          p_category: 'contact' | 'money' | 'dating'
+          p_surface: 'message' | 'board' | 'profile'
+          p_matched: string
+          p_proceeded?: boolean
+        }
+        Returns: void
+      }
       host_ranking: {
         Args: { p_period?: string; p_limit?: number }
         Returns: {

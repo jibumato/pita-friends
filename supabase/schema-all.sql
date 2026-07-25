@@ -1,6 +1,6 @@
--- ピタフレ 全スキーマ結合版 (0001〜0027)
+-- ピタフレ 全スキーマ結合版 (0001〜0029)
 -- Supabase ダッシュボードの SQL Editor に、このファイルの中身をそのまま貼り付けて一括実行できます。
--- 既に0001〜0026を適用済みの場合は、追加分の 0027 だけを実行すればOKです。
+-- 既に0001〜0028を適用済みの場合は、追加分の 0029 だけを実行すればOKです。
 -- 注意: 適用済みのDBにこのファイル全体を流すと "already exists" で途中中断します。
 -- 追加分は supabase/migrations/ の該当ファイルだけを番号順に流してください。
 
@@ -5280,3 +5280,199 @@ $$;
 
 revoke all on function public.clear_avatar() from public;
 grant execute on function public.clear_avatar() to authenticated;
+
+
+-- ============================================================================
+-- 0028_content_flags.sql
+-- ============================================================================
+-- ============================================================
+-- 「みまもり」一次検知のエスカレーション記録
+-- 設計: docs/trust-safety-spec.md §4.2
+-- ------------------------------------------------------------
+-- 送信前の自動検知(外部連絡先・金銭要求・出会い目的)でヒットした事実を
+-- 記録し、人による確認の対象を絞り込むためのテーブル。
+--
+-- 方針(§4.2):
+--   ・検知しても送信はブロックしない。記録するだけ
+--   ・「金銭要求」は1回でも確認対象(needs_review = true)
+--   ・同一ユーザーで繰り返しヒットした場合も確認対象に上げる
+--
+-- 本文そのものは保存しない。一致した短い断片(matched)のみ残す。
+-- 会話の全文保存は「みまもり」同意の範囲を超えるため意図的に避けている。
+-- ============================================================
+
+create table public.content_flags (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  category text not null check (category in ('contact', 'money', 'dating')),
+  -- どこで検知したか(message=トーク, board=募集文, profile=プロフィール文)
+  surface text not null check (surface in ('message', 'board', 'profile')),
+  -- 一致した断片のみ。本文は保存しない
+  matched text not null check (char_length(matched) <= 200),
+  -- 本人が警告を見たうえで送信を続行したか
+  proceeded boolean not null default false,
+  needs_review boolean not null default false,
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+comment on table public.content_flags is
+  '送信前の自動検知(みまもり)のヒット記録。本文は保存せず一致断片のみ。運営の確認対象の絞り込みに使う。';
+
+alter table public.content_flags enable row level security;
+
+-- 本人にも他ユーザーにも開示しない(運営のみがservice roleで参照する)。
+-- select ポリシーを置かないことで既定の拒否になる。
+
+create index content_flags_review_idx
+  on public.content_flags (needs_review, created_at desc)
+  where needs_review and reviewed_at is null;
+
+create index content_flags_user_idx
+  on public.content_flags (user_id, created_at desc);
+
+-- ------------------------------------------------------------
+-- record_content_flag: 検知結果を記録する(本人のみ・本人の分だけ)
+-- 直近24時間に3件以上ヒットしている場合も確認対象に引き上げる。
+-- ------------------------------------------------------------
+create function public.record_content_flag(
+  p_category text,
+  p_surface text,
+  p_matched text,
+  p_proceeded boolean default false
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_recent int;
+  v_needs boolean;
+begin
+  if v_uid is null then
+    return;
+  end if;
+  if p_category not in ('contact', 'money', 'dating') then
+    return;
+  end if;
+  if p_surface not in ('message', 'board', 'profile') then
+    return;
+  end if;
+
+  -- 金銭要求は1回でも確認対象(§4.2-3)
+  v_needs := (p_category = 'money');
+
+  -- 繰り返しヒットも確認対象に上げる
+  if not v_needs then
+    select count(*) into v_recent
+    from public.content_flags
+    where user_id = v_uid and created_at > now() - interval '24 hours';
+    if v_recent >= 2 then
+      v_needs := true;
+    end if;
+  end if;
+
+  insert into public.content_flags (user_id, category, surface, matched, proceeded, needs_review)
+  values (v_uid, p_category, p_surface, left(coalesce(p_matched, ''), 200), coalesce(p_proceeded, false), v_needs);
+end;
+$$;
+
+revoke all on function public.record_content_flag(text, text, text, boolean) from public;
+grant execute on function public.record_content_flag(text, text, text, boolean) to authenticated;
+
+
+-- ============================================================================
+-- 0029_manner_score_v2.sql
+-- ============================================================================
+-- ============================================================
+-- マナースコアの算出を設計どおりに置き換える
+-- 設計: docs/trust-safety-spec.md §1.1 / §1.2
+-- ------------------------------------------------------------
+-- 0005 の実装は「直近30件の単純平均 − 減点」という簡略版で、次の問題があった。
+--   ・レビュー1件で満点(★5.00)になってしまい、実績のあるユーザーと並ぶ
+--   ・新しいレビューほど重く扱う指数減衰(半減期90日)が入っていない
+--   ・base=4.50 の「中立スタート」がレビュー1件で消える
+--
+-- ここでは次の式に置き換える。
+--
+--   score = (BASE * PRIOR_W + Σ(w_i * stars_i)) / (PRIOR_W + Σ w_i) - penalty
+--   w_i   = 0.5 ^ (経過日数 / 90)      … 半減期90日の指数減衰
+--
+-- 設計書の "base + review_component - penalty_component" は、そのまま足すと
+-- 4.50 + 4.80 のようになり上限に張り付くため、**baseを事前分布(中立な仮想レビュー)
+-- として扱い、レビューが増えるほどbaseの影響が薄れる**形で解釈した。
+-- これにより「新規は中立、実績が積まれるほど実際の評価に寄る」という
+-- 設計意図(コールドスタート対策)を満たす。
+--
+-- PRIOR_W = 3 は「レビュー3件で事前分布と実測が同じ重みになる」設定で、
+-- §1.2 の「3件未満はスコアを表示しない」というしきい値と揃えてある。
+-- ============================================================
+
+create or replace function public.recompute_manner_score(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  -- 新規ユーザーの中立スタート(§1.1)
+  c_base constant numeric := 4.50;
+  -- 事前分布の重み。レビュー3件で実測と同等になる
+  c_prior_w constant numeric := 3.0;
+  -- 指数減衰の半減期(日)
+  c_half_life constant numeric := 90.0;
+
+  v_weighted_sum numeric := 0;
+  v_weight_sum numeric := 0;
+  v_review_count int := 0;
+  v_penalty numeric;
+  v_score numeric;
+begin
+  -- 直近30件のみを対象に、新しいレビューほど重く重み付けする
+  select
+    coalesce(sum(power(0.5, extract(epoch from (now() - r.created_at)) / 86400.0 / c_half_life) * r.stars), 0),
+    coalesce(sum(power(0.5, extract(epoch from (now() - r.created_at)) / 86400.0 / c_half_life)), 0),
+    count(*)
+  into v_weighted_sum, v_weight_sum, v_review_count
+  from (
+    select stars, created_at
+    from public.reviews
+    where reviewee_id = p_user_id
+    order by created_at desc
+    limit 30
+  ) r;
+
+  select coalesce(sum(points), 0) into v_penalty
+  from public.manner_penalties
+  where user_id = p_user_id;
+
+  -- baseを仮想レビューとして混ぜる(レビューが増えるほど影響が薄れる)
+  v_score := (c_base * c_prior_w + v_weighted_sum) / (c_prior_w + v_weight_sum) - v_penalty;
+  v_score := greatest(1.00, least(5.00, v_score));
+
+  update public.profile_trust_stats
+    set manner_score = round(v_score, 2),
+        review_count = v_review_count,
+        updated_at = now()
+    where user_id = p_user_id;
+end;
+$$;
+
+comment on function public.recompute_manner_score(uuid) is
+  'マナースコアの再計算(docs/trust-safety-spec.md §1.1)。baseを事前分布として扱い、半減期90日で減衰させた直近30件のレビューを加重平均し、確定した違反の減点を差し引く。';
+
+-- ------------------------------------------------------------
+-- 既存ユーザーのスコアを新しい式で一度ならす
+-- (旧式で満点になっていたユーザーが残らないようにする)
+-- ------------------------------------------------------------
+do $$
+declare
+  r record;
+begin
+  for r in select user_id from public.profile_trust_stats loop
+    perform public.recompute_manner_score(r.user_id);
+  end loop;
+end;
+$$;

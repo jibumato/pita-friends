@@ -171,6 +171,8 @@ export type Flow = {
   /** 本人のアイコン画像URL(未設定は null=頭文字＋カラー)。 */
   avatarUrl: string | null
   mannerScore: number
+  /** 自分のレビュー件数。3件未満はスコアを出さない(docs/trust-safety-spec.md §1.2)。 */
+  reviewCount: number
   dotakyanCount: number
   confirmedCount: number
   isVerified: boolean
@@ -214,6 +216,8 @@ export type Flow = {
   closeReport: () => void
   /** 通報(+任意でブロック)を送信する。実データ対象(userIdあり)ならDBへ、デモなら擬似成功。 */
   submitReport: (category: ReportCategory, alsoBlock: boolean) => Promise<void>
+  /** 通報せずブロックだけする(docs/trust-safety-spec.md §7.3 の3導線目)。 */
+  blockOnly: () => Promise<void>
   /** 規約・ポリシー画面を開く。 */
   openLegalDoc: (key: LegalDocKey) => void
   /** 指定ユーザーの公開プロフィールを開く(実データ)。 */
@@ -273,6 +277,7 @@ const INITIAL = {
   confirmedCount: 47,
   isVerified: true,
   isAdmin: false,
+  reviewCount: 0,
   presenceStatus: 'online' as PresenceStatus,
   hostSettingsError: null as string | null,
 }
@@ -316,6 +321,7 @@ export default function App() {
         },
         coinBalance: bundle.wallet.balance,
         mannerScore: bundle.trustStats.manner_score,
+        reviewCount: bundle.trustStats.review_count,
         dotakyanCount: bundle.trustStats.dotakyan_count,
         confirmedCount: bundle.trustStats.confirmed_count,
         isVerified: bundle.trustStats.is_verified,
@@ -595,6 +601,13 @@ export default function App() {
       if (isBackendConfigured && target?.userId) {
         await submitReportRemote(target.userId, category)
         if (alsoBlock) await blockUserRemote(target.userId)
+      }
+    },
+    blockOnly: async () => {
+      const target = state.reportTarget
+      // 通報を伴わない単純な関係遮断。相手には通知しない(§7.2)。
+      if (isBackendConfigured && target?.userId) {
+        await blockUserRemote(target.userId)
       }
     },
     setGender: (g) => {

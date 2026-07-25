@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
+import { inspectText, guardWarningText } from '../lib/contentGuard'
+import { recordContentFlag } from '../lib/queries'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader, Toggle, Card, ListRow } from '../components/Ui'
@@ -365,24 +367,7 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
         {isBackendConfigured && <BankAccountSection />}
 
         <span style={{ fontSize: 12, color: C.muted }}>ひとことメッセージ</span>
-        <textarea
-          value={h.bio}
-          onChange={(e) => flow.setHostPref('bio', e.target.value)}
-          maxLength={200}
-          placeholder="ゴールド帯でまったり回してます。初心者さんも歓迎です！"
-          style={{
-            background: C.white,
-            border: `1.5px solid ${C.border}`,
-            borderRadius: 8,
-            padding: '12px 14px',
-            minHeight: 60,
-            fontSize: 12.5,
-            color: C.ink,
-            resize: 'none',
-            fontFamily: 'inherit',
-            outline: 'none',
-          }}
-        />
+        <BioField flow={flow} />
 
         <div
           style={{
@@ -429,5 +414,47 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
         </div>
       </div>
     </Screen>
+  )
+}
+
+/**
+ * ひとことメッセージ(プロフィール文)の入力欄。
+ * 「みまもり」の一次検知に当たる内容を書いている間は注意を表示する。
+ * 入力のたびに保存される作りのため、記録(record_content_flag)は
+ * 入力を終えた時(blur)に一度だけ行う。投稿はブロックしない(§4.2)。
+ */
+function BioField({ flow }: { flow: Flow }) {
+  const bio = flow.hostSettings.bio
+  const hits = inspectText(bio).hits
+
+  return (
+    <>
+      <textarea
+        value={bio}
+        onChange={(e) => flow.setHostPref('bio', e.target.value)}
+        onBlur={() => {
+          for (const h of hits) void recordContentFlag(h.category, 'profile', h.matched, true)
+        }}
+        maxLength={200}
+        placeholder="ゴールド帯でまったり回してます。初心者さんも歓迎です！"
+        style={{
+          background: C.white,
+          border: `1.5px solid ${hits.length > 0 ? C.avatarPink : C.border}`,
+          borderRadius: 8,
+          padding: '12px 14px',
+          minHeight: 60,
+          fontSize: 12.5,
+          color: C.ink,
+          resize: 'none',
+          fontFamily: 'inherit',
+          outline: 'none',
+        }}
+      />
+      {hits.length > 0 && (
+        <span style={{ fontSize: 10.5, color: C.avatarPink, lineHeight: 1.6 }}>
+          {guardWarningText(hits)}
+        </span>
+      )}
+    </>
   )
 }

@@ -7,6 +7,7 @@ import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchPublicProfile, type PublicProfile } from '../lib/queries'
 import { coinsPer30, screenNames } from '../flow'
+import { mannerScoreLabel, dotakyanLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import OnlineBadge from '../components/OnlineBadge'
 import { subscribeOnlineUsers } from '../lib/presence'
 
@@ -41,7 +42,8 @@ function StatTile({ value, label, bg, fg, sub }: { value: string; label: string;
         gap: 2,
       }}
     >
-      <span style={{ fontSize: 16, color: fg }}>{value}</span>
+      {/* 「実績これから」のような文言も入るため、長さに応じて縮める */}
+      <span style={{ fontSize: value.length > 5 ? 11 : 16, color: fg, textAlign: 'center' }}>{value}</span>
       <span style={{ fontSize: 9.5, color: sub }}>{label}</span>
     </div>
   )
@@ -98,8 +100,21 @@ export default function Profile({ flow }: { flow: Flow }) {
 
   const realStats = data
     ? [
-        { value: `★${data.mannerScore.toFixed(1)}`, label: 'マナースコア', bg: C.white, fg: C.lavender, sub: C.muted },
-        { value: `${data.dotakyanRate}%`, label: 'ドタキャン率', bg: C.lime, fg: C.ink, sub: C.ink },
+        // 実績が少ないうちは数値を出さない(docs/trust-safety-spec.md §1.2 / §2.2)
+        {
+          value: mannerScoreLabel(data.mannerScore, data.reviewCount) ?? NEW_MEMBER_LABEL,
+          label: 'マナースコア',
+          bg: C.white,
+          fg: C.lavender,
+          sub: C.muted,
+        },
+        {
+          value: dotakyanLabel(data.dotakyanRate, data.confirmedCount),
+          label: 'ドタキャン率',
+          bg: C.lime,
+          fg: C.ink,
+          sub: C.ink,
+        },
         { value: `${data.confirmedCount}`, label: '一緒に遊んだ', bg: C.white, fg: C.ink, sub: C.muted },
       ]
     : []
