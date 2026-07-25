@@ -829,7 +829,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '12px 20px 4px',
         }}
       >
-        <img src="/logo.webp" alt="ピタフレ" style={{ height: 34, display: 'block' }} />
+        <img src="/logo-compact.webp" alt="ピタフレ" style={{ height: 34, display: 'block' }} />
         <div style={{ display: 'flex', gap: 8 }}>
           <div
             onClick={flow.toggleTheme}

@@ -44,7 +44,7 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
         }}
       >
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 20 }}>
-          <img src="/logo.webp" alt="ピタフレ" style={{ height: 40 }} />
+          <img src="/logo-compact.webp" alt="ピタフレ" style={{ height: 40 }} />
           <nav className="lp-nav" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 22 }}>
             <a className="lp-navlink" href="#features">特長</a>
             <a className="lp-navlink" href="#how">遊び方</a>
@@ -192,7 +192,7 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
       <footer style={{ background: C.fill, color: '#fff' }}>
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: '40px 24px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-            <img src="/logo.webp" alt="ピタフレ" style={{ height: 44 }} />
+            <img src="/logo-compact.webp" alt="ピタフレ" style={{ height: 44 }} />
             <span style={{ ...pill, marginLeft: 'auto' }}>近日公開 🔜</span>
           </div>
           <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>

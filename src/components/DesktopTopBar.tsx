@@ -58,7 +58,7 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
       }}
     >
       <img
-        src="/logo.webp"
+        src="/logo-compact.webp"
         alt="ピタフレ"
         onClick={() => flow.go('home')}
         {...clickable(() => flow.go('home'), 'ホームへ')}
