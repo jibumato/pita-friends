@@ -762,6 +762,25 @@ export async function createBoardPost(input: {
 }
 
 /** 募集に参加する。定員・本人確認要件等はDB側(join_board_post RPC)でアトミックに検証される。 */
+/**
+ * 自分の募集を取り消す(論理削除)。参加者にはサーバ側で通知が飛ぶ。
+ * 物理削除はしない(参加履歴・通報の追跡を残すため)。
+ */
+export async function cancelBoardPost(postId: string, reason?: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('cancel_board_post', {
+    p_post_id: postId,
+    p_reason: reason ?? null,
+  })
+  if (!error) return
+  if (/ONLY_CREATOR_CAN_CANCEL/.test(error.message)) {
+    throw new Error('自分が作成した募集のみ取り消せます')
+  }
+  if (/POST_NOT_FOUND/.test(error.message)) {
+    throw new Error('募集が見つかりませんでした')
+  }
+  throw error
+}
+
 export async function joinBoardPost(postId: string): Promise<void> {
   const { error } = await requireSupabase().rpc('join_board_post', { p_post_id: postId })
   if (!error) return
