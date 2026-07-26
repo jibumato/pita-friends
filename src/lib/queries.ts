@@ -505,6 +505,7 @@ export type RankingEntry = {
   nickname: string
   avatarInitial: string
   avatarColor: string
+  avatarUrl: string | null
   completedCount: number
   mannerScore: number
   score: number
@@ -524,6 +525,7 @@ export async function fetchHostRanking(period: RankingPeriod, limit = 30): Promi
     nickname: r.nickname,
     avatarInitial: r.avatar_initial,
     avatarColor: r.avatar_color,
+    avatarUrl: r.avatar_path ? avatarImageUrl(r.avatar_path) : null,
     completedCount: Number(r.completed_count),
     mannerScore: Number(r.manner_score),
     score: Number(r.score),

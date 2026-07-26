@@ -15,11 +15,11 @@ const PERIODS: { key: RankingPeriod; label: string }[] = [
 
 /** デモ表示用の固定ランキング(バックエンド未接続時)。 */
 const DEMO: RankingEntry[] = [
-  { rank: 1, hostId: '', nickname: 'ののか', avatarInitial: 'の', avatarColor: '#FFC7D9', completedCount: 18, mannerScore: 4.9, score: 17.6, isVerified: true },
-  { rank: 2, hostId: '', nickname: 'みなと', avatarInitial: 'み', avatarColor: '#B3E5F2', completedCount: 15, mannerScore: 4.8, score: 14.4, isVerified: true },
-  { rank: 3, hostId: '', nickname: 'りく', avatarInitial: 'り', avatarColor: '#C9F2C7', completedCount: 13, mannerScore: 4.7, score: 12.2, isVerified: false },
-  { rank: 4, hostId: '', nickname: 'あおい', avatarInitial: 'あ', avatarColor: '#E3DCFF', completedCount: 10, mannerScore: 4.8, score: 9.6, isVerified: true },
-  { rank: 5, hostId: '', nickname: 'ハル', avatarInitial: 'ハ', avatarColor: '#FFE1B3', completedCount: 8, mannerScore: 4.6, score: 7.4, isVerified: false },
+  { rank: 1, hostId: '', nickname: 'ののか', avatarInitial: 'の', avatarColor: '#FFC7D9', avatarUrl: null, completedCount: 18, mannerScore: 4.9, score: 17.6, isVerified: true },
+  { rank: 2, hostId: '', nickname: 'みなと', avatarInitial: 'み', avatarColor: '#B3E5F2', avatarUrl: null, completedCount: 15, mannerScore: 4.8, score: 14.4, isVerified: true },
+  { rank: 3, hostId: '', nickname: 'りく', avatarInitial: 'り', avatarColor: '#C9F2C7', avatarUrl: null, completedCount: 13, mannerScore: 4.7, score: 12.2, isVerified: false },
+  { rank: 4, hostId: '', nickname: 'あおい', avatarInitial: 'あ', avatarColor: '#E3DCFF', avatarUrl: null, completedCount: 10, mannerScore: 4.8, score: 9.6, isVerified: true },
+  { rank: 5, hostId: '', nickname: 'ハル', avatarInitial: 'ハ', avatarColor: '#FFE1B3', avatarUrl: null, completedCount: 8, mannerScore: 4.6, score: 7.4, isVerified: false },
 ]
 
 function medal(rank: number): { bg: string; fg: string } | null {
@@ -132,6 +132,7 @@ export default function Ranking({ flow }: { flow: Flow }) {
                   </div>
                   <div
                     style={{
+                      position: 'relative',
                       width: 40,
                       height: 40,
                       flex: 'none',
@@ -143,9 +144,18 @@ export default function Ranking({ flow }: { flow: Flow }) {
                       justifyContent: 'center',
                       fontSize: 17,
                       color: C.ink,
+                      overflow: 'hidden',
                     }}
                   >
-                    {r.avatarInitial || r.nickname.charAt(0)}
+                    {r.avatarUrl ? (
+                      <img
+                        src={r.avatarUrl}
+                        alt=""
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      r.avatarInitial || r.nickname.charAt(0)
+                    )}
                   </div>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

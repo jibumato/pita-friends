@@ -635,6 +635,7 @@ export type Database = {
           nickname: string
           avatar_initial: string
           avatar_color: string
+          avatar_path: string | null
           completed_count: number
           manner_score: number
           score: number
