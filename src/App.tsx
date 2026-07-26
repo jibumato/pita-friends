@@ -15,6 +15,7 @@ import {
 } from './flow'
 import type { ReportCategory, PresenceStatus } from './lib/database.types'
 import type { LegalDocKey } from './content/legalDocs'
+import { CANCELLATION_POLICY_VERSION } from './content/bookingPolicy'
 import type { PersonalityResult } from './content/personality'
 import PhoneFrame from './components/PhoneFrame'
 import LandingDesktop from './components/LandingDesktop'
@@ -488,7 +489,7 @@ export default function App() {
       try {
         // 予約はリクエスト(承諾待ち)として作られる。ホストが承諾するまで
         // トークは開かないので、送信完了→承諾待ち画面に遷移する。
-        await createBookingRemote(host.userId, state.bookingDuration)
+        await createBookingRemote(host.userId, state.bookingDuration, CANCELLATION_POLICY_VERSION)
         const cost = coinsForDuration(host.hourlyRate, state.bookingDuration)
         clearTimer()
         setState((p) => ({
