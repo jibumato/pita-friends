@@ -1397,6 +1397,27 @@ export async function recordContentFlag(
   if (error) console.warn('[pita-friends] みまもり記録に失敗:', error.message)
 }
 
+/**
+ * みまもりへの同意を記録する(同意日時と同意した文言のバージョン)。
+ *
+ * 記録に失敗しても登録の導線は止めない。同意そのものは画面のチェックで
+ * 取得できており、ここで例外を投げると本人確認へ進めなくなるため。
+ * (マイグレーション0031が未適用の環境でも登録が通るようにする意図もある)
+ */
+export async function recordMonitoringConsent(version: string): Promise<void> {
+  if (!isBackendConfigured) return
+  const { error } = await requireSupabase().rpc('record_monitoring_consent', {
+    p_version: version,
+  })
+  if (error) console.warn('[pita-friends] みまもり同意の記録に失敗:', error.message)
+}
+
+/** みまもりへの同意を撤回する。 */
+export async function revokeMonitoringConsent(): Promise<void> {
+  const { error } = await requireSupabase().rpc('revoke_monitoring_consent', {})
+  if (error) throw error
+}
+
 /** 自分の状態(今すぐ遊べる/オンライン/取り込み中)を設定する。 */
 export async function setPresenceStatus(status: PresenceStatus): Promise<void> {
   const { error } = await requireSupabase().rpc('set_presence_status', { p_status: status })

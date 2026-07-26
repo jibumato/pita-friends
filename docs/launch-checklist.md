@@ -34,11 +34,8 @@
    (手順: `docs/apply-migrations.md`)
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
-3. ☐ **リダイレクトURLの登録**: Authentication → URL Configuration →
-   - Site URL: `https://pitafure.com`
-   - Redirect URLs: `https://pitafure.com/**`
-   - ※ ここが未設定だと、メール確認やパスワード再設定のリンクが
-     旧 workers.dev ドメインに飛んで動きません
+3. ✅ **リダイレクトURLの登録**(2026-07-26): Authentication → URL Configuration
+   - Site URL: `https://pitafure.com` / Redirect URLs: `https://pitafure.com/**`
 4. ☐ **pg_cron の確認**: Database → Extensions で `pg_cron` が有効か確認
    (プレイ完了の72時間自動確定に使用。0015参照)
 5. ☐ (推奨)Database → Backups でバックアップ設定を確認(Pro планなら日次)

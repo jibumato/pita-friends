@@ -6,6 +6,8 @@ import StatusBar from '../components/StatusBar'
 import { ChevronLeft, Shield } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
+import { recordMonitoringConsent } from '../lib/queries'
+import { MONITORING_CONSENT_VERSION } from '../content/consentText'
 
 /**
  * メッセージ等のモニタリング(自動検知)への同意画面。
@@ -37,6 +39,17 @@ function InfoCard({ label, children }: { label: string; children: React.ReactNod
 export default function Consent({ flow }: { flow: Flow }) {
   const [agreed, setAgreed] = useState(false)
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
+
+  /**
+   * 同意を記録してから次へ進む。
+   * 記録は待たない(投げっぱなし)。ここで通信を待つと、電波が悪いときに
+   * 同意したのに進めないことになるため。記録側も失敗を握りつぶしている。
+   */
+  function agreeAndContinue() {
+    if (!agreed) return
+    void recordMonitoringConsent(MONITORING_CONSENT_VERSION)
+    flow.go('verify')
+  }
 
   return (
     <Screen background={C.surface}>
@@ -149,9 +162,9 @@ export default function Consent({ flow }: { flow: Flow }) {
       <div style={{ padding: '12px 22px 30px' }}>
         <div
           className="pita-press"
-          onClick={() => agreed && flow.go('verify')}
+          onClick={agreeAndContinue}
           {...(agreed ? cta.handlers : {})}
-          {...clickable(agreed ? () => flow.go('verify') : undefined, '同意して本人確認へ')}
+          {...clickable(agreed ? agreeAndContinue : undefined, '同意して本人確認へ')}
           aria-disabled={!agreed}
           style={{
             cursor: agreed ? 'pointer' : 'not-allowed',
