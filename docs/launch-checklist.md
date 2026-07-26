@@ -55,6 +55,8 @@
      (0040の取り違え。消費者契約法9条の検討材料が事実と逆になっていた)
    - `0046_account_anonymize.sql` … 退会を物理削除から匿名化に変更
      (`anonymize_user()`。**適用するまで退会対応で入金・換金記録が消える**)
+   - `0047_ledger_export_heartbeat.sql` … R2への外部バックアップの鮮度チェック
+     (`workers/ledger-export` とセット。止まったら管理者に通知)
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ✅ **リダイレクトURLの登録**(2026-07-26): Authentication → URL Configuration
@@ -80,6 +82,9 @@
    ```
 3. ☐ 本番用Webhookエンドポイントを追加(`checkout.session.completed`)し、
    `STRIPE_WEBHOOK_SECRET=whsec_xxx`(本番用)を設定
+3-b. ☐ **取引データの外部バックアップ Worker をデプロイ**
+   - R2バケット作成 → `service_role` キーをシークレット登録 → `npx wrangler deploy`
+   - 手順: `workers/ledger-export/README.md`(費用は無料枠)
 4. ☐ Edge Functionを再デプロイ:
    ```bash
    supabase functions deploy create-checkout-session
@@ -133,6 +138,7 @@
 | 随時 | 通報の審査・対応 | `docs/trust-safety-spec.md` |
 | 随時 | 個別相談(返還申告)の判断 | `docs/refund-claim-policy.md` |
 | 随時 | 退会請求への対応(匿名化) | `docs/data-integrity.md` |
+| 半期 | R2バックアップからの復元演習(戻せたことしか信用しない) | `workers/ledger-export/README.md` |
 | 日次 | 整合性アラートの確認(通知が来たときのみ) | `docs/data-integrity.md` |
 | 月次 | 換金の締め→総合振込→消し込み | `docs/payouts-bank-operations.md` |
 | 月次 | Stripe入金と`coin_purchases`の突合 | — |
