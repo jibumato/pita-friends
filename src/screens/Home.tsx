@@ -7,6 +7,7 @@ import { Bell, Sun, MoonSmall, Moon } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import OnlineBadge from '../components/OnlineBadge'
+import GameThumb from '../components/GameThumb'
 import { mannerScoreLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { isBackendConfigured } from '../lib/supabase'
@@ -41,37 +42,6 @@ const DEMO_ROOKIE: RankingEntry[] = [
   { rank: 4, hostId: 'r4', nickname: 'ひかる', avatarInitial: 'ひ', avatarColor: '#FBD79E', avatarUrl: null, completedCount: 4, mannerScore: 4.9, score: 58, isVerified: true },
   { rank: 5, hostId: 'r5', nickname: 'ゆの', avatarInitial: 'ゆ', avatarColor: '#E3DCFF', avatarUrl: null, completedCount: 3, mannerScore: 5.0, score: 55, isVerified: true },
 ]
-
-/** ゲーム一覧タイルの絵文字(該当なしは 🎮)。 */
-const GAME_EMOJI: Record<string, string> = {
-  Apex: '🎯',
-  VALORANT: '🔫',
-  スプラ: '🦑',
-  'Overwatch 2': '🛡️',
-  Fortnite: '🏝️',
-  CoD: '🪖',
-  R6S: '💣',
-  タルコフ: '🎒',
-  荒野行動: '🪂',
-  BF6: '🚁',
-  DbD: '🔪',
-  第五人格: '🎭',
-  モンハン: '🐲',
-  ARK: '🦖',
-  LoL: '⚔️',
-  スマブラ: '🥊',
-  マリカ: '🏎️',
-  ポケモン: '⚡',
-  マイクラ: '⛏️',
-  あつ森: '🌱',
-  'Among Us': '🚀',
-  原神: '⚗️',
-  VRChat: '🥽',
-  オンライン飲み: '🍻',
-  雑談: '💬',
-  相談: '🤝',
-  その他: '🕹️',
-}
 
 /** ヒーロー直下のアイコン一覧(いろんな人を紹介する用)のデモデータ。 */
 const ONLINE_STRIP = [
@@ -754,7 +724,7 @@ function GameGrid({ flow }: { flow: Flow }) {
               gap: 9,
             }}
           >
-            <span style={{ fontSize: 18, flex: 'none' }}>{GAME_EMOJI[g] ?? '🎮'}</span>
+            <GameThumb name={g} size={26} />
             <span style={{ fontSize: 12.5, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {g}
             </span>
