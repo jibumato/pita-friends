@@ -512,7 +512,7 @@ export type Database = {
     Views: Record<string, never>
     Functions: {
       create_booking: {
-        Args: { p_host_id: string; p_duration_minutes: 30 | 60 | 120 }
+        Args: { p_host_id: string; p_duration_minutes: 30 | 60 | 120; p_policy_version?: string }
         Returns: string
       }
       approve_booking: {

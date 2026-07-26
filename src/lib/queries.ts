@@ -1429,10 +1429,15 @@ export async function setPresenceStatus(status: PresenceStatus): Promise<void> {
  * この時点では予約は「承諾待ち(requested)」で、約束(トーク)はまだ成立しない。
  * ホストが承諾して初めてトークが開く。戻り値は booking_id。
  */
-export async function createBookingRemote(hostId: string, durationMinutes: 30 | 60 | 120): Promise<string> {
+export async function createBookingRemote(
+  hostId: string,
+  durationMinutes: 30 | 60 | 120,
+  policyVersion: string,
+): Promise<string> {
   const { data, error } = await requireSupabase().rpc('create_booking', {
     p_host_id: hostId,
     p_duration_minutes: durationMinutes,
+    p_policy_version: policyVersion,
   })
   if (error) throw error
   return data as string
