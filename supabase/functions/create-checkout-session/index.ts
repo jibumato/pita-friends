@@ -21,6 +21,16 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const APP_URL = Deno.env.get('APP_URL') ?? ''
 
+// 決済手段。カンマ区切りで指定する(例: "card,paypay")。
+// 未設定なら Stripe のダッシュボード設定に任せる。
+// PayPay はカードより手数料が低いため、有効化できたぶんだけ利益率が上がる。
+// ただしStripe側で有効化していない手段を指定するとセッション作成が失敗するので、
+// コードに直書きせず環境変数で切り替える。
+const PAYMENT_METHODS = (Deno.env.get('STRIPE_PAYMENT_METHODS') ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -53,6 +63,16 @@ Deno.serve(async (req) => {
     }
     const totalCoins = pack.coins + pack.bonus_coins
 
+    // あんしん保証料。料率はDB(platform_pricing)が権威で、クライアントは関与しない。
+    const { data: feeYen, error: feeErr } = await admin.rpc('safety_fee_for', {
+      p_price_yen: pack.price_yen,
+    })
+    if (feeErr) {
+      console.error('[create-checkout-session] safety_fee_for', feeErr.message)
+      return json({ error: 'internal_error' }, 500)
+    }
+    const safetyFee = Number(feeYen ?? 0)
+
     // 3) Stripe Checkout セッションを作成
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -72,7 +92,29 @@ Deno.serve(async (req) => {
             },
           },
         },
+        // あんしん保証料は別明細にする。合算すると利用者から内訳が見えず、
+        // 特商法の「商品代金以外の必要料金」の表示としても弱くなるため。
+        ...(safetyFee > 0
+          ? [
+              {
+                quantity: 1,
+                price_data: {
+                  currency: 'jpy',
+                  unit_amount: safetyFee,
+                  product_data: {
+                    name: 'あんしん保証料',
+                    description:
+                      '本人確認・承認制・通報ブロック・トラブル時の対応にかかる費用です',
+                  },
+                },
+              },
+            ]
+          : []),
       ],
+      // 決済手段。既定はカードのみで、PayPay等は環境変数で足す。
+      // (Stripe側で有効化していない手段を指定するとセッション作成が失敗するため、
+      //  コードではなく設定で切り替えられるようにしておく)
+      ...(PAYMENT_METHODS.length > 0 ? { payment_method_types: PAYMENT_METHODS } : {}),
       // 付与に必要な情報は metadata に載せ、webhook で使う
       metadata: {
         user_id: user.id,
@@ -80,6 +122,7 @@ Deno.serve(async (req) => {
         coins: String(pack.coins),
         bonus_coins: String(pack.bonus_coins),
         price_yen: String(pack.price_yen),
+        safety_fee_yen: String(safetyFee),
       },
       success_url: `${APP_URL}/?checkout=success`,
       cancel_url: `${APP_URL}/?checkout=cancel`,

@@ -78,6 +78,22 @@ Deno.serve(async (req) => {
       console.error('[stripe-webhook] credit failed', error)
       return new Response('credit failed', { status: 500 })
     }
+
+    // 預かったあんしん保証料を購入履歴に残す。
+    // credit_coins_for_purchase の引数は増やしていない。引数を変えると、
+    // マイグレーションの適用とこの関数のデプロイの順序が前後したときに
+    // 付与そのものが落ちるため(コインが増えない事故になる)。
+    // 保証料の記録が1件欠けるより、付与が止まるほうが重大。
+    const safetyFeeYen = parseInt(m.safety_fee_yen ?? '0', 10)
+    if (safetyFeeYen > 0) {
+      const { error: feeErr } = await admin
+        .from('coin_purchases')
+        .update({ safety_fee_yen: safetyFeeYen })
+        .eq('stripe_session_id', session.id)
+      // 失敗しても 200 を返す。ここで 5xx にすると Stripe がリトライし、
+      // 付与済みなのに再送され続けることになる。
+      if (feeErr) console.error('[stripe-webhook] safety fee record failed', feeErr)
+    }
   }
 
   return new Response('ok', { status: 200 })
