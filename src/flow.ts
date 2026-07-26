@@ -169,6 +169,8 @@ export type HostSettings = {
   hourlyRate: number
   games: string[]
   bio: string
+  /** 初回お試し割引の割引率(%)。0でキャンペーンなし。 */
+  trialDiscountPercent: number
 }
 
 export const defaultHostSettings: HostSettings = {
@@ -176,6 +178,21 @@ export const defaultHostSettings: HostSettings = {
   hourlyRate: 400,
   games: ['Apex'],
   bio: '',
+  trialDiscountPercent: 0,
+}
+
+/** 初回お試し割引で設定できる割引率(%)。100%(無料)は認めない。 */
+export const TRIAL_DISCOUNT_MAX = 90
+
+/**
+ * 定価コインに割引率を適用した「実際に払う額」。
+ * サーバ側 create_booking の計算と一致させること
+ * (0038: greatest(1, round(list * (100 - pct) / 100.0)))。
+ * ずれると画面の表示額と請求額が食い違う。
+ */
+export function discountedCoins(listCoins: number, percent: number): number {
+  if (!percent) return listCoins
+  return Math.max(1, Math.round((listCoins * (100 - percent)) / 100))
 }
 
 /** 予約できる時間(分)と、それに対応するラベル。 */

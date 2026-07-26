@@ -1,25 +1,45 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader } from '../components/Ui'
 import { Coin, Clock, Shield } from '../components/Icon'
-import { BOOKING_DURATIONS, coinsForDuration, coinsPer30, durationLabel } from '../flow'
+import { BOOKING_DURATIONS, coinsForDuration, coinsPer30, durationLabel, discountedCoins } from '../flow'
 import { usePress } from '../hooks/usePress'
+import { isBackendConfigured } from '../lib/supabase'
+import { fetchMyTrialDiscount } from '../lib/queries'
 
 export default function Booking({ flow }: { flow: Flow }) {
   const host = flow.bookingHost
   const confirm = usePress(`3px 3px 0 ${C.lavender}`)
+  // このホストで自分に適用される初回お試し割引(0038)。表示専用で、
+  // 実際の請求額はサーバ(create_booking)が同じ式で決める。
+  const [discount, setDiscount] = useState(0)
+  const hostUserId = host?.userId ?? null
 
   useEffect(() => {
     // 直接遷移してきた等、ホスト未指定の場合は安全にさがすへ戻す
     if (!host) flow.go('search')
   }, [host, flow])
 
+  useEffect(() => {
+    if (!isBackendConfigured || !hostUserId) return
+    let active = true
+    fetchMyTrialDiscount(hostUserId)
+      .then((p) => active && setDiscount(p))
+      .catch(() => {
+        /* 取れなければ割引なしとして通常価格を出す(請求はサーバが決める) */
+      })
+    return () => {
+      active = false
+    }
+  }, [hostUserId])
+
   if (!host) return null
 
-  const cost = coinsForDuration(host.hourlyRate, flow.bookingDuration)
+  const listCost = coinsForDuration(host.hourlyRate, flow.bookingDuration)
+  const cost = discountedCoins(listCost, discount)
   const short = flow.bookingInsufficient
 
   return (
@@ -115,14 +135,39 @@ export default function Booking({ flow }: { flow: Flow }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Clock size={15} color="#fff" />
             <span style={{ fontSize: 12, color: '#fff' }}>{durationLabel(flow.bookingDuration)}の予約</span>
+            {discount > 0 && (
+              <span
+                style={{
+                  fontSize: 10,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.border}`,
+                  padding: '2px 7px',
+                  borderRadius: 4,
+                }}
+              >
+                初回 {discount}% OFF
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 11, color: '#E3DCFF' }}>消費コイン</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {discount > 0 && (
+                <span style={{ fontSize: 13, color: '#C6BCE8', textDecoration: 'line-through' }}>
+                  {listCost.toLocaleString()}
+                </span>
+              )}
               <Coin size={18} color={C.lime} />
-              <span style={{ fontSize: 24, color: C.lime }}>{cost}</span>
+              <span style={{ fontSize: 24, color: C.lime }}>{cost.toLocaleString()}</span>
             </div>
           </div>
+          {discount > 0 && (
+            <span style={{ fontSize: 10, color: '#E3DCFF', lineHeight: 1.7 }}>
+              このホストと初めて遊ぶ方向けの割引です。2回目以降は通常価格（
+              {listCost.toLocaleString()} コイン）になります。
+            </span>
+          )}
           <div style={{ height: 1.5, background: 'rgba(255,255,255,.3)' }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 11, color: '#E3DCFF' }}>あなたの残高</span>

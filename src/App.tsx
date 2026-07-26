@@ -293,6 +293,15 @@ const INITIAL = {
 
 export type Theme = 'light' | 'dark'
 
+/** HostSettings のキー → host_settings テーブルの列名。 */
+const HOST_SETTING_COLUMN: Record<keyof HostSettings, string> = {
+  isHost: 'is_host',
+  hourlyRate: 'hourly_rate',
+  games: 'games',
+  bio: 'bio',
+  trialDiscountPercent: 'trial_discount_percent',
+}
+
 export default function App() {
   // 保存済みのユーザー設定(テーマ/性別/安心設定)で初期状態を上書き
   const [state, setState] = useState(() => ({ ...INITIAL, ...loadPrefs() }))
@@ -327,6 +336,7 @@ export default function App() {
           hourlyRate: bundle.hostSettings.hourly_rate,
           games: bundle.hostSettings.games,
           bio: bundle.hostSettings.bio,
+          trialDiscountPercent: bundle.hostSettings.trial_discount_percent ?? 0,
         },
         coinBalance: bundle.wallet.balance,
         mannerScore: bundle.trustStats.manner_score,
@@ -712,8 +722,9 @@ export default function App() {
         hostSettingsError: null,
       }))
       if (isBackendConfigured && state.userId) {
-        const dbKey =
-          key === 'isHost' ? 'is_host' : key === 'hourlyRate' ? 'hourly_rate' : key === 'games' ? 'games' : 'bio'
+        // キーを増やしたときに取りこぼさないよう対応表で持つ
+        // (三項演算子の連鎖だと、未知のキーが最後の候補に化けて別の列を壊す)
+        const dbKey = HOST_SETTING_COLUMN[key]
         updateHostSettingsRemote(state.userId, { [dbKey]: value }).catch((err) => {
           const message =
             err instanceof Error && err.message.includes('HOST_REQUIRES_VERIFICATION')
