@@ -240,11 +240,13 @@ export default function Booking({ flow }: { flow: Flow }) {
           <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
             コインは予約確定時に消費されます。
             <br />
-            ・<b style={{ color: C.ink }}>ホスト都合</b>のキャンセル・無断欠席 → コインを<b style={{ color: C.ink }}>全額再付与</b>
+            ・<b style={{ color: C.ink }}>ホスト都合</b>のキャンセル・無断欠席 → コインが<b style={{ color: C.ink }}>全額戻ります</b>
             <br />
-            ・<b style={{ color: C.ink }}>あなたの都合</b>のキャンセル → 開始1時間前まで全額再付与
+            ・<b style={{ color: C.ink }}>あなたの都合</b>のキャンセル → 開始1時間前まで全額戻ります
             <br />
-            　（開始1時間を切ってからは再付与されず、コインはホストの報酬になります）
+            　（開始1時間を切ってからは戻らず、コインはホストの報酬になります）
+            <br />
+            　※戻るのはコインです。日本円での返金はできません。
             <br />
             トラブル時はいつでも通報・相談ができます。
           </span>

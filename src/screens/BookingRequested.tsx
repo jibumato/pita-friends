@@ -47,7 +47,7 @@ export default function BookingRequested({ flow }: { flow: Flow }) {
           <br />
           コインは確保されています。辞退・24時間の無応答のときは
           <br />
-          全額返却されます。
+          全額戻ります。
         </span>
 
         <div
