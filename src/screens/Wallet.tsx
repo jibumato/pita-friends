@@ -6,8 +6,9 @@ import StatusBar from '../components/StatusBar'
 import { SubHeader } from '../components/Ui'
 import { Coin, Shield } from '../components/Icon'
 import { COIN_PACKS, packBonusLabel, type CoinPack } from '../flow'
-import { safetyFeeYen } from '../content/pricing'
+import { safetyFeeYen, SAFETY_FEE_RATE } from '../content/pricing'
 import { usePress } from '../hooks/usePress'
+import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import {
   createCheckoutSession,
@@ -379,6 +380,43 @@ export default function Wallet({ flow }: { flow: Flow }) {
             {error}
           </div>
         )}
+        {/* あんしん保証料が何の費用かを、申し込む前に金額と同じ画面で説明する。
+            金額だけ足されていると「よく分からない上乗せ」に見えるし、
+            特商法の「商品代金以外に必要な費用」の表示としても、名目だけでは足りない。
+            なお「保険」の語は使わない(保険業法。規約 第7条の3)。 */}
+        <div
+          style={{
+            background: C.surfaceLavender,
+            border: `1.5px solid ${C.lavender}`,
+            borderRadius: 8,
+            padding: '11px 13px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          <span style={{ fontSize: 11.5, color: C.ink }}>
+            🛡 あんしん保証料（コイン価格の{Math.round(SAFETY_FEE_RATE * 100)}%）について
+          </span>
+          <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
+            コインの価格に加えてお支払いいただく費用です。
+            <b style={{ color: C.ink }}>本人確認の実施</b>、承認制・通報・ブロックの運用、
+            メッセージのみまもり、<b style={{ color: C.ink }}>トラブル時の調査と対応</b>
+            にかかっています。みんなが安心して遊べる場を保つための費用で、
+            <b style={{ color: C.ink }}>保険ではありません</b>。
+            <br />
+            コインの残高には加算されず、購入手続の完了後は返金できません
+            （法令上返金が必要な場合を除きます）。
+          </span>
+          <span
+            onClick={() => flow.openLegalDoc('terms')}
+            {...clickable(() => flow.openLegalDoc('terms'), '利用規約であんしん保証料の定めを見る')}
+            style={{ cursor: 'pointer', fontSize: 10.5, color: C.lavender, textDecoration: 'underline' }}
+          >
+            利用規約 第7条の3 で詳しく見る
+          </span>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {packs.map((p) => (
             <PackCard
