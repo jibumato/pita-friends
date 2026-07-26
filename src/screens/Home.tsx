@@ -26,20 +26,20 @@ const MEDAL = ['🥇', '🥈', '🥉']
 
 /** デモ時の週間ランキング(実データ接続時は fetchHostRanking から取得)。 */
 const DEMO_RANKING: RankingEntry[] = [
-  { rank: 1, hostId: 'd1', nickname: 'ののか', avatarInitial: 'の', avatarColor: '#FFC7D9', completedCount: 58, mannerScore: 4.9, score: 98, isVerified: true },
-  { rank: 2, hostId: 'd2', nickname: 'みなと', avatarInitial: 'み', avatarColor: '#B3E5F2', completedCount: 51, mannerScore: 4.8, score: 94, isVerified: true },
-  { rank: 3, hostId: 'd3', nickname: 'あおい', avatarInitial: 'あ', avatarColor: '#E3DCFF', completedCount: 47, mannerScore: 4.8, score: 91, isVerified: true },
-  { rank: 4, hostId: 'd4', nickname: 'りく', avatarInitial: 'り', avatarColor: '#C9F2C7', completedCount: 40, mannerScore: 4.7, score: 87, isVerified: false },
-  { rank: 5, hostId: 'd5', nickname: 'そら', avatarInitial: 'そ', avatarColor: '#FBD79E', completedCount: 36, mannerScore: 4.7, score: 84, isVerified: true },
+  { rank: 1, hostId: 'd1', nickname: 'ののか', avatarInitial: 'の', avatarColor: '#FFC7D9', avatarUrl: null, completedCount: 58, mannerScore: 4.9, score: 98, isVerified: true },
+  { rank: 2, hostId: 'd2', nickname: 'みなと', avatarInitial: 'み', avatarColor: '#B3E5F2', avatarUrl: null, completedCount: 51, mannerScore: 4.8, score: 94, isVerified: true },
+  { rank: 3, hostId: 'd3', nickname: 'あおい', avatarInitial: 'あ', avatarColor: '#E3DCFF', avatarUrl: null, completedCount: 47, mannerScore: 4.8, score: 91, isVerified: true },
+  { rank: 4, hostId: 'd4', nickname: 'りく', avatarInitial: 'り', avatarColor: '#C9F2C7', avatarUrl: null, completedCount: 40, mannerScore: 4.7, score: 87, isVerified: false },
+  { rank: 5, hostId: 'd5', nickname: 'そら', avatarInitial: 'そ', avatarColor: '#FBD79E', avatarUrl: null, completedCount: 36, mannerScore: 4.7, score: 84, isVerified: true },
 ]
 
 /** デモ時の新人ランキング(実データ接続時は完了数の少ない=新人ホストから導出)。 */
 const DEMO_ROOKIE: RankingEntry[] = [
-  { rank: 1, hostId: 'r1', nickname: 'そうた', avatarInitial: 'そ', avatarColor: '#C9F2C7', completedCount: 8, mannerScore: 4.9, score: 70, isVerified: true },
-  { rank: 2, hostId: 'r2', nickname: 'みるく', avatarInitial: 'み', avatarColor: '#F5B8CE', completedCount: 6, mannerScore: 5.0, score: 66, isVerified: true },
-  { rank: 3, hostId: 'r3', nickname: 'かえで', avatarInitial: 'か', avatarColor: '#B3E5F2', completedCount: 5, mannerScore: 4.8, score: 61, isVerified: false },
-  { rank: 4, hostId: 'r4', nickname: 'ひかる', avatarInitial: 'ひ', avatarColor: '#FBD79E', completedCount: 4, mannerScore: 4.9, score: 58, isVerified: true },
-  { rank: 5, hostId: 'r5', nickname: 'ゆの', avatarInitial: 'ゆ', avatarColor: '#E3DCFF', completedCount: 3, mannerScore: 5.0, score: 55, isVerified: true },
+  { rank: 1, hostId: 'r1', nickname: 'そうた', avatarInitial: 'そ', avatarColor: '#C9F2C7', avatarUrl: null, completedCount: 8, mannerScore: 4.9, score: 70, isVerified: true },
+  { rank: 2, hostId: 'r2', nickname: 'みるく', avatarInitial: 'み', avatarColor: '#F5B8CE', avatarUrl: null, completedCount: 6, mannerScore: 5.0, score: 66, isVerified: true },
+  { rank: 3, hostId: 'r3', nickname: 'かえで', avatarInitial: 'か', avatarColor: '#B3E5F2', avatarUrl: null, completedCount: 5, mannerScore: 4.8, score: 61, isVerified: false },
+  { rank: 4, hostId: 'r4', nickname: 'ひかる', avatarInitial: 'ひ', avatarColor: '#FBD79E', avatarUrl: null, completedCount: 4, mannerScore: 4.9, score: 58, isVerified: true },
+  { rank: 5, hostId: 'r5', nickname: 'ゆの', avatarInitial: 'ゆ', avatarColor: '#E3DCFF', avatarUrl: null, completedCount: 3, mannerScore: 5.0, score: 55, isVerified: true },
 ]
 
 /** ゲーム一覧タイルの絵文字(該当なしは 🎮)。 */
@@ -578,6 +578,7 @@ function RankRow({ flow, r, rookie }: { flow: Flow; r: RankingEntry; rookie?: bo
       </span>
       <div
         style={{
+          position: 'relative',
           width: avatar,
           height: avatar,
           borderRadius: first ? 12 : 9,
@@ -589,9 +590,18 @@ function RankRow({ flow, r, rookie }: { flow: Flow; r: RankingEntry; rookie?: bo
           fontSize: first ? 26 : podium ? 20 : 16,
           color: C.ink,
           flex: 'none',
+          overflow: 'hidden',
         }}
       >
-        {r.avatarInitial}
+        {r.avatarUrl ? (
+          <img
+            src={r.avatarUrl}
+            alt=""
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          r.avatarInitial
+        )}
       </div>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: first ? 4 : 2 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
