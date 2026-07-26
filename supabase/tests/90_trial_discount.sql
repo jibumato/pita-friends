@@ -103,7 +103,7 @@ begin
   raise notice 'OK ホストに辞退された後も、まだ初回扱い';
 end $$;
 
-\echo '=== 5. 延長は元の予約と同じ割引率を引き継ぐ(30分 1000 → 700) ==='
+\echo '=== 5. 延長分は通常価格。割引は最初に予約した分だけ(0039) ==='
 select public.create_booking('d0000000-0000-0000-0000-00000000ff01'::uuid, 30, 'v1') as t4 \gset
 set test.uid = 'd0000000-0000-0000-0000-00000000ff01';
 select public.approve_booking(:'t4');
@@ -111,15 +111,31 @@ set test.uid = 'd0000000-0000-0000-0000-00000000ff22';
 select public.extend_booking(:'t4', 30) as added \gset
 
 do $$
-declare b public.bookings;
+declare b public.bookings; v_added int;
 begin
   select * into b from public.bookings where id = (
     select id from public.bookings where guest_id = 'd0000000-0000-0000-0000-00000000ff22'::uuid
       and status = 'confirmed' order by created_at desc limit 1);
-  -- 30分割引後700 + 延長30分割引後700 = 1400 / 定価は 1000 + 1000 = 2000
-  if b.coins <> 1400 then raise exception 'FAIL 延長後の請求が1400でない: %', b.coins; end if;
+  -- 最初の30分は割引後700、延長30分は通常価格1000 → 合計1700 / 定価は2000
+  if b.coins <> 1700 then
+    raise exception 'FAIL 延長後の請求が1700でない(=%). 延長にも割引が効いている', b.coins;
+  end if;
   if b.list_coins <> 2000 then raise exception 'FAIL 延長後の定価が2000でない: %', b.list_coins; end if;
-  raise notice 'OK 延長分も30%% OFF が効いている(請求1400 / 定価2000)';
+  raise notice 'OK 延長分は通常価格1000(最初の30分だけ700)';
+end $$;
+
+\echo '=== 5b. 最初から長めに予約したほうが安くなること ==='
+do $$
+declare v_upfront int; v_split int;
+begin
+  -- 最初から60分: 定価2000 → 30%OFF → 1400
+  v_upfront := greatest(1, round(2000 * 70 / 100.0));
+  -- 30分+延長30分: 700 + 1000(通常価格) = 1700
+  v_split := greatest(1, round(1000 * 70 / 100.0)) + 1000;
+  if v_upfront >= v_split then
+    raise exception 'FAIL 分割したほうが安い/同額になっている(一括% / 分割%)', v_upfront, v_split;
+  end if;
+  raise notice 'OK 一括60分=% < 30分+延長=% (差%コイン)', v_upfront, v_split, v_split - v_upfront;
 end $$;
 
 \echo '=== 6. 割引率は0〜90%%しか設定できない ==='

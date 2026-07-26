@@ -985,8 +985,16 @@ export type BookingInfo = {
   guestId: string
   hostId: string
   coins: number
+  /**
+   * 割引前の定価(0038)。延長は通常価格なので(0039)、延長費用の見積りは
+   * 実支払額(coins)ではなくこちらを基準にすること。
+   * coins で割ると、初回割引の効いた安い単価で見積もってしまう。
+   */
+  listCoins: number
   /** 延長を含む現在の合計プレイ時間(分)。延長費用の見積り表示に使う。 */
   durationMinutes: number
+  /** 最初に予約した分に適用された初回お試し割引の割引率(%)。 */
+  discountPercent: number
   status: string
   scheduledAt: string
 }
@@ -1004,7 +1012,7 @@ export async function fetchBookingForPromise(promiseId: string): Promise<Booking
 
   const { data: booking, error: bErr } = await sb
     .from('bookings')
-    .select('id, guest_id, host_id, coins, duration_minutes, status, scheduled_at')
+    .select('id, guest_id, host_id, coins, list_coins, discount_percent, duration_minutes, status, scheduled_at')
     .eq('id', promise.booking_id)
     .single()
   if (bErr) throw bErr
@@ -1013,6 +1021,9 @@ export async function fetchBookingForPromise(promiseId: string): Promise<Booking
     guestId: booking.guest_id,
     hostId: booking.host_id,
     coins: booking.coins,
+    // 0038より前に作られた予約は list_coins が無いので、実支払額で代用する
+    listCoins: booking.list_coins ?? booking.coins,
+    discountPercent: booking.discount_percent ?? 0,
     durationMinutes: booking.duration_minutes,
     status: booking.status,
     scheduledAt: booking.scheduled_at,

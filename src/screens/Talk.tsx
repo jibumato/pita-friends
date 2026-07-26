@@ -359,6 +359,8 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
       setBooking({
         ...booking,
         coins: booking.coins + added,
+        // 延長は通常価格なので、定価にも同額を積む(0039)
+        listCoins: booking.listCoins + added,
         durationMinutes: booking.durationMinutes + minutes,
       })
       setExtendOpen(false)
@@ -371,12 +373,14 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   }
 
   /**
-   * 延長の見積り。時給レートは coins ÷ 時間 から逆算する
-   * (延長を重ねても比は変わらない)。確定額はサーバ側が決める。
+   * 延長の見積り。単価は「定価 ÷ 時間」から逆算する。
+   * 実支払額(coins)で割ってはいけない。初回お試し割引が効いている予約だと
+   * 割引後の安い単価になり、通常価格で請求される延長分を過小に見せてしまう
+   * (延長は割引の対象外。0039)。確定額はサーバ側が決める。
    */
   function estimateExtendCoins(minutes: number): number {
     if (!booking || booking.durationMinutes <= 0) return 0
-    return Math.round((booking.coins / booking.durationMinutes) * minutes)
+    return Math.round((booking.listCoins / booking.durationMinutes) * minutes)
   }
 
   const isGuestOfBooking = booking && myId === booking.guestId
@@ -525,6 +529,24 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
                   延長すると、その場でコインを追加でお支払いいただきます。金額は
                   ホストさんの時給レートで計算されます。
                 </span>
+                {/* 初回割引が効いていた予約では、延長が割引対象外であることを
+                    ここで必ず伝える(割引価格のつもりで押されないように)。 */}
+                {booking.discountPercent > 0 && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      lineHeight: 1.6,
+                      color: C.ink,
+                      background: C.surfaceLavender,
+                      border: `1.5px solid ${C.lavender}`,
+                      borderRadius: 6,
+                      padding: '8px 10px',
+                    }}
+                  >
+                    初回お試し割引（{booking.discountPercent}% OFF）は最初に予約した分のみが対象です。
+                    <b>延長分は通常価格</b>になります。
+                  </span>
+                )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   {([30, 60] as const).map((min) => (
                     <span

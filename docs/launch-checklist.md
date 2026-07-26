@@ -38,6 +38,8 @@
    - `0038_host_trial_discount.sql` … ホストが設定する初回お試し割引
      (`create_booking`/`extend_booking`を差し替える。**適用するまで
      ホスト設定の割引率は保存できず、予約も割引されない**)
+   - `0039_extension_full_price.sql` … 初回お試し割引を「最初に予約した分」
+     だけに限定し、延長分は通常価格にする(`extend_booking`を差し替え)
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ✅ **リダイレクトURLの登録**(2026-07-26): Authentication → URL Configuration
