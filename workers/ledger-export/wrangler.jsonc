@@ -1,0 +1,37 @@
+{
+  // 取引データを R2 へ写し取る Worker。
+  // 静的サイト(ルートの wrangler.jsonc)とは別の Worker として動かす。
+  //
+  //   cd workers/ledger-export
+  //   npx wrangler deploy
+  //
+  // 手順の詳細は README.md を参照。
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "pita-ledger-export",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-07-01",
+
+  // 毎時 :07 に差分、毎日 19:23 UTC(= 翌 04:23 JST)に全量。
+  // 整合性チェック(04:07 UTC)とは時刻をずらしてある。
+  "triggers": {
+    "crons": ["7 * * * *", "23 19 * * *"]
+  },
+
+  "r2_buckets": [
+    {
+      "binding": "LEDGER",
+      "bucket_name": "pita-ledger"
+    }
+  ],
+
+  // SUPABASE_URL は公開されても問題ない値なのでここに置ける。
+  // SUPABASE_SERVICE_ROLE_KEY と TRIGGER_SECRET は
+  // 必ず `wrangler secret put` で登録すること(このファイルには書かない)。
+  "vars": {
+    "SUPABASE_URL": "https://REPLACE_ME.supabase.co"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}

@@ -11,9 +11,10 @@
 |---|---|---|
 | ① 予防 | 台帳を追記専用にし、誤操作で壊れないようにする | ✅ `0044` |
 | ② 検知 | 毎日、残高と履歴を突き合わせ、ズレたら通知する | ✅ `0043` |
-| ③ 復旧 | 任意の時点に巻き戻せるようにする | ⬜ **Supabase Pro + PITR の有効化が必要** |
+| ③ 復旧 | 別事業者(R2)へ継続的に写しを取る | ✅ `0047` + `workers/ledger-export` |
+| ③' 復旧 | Supabase 自体のバックアップ | ⬜ **Pro プラン($25/月)の契約が必要** |
 
-③ だけは管理画面での契約・設定なので、こちらで実装できません。
+③' だけは管理画面での契約なので、こちらで実装できません。
 **コインを1円でも売る前に済ませてください**(手順は末尾)。
 
 ---
@@ -102,6 +103,7 @@ commit;
 | `payout_vs_ledger` | 換金申請 vs 履歴 | error |
 | `escrow_split` | 預かり中の予約の `coins = paid + bonus` | error |
 | `stale_expired_lots` | 失効処理(`expire_coins`)が止まっていないか | warn |
+| `ledger_export_freshness` | R2へのエクスポートが止まっていないか(`0047`。別の周期で走る) | error |
 | `escrow_outstanding` | 預かり中コインの総額(指標) | ok |
 | `unused_coin_balance` | 未使用の前払いコイン総額(指標) | ok |
 
@@ -216,23 +218,33 @@ select public.anonymize_user('<user_id>');
 **Pro 化はコインを1円でも売る前に**済ませてください。売った後に失うと、
 利用者への説明も返金対応も原資の把握もできなくなります。
 
-### 推奨: 別事業者への論理バックアップ
+### ✅ 実装済み: 別事業者(R2)への継続エクスポート
 
-Supabase 自体が飛んだ場合・アカウントが凍結された場合の備えです。
-日次で `pg_dump` を取り、Cloudflare R2 等に置きます。
+`workers/ledger-export` が Cloudflare R2 へ取引データを写し取ります。
+**費用は Cloudflare の無料枠に収まります**(実質 ¥0)。
 
-```bash
-# 接続文字列は Supabase の Settings → Database から取得
-pg_dump "$SUPABASE_DB_URL" \
-  --no-owner --no-acl \
-  -t 'public.coin_*' -t 'public.payouts' -t 'public.bookings' \
-  -t 'public.ledger_audit' -t 'public.integrity_checks' \
-  | gzip > "pita-ledger-$(date +%F).sql.gz"
-```
+`0044` で台帳が追記専用になったことで、これが安く成立するようになりました。
+行が書き換わらないので「`created_at` が前回以降の行」を取るだけで完全な写しになり、
+差分検知(CDC)の仕組みが要りません。
 
-金額に関わるテーブルだけに絞れば軽く済みます。
-実行には Supabase の DB 接続情報と R2 の認証情報が必要なので、
-そちらで用意してください。
+| | 対象 | 頻度 | 失う可能性のある時間 |
+|---|---|---|---|
+| 差分 | `coin_transactions` / `coin_purchases` | 毎時 | 最大1時間 |
+| 全量 | 予約・換金・ロット・ウォレット等 | 毎日 | 最大24時間 |
+
+**PITR より優れている点**: PITR は Supabase 内部の機能なので、アカウント凍結や
+プロジェクトの誤削除といった「Supabase ごと失う」事故には効きません。
+別事業者に置くこちらは効きます。
+
+**PITR に劣る点**: 粒度が1時間(PITR は数分)。プロフィール・メッセージ・画像は
+対象外(Pro の日次バックアップに任せる)。
+
+止まったことは `check_ledger_export()`(毎日 04:17 UTC)が検知し、
+差分が3時間・全量が26時間途絶えたら管理者に通知します。
+**止まったことに気づけないバックアップは、無いのと同じ**だからです。
+
+セットアップ手順は `workers/ledger-export/README.md`。
+R2 バケットの作成と `service_role` キーの登録だけ手作業が要ります。
 
 ### 推奨: Stripe との突合(月次)
 
@@ -258,3 +270,4 @@ from public.coin_purchases group by 1 order by 1;
 | `98_integrity_checks.sql` | 実RPCで一通り取引を回して全チェックがokになること。壊し方ごとにどのチェックが鳴るか |
 | `99_ledger_immutable.sql` | 台帳の変更・削除が止まること。宣言すれば通り旧値が残ること。物理削除が止まること |
 | `91_account_anonymize.sql` | 未処理の取引があるうちは退会させないこと。**退会後も取引記録が残ること** |
+| `92_ledger_export.sql` | エクスポートの停止・失敗を検知できること。周期の違うチェックが混ざっても一覧が壊れないこと |
