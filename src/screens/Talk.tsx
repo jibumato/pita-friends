@@ -12,7 +12,8 @@ import {
   extendBooking,
   fetchBookingForPromise,
   fetchMessages,
-  fetchMyRefundPercent,
+  fetchMyRefundQuote,
+  type RefundQuote,
   fetchPaidBalance,
   fetchThreadPartner,
   hasReviewedPromise,
@@ -227,7 +228,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   /** いまキャンセルしたら何%戻るか(サーバ判定)。確認を開いた時点で取り直す。 */
-  const [refundPct, setRefundPct] = useState<number | null>(null)
+  const [refundQuote, setRefundQuote] = useState<RefundQuote | null>(null)
   const [reviewed, setReviewed] = useState<boolean | null>(null)
   const [stars, setStars] = useState(5)
   const [tags, setTags] = useState<string[]>([])
@@ -598,12 +599,12 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
             <span
               onClick={() => {
                 setCancelOpen(true)
-                // 確認を開いた瞬間の値を取る。時間が経つと率が変わるため、
+                // 確認を開いた瞬間の値を取る。時間が経つと額が変わるため、
                 // 画面を開きっぱなしにしていた古い値を出さない。
-                setRefundPct(null)
-                fetchMyRefundPercent(booking.id)
-                  .then(setRefundPct)
-                  .catch(() => setRefundPct(null))
+                setRefundQuote(null)
+                fetchMyRefundQuote(booking.id)
+                  .then(setRefundQuote)
+                  .catch(() => setRefundQuote(null))
               }}
               style={{ cursor: 'pointer', fontSize: 10.5, color: '#E3DCFF', textDecoration: 'underline', textAlign: 'center' }}
             >
@@ -622,18 +623,18 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
               }}
             >
               {/* 一般論ではなく「いま取り消したら実際にいくら戻るか」を出す。
-                  判定はサーバの booking_refund_percent 1か所に集約してあり、
-                  ここで別計算はしない(ずれると表示と実額が食い違う)。 */}
+                  0048で没収額に上限を入れたので、率からの掛け算では実額が出ない。
+                  ここでは計算せず、サーバが返した額をそのまま表示する。 */}
               <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
                 {!isGuestOfBooking
                   ? 'あなた都合のキャンセルはコインが相手に全額戻り、あなたのドタキャン記録に残ります。'
-                  : refundPct === null
+                  : refundQuote === null
                     ? '確認しています…'
-                    : refundPct === 100
-                      ? `いまキャンセルすると、${booking.coins.toLocaleString()}コインが全額戻ります。`
-                      : refundPct === 0
-                        ? `いまキャンセルすると、${booking.coins.toLocaleString()}コインは戻らず相手の報酬になります。ドタキャンとして記録されます。`
-                        : `いまキャンセルすると、${Math.round((booking.coins * refundPct) / 100).toLocaleString()}コイン(${refundPct}%)が戻ります。残りは相手の報酬になり、ドタキャンとして記録されます。`}
+                    : refundQuote.refundCoins >= refundQuote.coins
+                      ? `いまキャンセルすると、${refundQuote.coins.toLocaleString()}コインが全額戻ります。`
+                      : refundQuote.refundCoins === 0
+                        ? `いまキャンセルすると、${refundQuote.coins.toLocaleString()}コインは戻らず相手の報酬になります。ドタキャンとして記録されます。`
+                        : `いまキャンセルすると、${refundQuote.refundCoins.toLocaleString()}コインが戻ります。残りの${refundQuote.forfeitCoins.toLocaleString()}コインは相手の報酬になり、ドタキャンとして記録されます。`}
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
                 <span

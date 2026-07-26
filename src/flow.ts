@@ -196,17 +196,30 @@ export function discountedCoins(listCoins: number, percent: number): number {
 }
 
 /**
- * 予約できる時間(分)。30分刻みで最長4時間。
- * サーバ側の上限(platform_pricing.max_duration_minutes)と揃えること。
- * ずれると、画面では選べるのに申込時に INVALID_DURATION で弾かれる。
- * これより長く遊びたい場合は、プレイ中に延長(第8条の3)で足す。
+ * 予約できる時間(分)。4時間までは30分刻み、それ以降は1時間刻みで最長12時間。
+ *
+ * 全部を30分刻みにすると720分で24択になり、横スクロールのチップでは選べない。
+ * 長時間側は30分の差が意味を持ちにくいので、粗くして16択に収めている。
+ *
+ * サーバ側(platform_pricing の max_duration_minutes / duration_*_step_minutes と
+ * is_valid_booking_duration())と**同じ規則にすること**。ずれると、画面では
+ * 選べるのに申込時に INVALID_DURATION で弾かれる。
  */
 export const BOOKING_DURATION_STEP = 30
-export const BOOKING_DURATION_MAX = 240
-export const BOOKING_DURATIONS = Array.from(
-  { length: BOOKING_DURATION_MAX / BOOKING_DURATION_STEP },
-  (_, i) => (i + 1) * BOOKING_DURATION_STEP,
-)
+export const BOOKING_DURATION_MAX = 720
+/** ここまでは30分刻み。これを超えたら1時間刻み。 */
+export const BOOKING_DURATION_FINE_UNTIL = 240
+export const BOOKING_DURATION_COARSE_STEP = 60
+export const BOOKING_DURATIONS = [
+  ...Array.from(
+    { length: BOOKING_DURATION_FINE_UNTIL / BOOKING_DURATION_STEP },
+    (_, i) => (i + 1) * BOOKING_DURATION_STEP,
+  ),
+  ...Array.from(
+    { length: (BOOKING_DURATION_MAX - BOOKING_DURATION_FINE_UNTIL) / BOOKING_DURATION_COARSE_STEP },
+    (_, i) => BOOKING_DURATION_FINE_UNTIL + (i + 1) * BOOKING_DURATION_COARSE_STEP,
+  ),
+]
 export type BookingDuration = number
 
 /** 「1時間30分」のように、時間と分に分けて読ませる。 */
