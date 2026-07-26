@@ -1516,17 +1516,40 @@ export async function createBookingRemote(
   return data as string
 }
 
+/** いまキャンセルしたときの見積り。金額はサーバで確定させる。 */
+export type RefundQuote = {
+  /** 予約に消費されているコイン(延長分を含む) */
+  coins: number
+  /** 実際に戻るコイン */
+  refundCoins: number
+  /** ピタメイトの報酬として確定するコイン */
+  forfeitCoins: number
+  /** 段階制の返還率(%)。表示の補足用 */
+  basePercent: number
+  /** 没収の上限(0048)が効いて、率から期待されるより多く戻る状態か */
+  capped: boolean
+}
+
 /**
- * いまキャンセルしたら何%戻るかを取得する。
- * 判定はサーバ(booking_refund_percent)の1か所に集約してあり、
- * 画面で別途計算しないこと(ずれると表示と実額が食い違う)。
+ * いまキャンセルしたら実際に何コイン戻るかを取得する。
+ *
+ * 0048 で没収額に上限(平均的な損害の頭打ち)を入れたため、
+ * 「率 × コイン数」では実額が出せなくなった。**画面で掛け算をしないこと**。
+ * 判定も計算もサーバ(booking_refund_coins)の1か所に集約してある。
  */
-export async function fetchMyRefundPercent(bookingId: string): Promise<number> {
-  const { data, error } = await requireSupabase().rpc('my_booking_refund_percent', {
+export async function fetchMyRefundQuote(bookingId: string): Promise<RefundQuote> {
+  const { data, error } = await requireSupabase().rpc('my_booking_refund_quote', {
     p_booking_id: bookingId,
   })
   if (error) throw error
-  return Number(data ?? 0)
+  const q = (data ?? {}) as Record<string, unknown>
+  return {
+    coins: Number(q.coins ?? 0),
+    refundCoins: Number(q.refund_coins ?? 0),
+    forfeitCoins: Number(q.forfeit_coins ?? 0),
+    basePercent: Number(q.base_percent ?? 0),
+    capped: Boolean(q.capped),
+  }
 }
 
 /** 保有コイン(有償+ボーナス)のうち最も近い有効期限を返す(なければnull)。 */

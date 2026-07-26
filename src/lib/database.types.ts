@@ -634,6 +634,11 @@ export type Database = {
         Args: { p_booking_id: string }
         Returns: number
       }
+      /** 0048: 没収の上限が入ったため、率ではなく実額を返すこちらを使う */
+      my_booking_refund_quote: {
+        Args: { p_booking_id: string }
+        Returns: Record<string, unknown>
+      }
       host_dashboard: {
         Args: { p_at?: string }
         Returns: Record<string, unknown>
