@@ -8,6 +8,7 @@
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import { isBackendConfigured } from '../lib/supabase'
+import InlineLogin from './InlineLogin'
 
 const PC_GAMES = ['Apex Legends', 'VALORANT', 'Overwatch 2', 'League of Legends', 'Fortnite', 'Marvel Rivals', 'Minecraft', 'モンハン']
 
@@ -35,6 +36,38 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
 
   return (
     <div className="lp-wrap" style={{ width: '100%', minHeight: '100vh', background: C.surface, color: C.ink }}>
+      {/* ===== ログイン(専用画面は廃止し、ランディングにオーバーレイで統合) ===== */}
+      {flow.welcomeLoginOpen && (
+        <div
+          onClick={flow.closeLogin}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            background: 'rgba(40,30,80,.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 360,
+              background: C.white,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 16,
+              boxShadow: `6px 6px 0 ${C.lavender}`,
+              padding: '26px 24px',
+              boxSizing: 'border-box',
+            }}
+          >
+            <InlineLogin flow={flow} onBack={flow.closeLogin} />
+          </div>
+        </div>
+      )}
       {/* ===== ナビ ===== */}
       <header
         style={{
@@ -51,7 +84,7 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
             <a className="lp-navlink" href="#safety">安全</a>
             <a className="lp-navlink" href="#host">ホスト</a>
           </nav>
-          <button className="lp-cta" onClick={() => flow.go(isBackendConfigured ? 'signIn' : 'home')} style={ctaGhostSm}>
+          <button className="lp-cta" onClick={() => (isBackendConfigured ? flow.openLogin() : flow.go('home'))} style={ctaGhostSm}>
             ログイン
           </button>
           <button className="lp-cta" onClick={start} style={ctaPrimary}>▶ はじめる</button>
@@ -78,7 +111,7 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
               </p>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <button className="lp-cta" onClick={start} style={{ ...ctaPrimary, padding: '14px 26px', fontSize: 15 }}>▶ はじめる（無料）</button>
-                <button className="lp-cta" onClick={() => flow.go(isBackendConfigured ? 'signIn' : 'home')} style={ctaGhost}>ログイン</button>
+                <button className="lp-cta" onClick={() => (isBackendConfigured ? flow.openLogin() : flow.go('home'))} style={ctaGhost}>ログイン</button>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {['🛡 承認制', '通報・ブロック', '本人確認', 'みまもり'].map((t) => <span key={t} style={chip}>{t}</span>)}

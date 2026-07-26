@@ -46,7 +46,6 @@ import {
 
 import Welcome from './screens/Welcome'
 import SignUp from './screens/SignUp'
-import SignIn from './screens/SignIn'
 import Consent from './screens/Consent'
 import Verify from './screens/Verify'
 import Setup from './screens/Setup'
@@ -135,6 +134,8 @@ export type BookingHost = {
 /** 全画面が受け取るフローコンテキスト。 */
 export type Flow = {
   screen: ScreenKey
+  /** ようこそ画面(メインページ)にインライン表示するログインフォームの開閉状態。 */
+  welcomeLoginOpen: boolean
   game: string
   when: string
   dealDone: boolean
@@ -235,6 +236,10 @@ export type Flow = {
   setSafetyPref: <K extends keyof SafetyPrefs>(key: K, value: SafetyPrefs[K]) => void
   applyRecommendedFemalePrefs: () => void
   go: (s: ScreenKey) => void
+  /** ようこそ画面をログインフォーム表示状態で開く(専用のログイン画面は廃止済み)。 */
+  openLogin: () => void
+  /** ようこそ画面のログインフォームを閉じ、通常のトップ表示に戻す。 */
+  closeLogin: () => void
   sendInvite: () => void
   goJoin: () => void
   restart: () => void
@@ -243,6 +248,7 @@ export type Flow = {
 
 const INITIAL = {
   screen: 'welcome' as ScreenKey,
+  welcomeLoginOpen: false,
   game: 'Apex',
   when: '今夜 22:00〜',
   dealDone: false,
@@ -460,6 +466,7 @@ export default function App() {
         screen: s,
         reportTarget: null,
         sendFailOpen: false,
+        welcomeLoginOpen: false,
         profileUserId: s === 'profile' ? null : p.profileUserId,
         profileReturn: s === 'profile' ? p.screen : p.profileReturn,
         inviteTarget: s === 'invite' ? null : p.inviteTarget,
@@ -467,6 +474,18 @@ export default function App() {
     },
     [clearTimer],
   )
+
+  // 専用のログイン画面は廃止し、ようこそ画面(メインページ)にインラインのログイン
+  // フォームを出す方式にした。go()は毎回welcomeLoginOpenをfalseへ戻すため、
+  // 画面遷移とフォームの表示を同時に行う専用関数が必要になる。
+  const openLogin = useCallback(() => {
+    clearTimer()
+    setState((p) => ({ ...p, screen: 'welcome', welcomeLoginOpen: true }))
+  }, [clearTimer])
+
+  const closeLogin = useCallback(() => {
+    setState((p) => ({ ...p, welcomeLoginOpen: false }))
+  }, [])
 
   const sendInvite = useCallback(() => {
     clearTimer()
@@ -723,6 +742,8 @@ export default function App() {
       setState((p) => ({ ...p, bookingDuration: min, bookingInsufficient: false, bookingError: null })),
     confirmBooking,
     go,
+    openLogin,
+    closeLogin,
     sendInvite,
     goJoin,
     restart,
@@ -759,7 +780,6 @@ export default function App() {
           <>
         {state.screen === 'welcome' && <Welcome flow={flow} />}
         {state.screen === 'signUp' && <SignUp flow={flow} />}
-        {state.screen === 'signIn' && <SignIn flow={flow} />}
         {state.screen === 'consent' && <Consent flow={flow} />}
         {state.screen === 'verify' && <Verify flow={flow} />}
         {state.screen === 'setup' && <Setup flow={flow} />}

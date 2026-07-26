@@ -74,7 +74,7 @@ export default function SignUp({ flow }: { flow: Flow }) {
           </span>
           <div
             className="pita-press"
-            onClick={() => flow.go('signIn')}
+            onClick={flow.openLogin}
             {...cta.handlers}
             style={{
               cursor: 'pointer',
@@ -192,7 +192,7 @@ export default function SignUp({ flow }: { flow: Flow }) {
         </form>
 
         <span
-          onClick={() => flow.go('signIn')}
+          onClick={flow.openLogin}
           style={{ cursor: 'pointer', textAlign: 'center', fontSize: 12, color: C.muted }}
         >
           すでにアカウントをお持ちですか？ ログイン
