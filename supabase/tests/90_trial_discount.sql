@@ -34,7 +34,10 @@ update public.coin_wallets set balance = 50000
 
 \echo '=== 1. 初回のゲストは割引価格で予約できる(60分 2000 → 1400) ==='
 set test.uid = 'd0000000-0000-0000-0000-00000000ff11';
-select public.create_booking('d0000000-0000-0000-0000-00000000ff01'::uuid, 60, 'v1') as t1 \gset
+-- 0049で予約時間帯の重複検査が入ったため、各予約には別々の開始時刻を与える
+-- (同じ「今すぐ」を続けて申し込むと HOST_SLOT_TAKEN になる)
+select public.create_booking('d0000000-0000-0000-0000-00000000ff01'::uuid, 60, 'v1',
+  date_trunc('hour', now()) + interval '1 day') as t1 \gset
 
 do $$
 declare b public.bookings; v_bal int;
@@ -70,7 +73,8 @@ begin
 end $$;
 
 \echo '=== 3. 同じホストへの2回目は割引されない(60分 → 2000) ==='
-select public.create_booking('d0000000-0000-0000-0000-00000000ff01'::uuid, 60, 'v1') as t2 \gset
+select public.create_booking('d0000000-0000-0000-0000-00000000ff01'::uuid, 60, 'v1',
+  date_trunc('hour', now()) + interval '2 days') as t2 \gset
 
 do $$
 declare b public.bookings;
@@ -86,7 +90,8 @@ end $$;
 
 \echo '=== 4. ホスト都合(辞退)で流れた場合は「利用済み」にしない ==='
 set test.uid = 'd0000000-0000-0000-0000-00000000ff22';
-select public.create_booking('d0000000-0000-0000-0000-00000000ff01'::uuid, 30, 'v1') as t3 \gset
+select public.create_booking('d0000000-0000-0000-0000-00000000ff01'::uuid, 30, 'v1',
+  date_trunc('hour', now()) + interval '3 days') as t3 \gset
 set test.uid = 'd0000000-0000-0000-0000-00000000ff01';
 select public.decline_booking(:'t3');
 set test.uid = 'd0000000-0000-0000-0000-00000000ff22';
@@ -104,7 +109,8 @@ begin
 end $$;
 
 \echo '=== 5. 延長分は通常価格。割引は最初に予約した分だけ(0039) ==='
-select public.create_booking('d0000000-0000-0000-0000-00000000ff01'::uuid, 30, 'v1') as t4 \gset
+select public.create_booking('d0000000-0000-0000-0000-00000000ff01'::uuid, 30, 'v1',
+  date_trunc('hour', now()) + interval '4 days') as t4 \gset
 set test.uid = 'd0000000-0000-0000-0000-00000000ff01';
 select public.approve_booking(:'t4');
 set test.uid = 'd0000000-0000-0000-0000-00000000ff22';

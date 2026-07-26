@@ -76,7 +76,9 @@ begin
   select sum(remaining) into v_before from public.coin_lots
     where user_id = 'c0000000-0000-0000-0000-0000000000f2'::uuid;
   -- 予約はロットから消費するので、この更新経路を塞いではいけない
-  perform public.create_booking('c0000000-0000-0000-0000-0000000000f1'::uuid, 60, 'v2', null);
+  -- 0049の重複検査があるので、冒頭の「今すぐ」とは別の時刻にする
+  perform public.create_booking('c0000000-0000-0000-0000-0000000000f1'::uuid, 60, 'v2',
+    date_trunc('hour', now()) + interval '1 day');
   select sum(remaining) into v_after from public.coin_lots
     where user_id = 'c0000000-0000-0000-0000-0000000000f2'::uuid;
   if v_after <> v_before - 2000 then

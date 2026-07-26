@@ -639,6 +639,11 @@ export type Database = {
         Args: { p_booking_id: string }
         Returns: Record<string, unknown>
       }
+      /** 0049: 予約で埋まっている時間帯(そのピタメイト + 自分) */
+      booking_busy_slots: {
+        Args: { p_host_id: string; p_days?: number }
+        Returns: Record<string, unknown>[]
+      }
       host_dashboard: {
         Args: { p_at?: string }
         Returns: Record<string, unknown>

@@ -57,10 +57,13 @@
      (`anonymize_user()`。**適用するまで退会対応で入金・換金記録が消える**)
    - `0047_ledger_export_heartbeat.sql` … R2への外部バックアップの鮮度チェック
      (`workers/ledger-export` とセット。止まったら管理者に通知)
-   - `0048_longer_play_12h.sql` … あそぶ時間を最長12時間に
+   - `0048_longer_play_12h.sql` … あそぶ時間を長時間対応に
      (`create_booking`/`extend_booking`/`cancel_booking`/`auto_complete_bookings`を
      差し替える。**自動確定の起点が開始時刻→終了時刻に変わる**。
      キャンセル没収額に「経過分+3時間分」の上限が入る)
+   - `0049_booking_slot_conflict.sql` … 上限を10時間に確定し、**予約時間帯の重複を防ぐ**
+     (E-13。`create_booking`/`approve_booking`/`extend_booking`を差し替える。
+     適用するまで同じ時間帯に予約が二重に入る)
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ✅ **リダイレクトURLの登録**(2026-07-26): Authentication → URL Configuration

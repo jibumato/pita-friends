@@ -9,7 +9,7 @@ import { BOOKING_DURATIONS, coinsForDuration, coinsPer30, durationLabel, discoun
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
-import { fetchMyTrialDiscount } from '../lib/queries'
+import { fetchMyTrialDiscount, fetchBusySlots, type BusySlot } from '../lib/queries'
 import {
   startTimeOptions,
   formatStart,
@@ -17,6 +17,18 @@ import {
   MIN_LEAD_MINUTES,
   MAX_LEAD_DAYS,
 } from '../content/bookingPolicy'
+
+/**
+ * その開始時刻で申し込めるか。埋まっている時間帯と重なっていたら false。
+ * サーバ(_booking_slot_conflict)と同じ半開区間 [start, end) で判定する。
+ */
+function overlapsBusy(start: Date, minutes: number, busy: BusySlot[]): BusySlot | null {
+  const end = new Date(start.getTime() + minutes * 60_000)
+  return (
+    busy.find((b) => b.startsAt.getTime() < end.getTime() && start.getTime() < b.endsAt.getTime()) ??
+    null
+  )
+}
 
 export default function Booking({ flow }: { flow: Flow }) {
   const host = flow.bookingHost
@@ -28,11 +40,39 @@ export default function Booking({ flow }: { flow: Flow }) {
   // 開始時刻の候補は画面を開いた時点で固定する(毎描画で作り直すと、
   // 選んだ時刻のオブジェクトが候補側と一致しなくなり選択が外れる)
   const [startOptions] = useState(() => startTimeOptions(new Date()))
+  // 既に埋まっている時間帯(0049)。ここに重なる開始時刻は選べない。
+  // 判定はサーバでも行われるので、これは「申し込む前に分かる」ための表示。
+  const [busy, setBusy] = useState<BusySlot[]>([])
 
   useEffect(() => {
     // 直接遷移してきた等、ピタメイト未指定の場合は安全にさがすへ戻す
     if (!host) flow.go('search')
   }, [host, flow])
+
+  useEffect(() => {
+    if (!isBackendConfigured || !hostUserId) return
+    let active = true
+    fetchBusySlots(hostUserId)
+      .then((rows) => {
+        if (active) setBusy(rows)
+      })
+      .catch(() => {
+        // 取れなくても申し込みはできる(サーバ側で弾かれる)。黙って諦める。
+        if (active) setBusy([])
+      })
+    return () => {
+      active = false
+    }
+  }, [hostUserId])
+
+  // あそぶ時間を伸ばすと、選んでいた開始時刻が埋まった枠に食い込むことがある。
+  // 選択したまま申し込むとサーバで弾かれるので、選び直してもらう。
+  useEffect(() => {
+    if (!flow.bookingStartAt) return
+    if (overlapsBusy(flow.bookingStartAt, flow.bookingDuration, busy)) {
+      flow.setBookingStartAt(null)
+    }
+  }, [flow, busy])
 
   useEffect(() => {
     if (!isBackendConfigured || !hostUserId) return
@@ -144,21 +184,28 @@ export default function Booking({ flow }: { flow: Flow }) {
             >
               {startOptions.map((d) => {
                 const sel = flow.bookingStartAt?.getTime() === d.getTime()
+                const taken = overlapsBusy(d, flow.bookingDuration, busy)
+                const label = taken
+                  ? `${formatStart(d)}(${taken.who === 'me' ? '自分の予約あり' : '予約済み'})`
+                  : formatStart(d)
                 return (
                   <span
                     key={d.toISOString()}
-                    onClick={() => flow.setBookingStartAt(d)}
-                    {...clickable(() => flow.setBookingStartAt(d), formatStart(d))}
+                    onClick={taken ? undefined : () => flow.setBookingStartAt(d)}
+                    {...(taken ? {} : clickable(() => flow.setBookingStartAt(d), label))}
+                    aria-disabled={taken ? true : undefined}
                     style={{
                       flex: 'none',
-                      cursor: 'pointer',
+                      cursor: taken ? 'not-allowed' : 'pointer',
                       fontSize: 12,
-                      color: sel ? C.ink : C.body,
-                      background: sel ? C.lime : C.white,
+                      color: taken ? C.muted : sel ? C.ink : C.body,
+                      background: taken ? C.surface : sel ? C.lime : C.white,
                       border: `1.5px solid ${C.border}`,
                       padding: '9px 13px',
                       borderRadius: 8,
                       whiteSpace: 'nowrap',
+                      opacity: taken ? 0.55 : 1,
+                      textDecoration: taken ? 'line-through' : 'none',
                     }}
                   >
                     {formatStart(d)}
@@ -168,12 +215,13 @@ export default function Booking({ flow }: { flow: Flow }) {
             </div>
             <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.6, marginTop: -6 }}>
               {MIN_LEAD_MINUTES}分後〜{MAX_LEAD_DAYS}日先まで選べます。
+              {busy.length > 0 && '　取り消し線の時刻は、あそぶ時間のぶんが埋まっています。'}
               {flow.bookingStartAt && `　選択中: ${formatStartRange(flow.bookingStartAt, flow.bookingDuration)}`}
             </span>
           </>
         )}
 
-        {/* あそぶ時間。選択肢が8つあるので横スクロールにする。 */}
+        {/* あそぶ時間。4時間までは30分刻み・それ以降は1時間刻みで14択あるので横スクロール。 */}
         <span style={{ fontSize: 12, color: C.muted }}>あそぶ時間</span>
         <div className="pita-scroll" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
           {BOOKING_DURATIONS.map((min) => {
