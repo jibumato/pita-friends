@@ -1,6 +1,6 @@
--- ピタフレ 全スキーマ結合版 (0001〜0031)
+-- ピタフレ 全スキーマ結合版 (0001〜0036)
 -- Supabase ダッシュボードの SQL Editor に、このファイルの中身をそのまま貼り付けて一括実行できます。
--- 既に0001〜0029を適用済みの場合は、追加分の 0030・0031 だけを実行すればOKです。
+-- 既に途中まで適用済みの場合は、未適用の番号のファイルだけを番号順に実行してください。
 -- 注意: 適用済みのDBにこのファイル全体を流すと "already exists" で途中中断します。
 -- 追加分は supabase/migrations/ の該当ファイルだけを番号順に流してください。
 
@@ -6054,3 +6054,970 @@ $$;
 
 revoke all on function public.revoke_monitoring_consent() from public;
 grant execute on function public.revoke_monitoring_consent() to authenticated;
+
+
+-- ============================================================================
+-- 0032_cancellation_evidence.sql
+-- ============================================================================
+-- ============================================================
+-- キャンセルポリシーの同意記録と、キャンセル実態の集計
+-- 論点: docs/legal/lawyer-review-round2-request.md Q14
+--       (直前キャンセルの没収と消費者契約法9条)
+-- 対応: open-issues.md の E-1 / E-2
+-- ------------------------------------------------------------
+-- Q14で示された条件のうち、①「予約確定前にキャンセルポリシーを明示し、
+-- 同意の痕跡(ログ)を残す」③「争いになった際の『平均的な損害』の立証材料を
+-- 蓄積する」に対応する。
+--
+-- ■ E-1: 同意の記録
+--   予約時に、そのとき画面に表示していたポリシーのバージョンを予約行に残す。
+--   別テーブルにせず bookings に持たせるのは、証跡が予約と1対1で、
+--   予約を見れば「どの版のポリシーに同意して申し込んだか」が分かるため。
+--
+-- ■ E-2: 「平均的な損害」の立証材料
+--   当初は「直前キャンセルされた枠がその後埋まったか(再販売率)」を記録する
+--   想定だったが、本サービスに将来日時の予約は無く、ホストが承諾した時点で
+--   役務が始まる(approve_booking が scheduled_at = now() を設定する)。
+--   「空いた枠が後で売れたか」という概念が成立しないため、代わりに
+--   **承諾からキャンセルまでの経過時間と没収額**を集計する。
+--   これらは bookings の既存カラム(scheduled_at = 承諾時刻, cancelled_at)から
+--   導出できるので、新しい列は増やさずビューだけを用意する。
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- E-1: 同意したポリシーのバージョンを予約に記録する
+-- ------------------------------------------------------------
+alter table public.bookings
+  add column policy_version text,
+  add column policy_agreed_at timestamptz;
+
+comment on column public.bookings.policy_version is
+  '予約申込時に画面へ表示していたキャンセルポリシーのバージョン(src/content/bookingPolicy.ts と対応)。消費者契約法9条の争いに備えた同意の痕跡。';
+comment on column public.bookings.policy_agreed_at is
+  '上記ポリシーに同意して申し込んだ時刻。';
+
+-- create_booking に p_policy_version を足す。
+--
+-- 旧2引数版は「まだ残す」。main へのマージで自動デプロイされる構成のため、
+-- マイグレーションの適用とフロントのデプロイの順序が前後しうる。
+-- ここで2引数版を消すと、適用前にデプロイされた瞬間に予約が作れなくなる。
+--
+-- なお3引数版の p_policy_version に既定値を持たせると、2引数での呼び出しが
+-- どちらの関数にも一致して "function is not unique" になるため、
+-- **3引数版は必須引数**にしてある。
+--
+-- ⚠️ フロントのデプロイ完了後に、旧2引数版は削除すること(同意記録の無い予約が
+--    作れる状態を残さないため)。削除は次のマイグレーションで行う。
+drop function if exists public.create_booking(uuid, int, text);
+
+create function public.create_booking(
+  p_host_id uuid,
+  p_duration_minutes int,
+  p_policy_version text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_guest_id uuid := auth.uid();
+  v_hourly_rate int;
+  v_is_host boolean;
+  v_coins int;
+  v_paid int;
+  v_bonus int;
+  v_from_paid int;
+  v_from_bonus int;
+  v_booking_id uuid;
+  v_guest_name text;
+  v_paid_lots jsonb;
+  v_bonus_lots jsonb;
+begin
+  if v_guest_id is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if p_duration_minutes not in (30, 60, 120) then
+    raise exception 'INVALID_DURATION';
+  end if;
+  if v_guest_id = p_host_id then
+    raise exception 'CANNOT_BOOK_SELF';
+  end if;
+
+  select hourly_rate, is_host into v_hourly_rate, v_is_host
+  from public.host_settings where user_id = p_host_id for share;
+
+  if v_hourly_rate is null or not v_is_host then
+    raise exception 'HOST_NOT_AVAILABLE';
+  end if;
+
+  v_coins := round(v_hourly_rate * p_duration_minutes / 60.0);
+
+  select balance, bonus_balance into v_paid, v_bonus
+  from public.coin_wallets where user_id = v_guest_id for update;
+
+  if v_paid is null or (v_paid + coalesce(v_bonus, 0)) < v_coins then
+    raise exception 'INSUFFICIENT_COINS';
+  end if;
+
+  v_from_paid := least(v_paid, v_coins);
+  v_from_bonus := v_coins - v_from_paid;
+
+  update public.coin_wallets
+    set balance = balance - v_from_paid,
+        bonus_balance = bonus_balance - v_from_bonus
+    where user_id = v_guest_id;
+
+  v_paid_lots := public._consume_coin_lots_tracked(v_guest_id, 'paid', v_from_paid);
+  v_bonus_lots := public._consume_coin_lots_tracked(v_guest_id, 'bonus', v_from_bonus);
+
+  insert into public.bookings (
+    guest_id, host_id, duration_minutes, coins, paid_coins, bonus_coins, status,
+    policy_version, policy_agreed_at
+  )
+  values (
+    v_guest_id, p_host_id, p_duration_minutes, v_coins, v_from_paid, v_from_bonus, 'requested',
+    nullif(btrim(coalesce(p_policy_version, '')), ''),
+    case when nullif(btrim(coalesce(p_policy_version, '')), '') is null then null else now() end
+  )
+  returning id into v_booking_id;
+
+  perform public._record_lot_consumptions(v_guest_id, v_booking_id, 'paid', v_paid_lots);
+  perform public._record_lot_consumptions(v_guest_id, v_booking_id, 'bonus', v_bonus_lots);
+
+  insert into public.coin_transactions (user_id, amount, type, related_booking_id)
+  values (v_guest_id, -v_coins, 'booking_spend', v_booking_id);
+
+  select nickname into v_guest_name from public.profiles where id = v_guest_id;
+  insert into public.notifications (user_id, type, title, body, related_id)
+  values (
+    p_host_id, 'booking_requested',
+    coalesce(nullif(v_guest_name, ''), '誰か') || 'さんから予約リクエストが届きました',
+    v_coins || 'コイン・' || p_duration_minutes || '分。承諾するとトークが始まります',
+    v_booking_id
+  );
+
+  return v_booking_id;
+end;
+$$;
+
+-- 旧2引数版を、3引数版へ委譲する薄いラッパーに置き換える(経過措置)。
+-- 同意バージョンは null になるので、記録の無い予約は「デプロイ前の申込み」と
+-- 判別できる。
+create or replace function public.create_booking(p_host_id uuid, p_duration_minutes int)
+returns uuid
+language sql
+security definer
+set search_path = public
+as $$
+  select public.create_booking(p_host_id, p_duration_minutes, null::text);
+$$;
+
+comment on function public.create_booking(uuid, int) is
+  '経過措置。フロントのデプロイ完了後に削除すること(同意記録の無い予約が作れる状態を残さないため)。';
+
+-- ------------------------------------------------------------
+-- E-2: キャンセル実態の集計(「平均的な損害」の立証材料)
+--
+-- security_invoker により、通常のユーザーには bookings のRLSがそのまま効く
+-- (自分が当事者の予約しか見えない)。運営はダッシュボード/service_roleで全件見る。
+-- ------------------------------------------------------------
+create view public.guest_cancellation_evidence
+with (security_invoker = true)
+as
+select
+  b.id as booking_id,
+  b.host_id,
+  b.duration_minutes,
+  b.coins as forfeited_coins,
+  b.policy_version,
+  b.scheduled_at as approved_at,
+  b.cancelled_at,
+  -- 承諾(=役務の開始)からキャンセルまでの経過秒数
+  extract(epoch from (b.cancelled_at - b.scheduled_at))::int as seconds_after_approval,
+  -- 経過時間が予約時間に占める割合(1.0 = 予定時間をすべて消化してからキャンセル)
+  round(
+    extract(epoch from (b.cancelled_at - b.scheduled_at))::numeric
+      / nullif(b.duration_minutes * 60, 0),
+    3
+  ) as elapsed_ratio
+from public.bookings b
+where b.status = 'cancelled_by_guest'
+  and b.cancelled_at is not null
+  -- 承諾前(status='requested')の取消は全額返金なので対象外。
+  -- 没収が起きたケースだけを見る。
+  and b.scheduled_at is not null
+  and b.cancelled_at >= b.scheduled_at;
+
+comment on view public.guest_cancellation_evidence is
+  'ゲスト都合キャンセルで没収が生じた予約の一覧。承諾からキャンセルまでの経過時間と没収額を出す。消費者契約法9条の「平均的な損害」を検討・立証するための材料(docs/legal/lawyer-review-round2-request.md Q14)。';
+
+
+-- ============================================================================
+-- 0033_host_fee_tiers.sql
+-- ============================================================================
+-- ============================================================
+-- ホスト手数料(超過累進ティア + 指名リピート割引)の導入
+-- ------------------------------------------------------------
+-- これまでホストは消費されたコインを100%受け取っており、運営の収益は
+-- 換金手数料(300コイン/回)とコインの購入・失効差分だけだった。
+-- ここでプラットフォーム手数料を導入する。
+--
+-- ■ 料率(超過累進。所得税と同じで、超えた分にだけ高い率がかかるのではなく
+--   「各段の範囲にその段の率」がかかる)
+--     〜30,000コイン      20%
+--     30,000〜100,000     17%
+--     100,000〜300,000    14%
+--     300,000〜           12%
+--   判定の母数は「その月に確定した予約(チケット)売上」。ギフトは含めない。
+--
+-- ■ 指名リピート割引
+--   同じゲストからの2回目以降の予約は、その予約に適用される料率から3pt引く。
+--   ただし下限10%。ホストが自分の顧客を育てるほど手取りが増える設計。
+--
+-- ■ ギフト
+--   累進の対象外で一律30%。金額が任意で青天井になりうるため、
+--   ティア判定に混ぜると料率設計が歪むため分けている。
+--
+-- ■ 月内の整合性(ここが実装上の肝)
+--   超過累進を「確定のたびに」適用するので、確定時点の限界料率だけで引くと
+--   月末に遡及補正が必要になる。それを避けるため、各確定では
+--     手数料 = 累進手数料(確定後の月間GMV) − 累進手数料(確定前の月間GMV)
+--   を引く。こうすると月末時点の合計が必ず累進計算と一致し、補正がいらない。
+--
+-- ⚠️ 法務: 手数料の導入は規約(第8条)・特商法表記への反映が必要。
+--    収納代行の整理(弁護士Q1)自体は、プラットフォームが仲介手数料を
+--    取ること自体で崩れるものではないが、料率と控除の明示は必要。
+--    docs/open-issues.md の E-11 を参照。
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- 料率マスタ(将来の改定はこの表を差し替えるだけで済むようにする)
+-- ------------------------------------------------------------
+create table public.host_fee_tiers (
+  step smallint primary key,
+  -- その段の上限(コイン)。null は上限なし
+  upper_bound int,
+  rate numeric(4, 3) not null check (rate >= 0 and rate <= 1)
+);
+
+comment on table public.host_fee_tiers is
+  'ホスト手数料の超過累進ティア。月間の予約売上(ギフト除く)に対して、各段の範囲にその段の率をかける。';
+
+insert into public.host_fee_tiers (step, upper_bound, rate) values
+  (1, 30000, 0.200),
+  (2, 100000, 0.170),
+  (3, 300000, 0.140),
+  (4, null, 0.120);
+
+alter table public.host_fee_tiers enable row level security;
+
+-- 料率は利用者に開示する情報なので誰でも読める
+create policy "host_fee_tiers_select_all"
+  on public.host_fee_tiers for select
+  to authenticated
+  using (true);
+
+-- ------------------------------------------------------------
+-- 手数料の明細(ダッシュボードの内訳・運営の突合に使う)
+-- ------------------------------------------------------------
+create table public.platform_fees (
+  id uuid primary key default gen_random_uuid(),
+  host_id uuid not null references auth.users (id) on delete cascade,
+  kind text not null check (kind in ('booking', 'gift')),
+  booking_id uuid references public.bookings (id) on delete set null,
+  gift_id uuid references public.gifts (id) on delete set null,
+  gross_coins int not null check (gross_coins >= 0),
+  fee_coins int not null check (fee_coins >= 0),
+  net_coins int not null check (net_coins >= 0),
+  -- 実際に適用された率(gross に対する fee の比)。表示用
+  applied_rate numeric(5, 4) not null,
+  -- 指名リピート割引が効いたか
+  repeat_discounted boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+comment on table public.platform_fees is
+  'ホストから控除したプラットフォーム手数料の明細。ダッシュボードの内訳表示と、運営の突合に使う。';
+
+alter table public.platform_fees enable row level security;
+
+create policy "platform_fees_select_own"
+  on public.platform_fees for select
+  to authenticated
+  using (host_id = auth.uid());
+
+create index platform_fees_host_idx on public.platform_fees (host_id, created_at desc);
+
+-- coin_transactions に手数料の控除を記録できるようにする
+alter table public.coin_transactions drop constraint if exists coin_transactions_type_check;
+alter table public.coin_transactions
+  add constraint coin_transactions_type_check
+  check (type in (
+    'purchase', 'booking_spend', 'refund', 'bonus',
+    'booking_earned', 'payout', 'expire',
+    'gift_sent', 'gift_received',
+    'platform_fee'
+  ));
+
+-- ------------------------------------------------------------
+-- host_progressive_fee: 月間GMVに対する累進手数料の累計額
+-- ------------------------------------------------------------
+create function public.host_progressive_fee(p_gmv int)
+returns numeric
+language plpgsql
+stable
+set search_path = public
+as $$
+declare
+  v_fee numeric := 0;
+  v_prev int := 0;
+  v_tier record;
+begin
+  if p_gmv is null or p_gmv <= 0 then
+    return 0;
+  end if;
+  for v_tier in select upper_bound, rate from public.host_fee_tiers order by step loop
+    exit when p_gmv <= v_prev;
+    v_fee := v_fee + (least(p_gmv, coalesce(v_tier.upper_bound, p_gmv)) - v_prev) * v_tier.rate;
+    v_prev := coalesce(v_tier.upper_bound, p_gmv);
+  end loop;
+  return v_fee;
+end;
+$$;
+
+comment on function public.host_progressive_fee(int) is
+  '月間の予約売上に対する累進手数料の累計額。各確定では「確定後 − 確定前」の差分を引くことで、月末に遡及補正が要らないようにしている。';
+
+-- ------------------------------------------------------------
+-- host_monthly_ticket_gmv: JSTの当月に確定した予約売上(自分がホストの分)
+-- p_exclude_booking を指定すると、その予約を除いた額を返す(確定前の額を出す用)
+-- ------------------------------------------------------------
+create function public.host_monthly_ticket_gmv(
+  p_host_id uuid,
+  p_at timestamptz default now(),
+  p_exclude_booking uuid default null
+)
+returns int
+language sql
+stable
+set search_path = public
+as $$
+  select coalesce(sum(b.coins), 0)::int
+  from public.bookings b
+  where b.host_id = p_host_id
+    and b.status = 'completed'
+    and date_trunc('month', (b.scheduled_at at time zone 'Asia/Tokyo'))
+        = date_trunc('month', (p_at at time zone 'Asia/Tokyo'))
+    and (p_exclude_booking is null or b.id <> p_exclude_booking);
+$$;
+
+-- ------------------------------------------------------------
+-- 手数料の控除はトリガーで行う。
+--
+-- 報酬を付与している関数(complete_booking / auto_complete_bookings /
+-- send_gift)はいずれも長く、send_gift は 0019→0022 で4回作り直している。
+-- これらを丸ごと複製して手数料版に差し替えると、以後の改修でロジックが
+-- 二重管理になりズレる。そこで既存関数は「満額を付与する」ままにしておき、
+-- 直後にトリガーで手数料ぶんを引き戻す形にする。
+-- 取引履歴も booking_earned(満額) + platform_fee(控除) の2行になり、
+-- ホストから見て「いくら稼いで、いくら引かれたか」がそのまま読める。
+-- ------------------------------------------------------------
+
+-- 予約が completed になったときに手数料を引く
+create function public._apply_booking_fee()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  c_repeat_discount constant numeric := 0.03;
+  c_rate_floor constant numeric := 0.10;
+  v_gmv_before int;
+  v_gmv_after int;
+  v_base_fee numeric;
+  v_rate numeric;
+  v_discount numeric := 0;
+  v_is_repeat boolean := false;
+  v_fee int;
+begin
+  if new.coins is null or new.coins <= 0 then
+    return new;
+  end if;
+
+  -- この予約を除いた当月GMV(=確定前)と、含めた額(=確定後)
+  v_gmv_before := public.host_monthly_ticket_gmv(new.host_id, new.scheduled_at, new.id);
+  v_gmv_after := v_gmv_before + new.coins;
+
+  v_base_fee := public.host_progressive_fee(v_gmv_after)
+              - public.host_progressive_fee(v_gmv_before);
+  v_rate := v_base_fee / new.coins;
+
+  -- 指名リピート: 同じゲストと過去に完了した予約があるか
+  select exists (
+    select 1 from public.bookings b
+    where b.host_id = new.host_id
+      and b.guest_id = new.guest_id
+      and b.status = 'completed'
+      and b.id <> new.id
+      and b.scheduled_at < new.scheduled_at
+  ) into v_is_repeat;
+
+  if v_is_repeat then
+    v_discount := least(c_repeat_discount, greatest(0, v_rate - c_rate_floor)) * new.coins;
+  end if;
+
+  v_fee := least(greatest(0, round(v_base_fee - v_discount))::int, new.coins);
+
+  if v_fee > 0 then
+    update public.coin_wallets
+      set earned_balance = greatest(0, earned_balance - v_fee)
+      where user_id = new.host_id;
+    insert into public.coin_transactions (user_id, amount, type, related_booking_id, note)
+      values (new.host_id, -v_fee, 'platform_fee', new.id, 'booking_fee');
+  end if;
+
+  insert into public.platform_fees (
+    host_id, kind, booking_id, gross_coins, fee_coins, net_coins, applied_rate, repeat_discounted)
+  values (
+    new.host_id, 'booking', new.id, new.coins, v_fee, new.coins - v_fee,
+    round(v_fee::numeric / new.coins, 4), v_is_repeat);
+
+  return new;
+end;
+$$;
+
+-- 「完了になった瞬間」だけを拾う。再実行や他の更新では発火させない。
+--
+-- ⚠️ deferrable initially deferred にしているのは必須。
+--    complete_booking は「bookings を completed にする」→「報酬を満額付与する」
+--    の順で書かれているため、通常の AFTER UPDATE では**付与より前**に
+--    トリガーが走ってしまい、まだ残高が無いところから手数料を引こうとして
+--    控除が丸ごと消える(実際に検証で1件目の手数料400コインが消えた)。
+--    トランザクション終了時まで遅延させることで、付与済みの残高から引ける。
+create constraint trigger bookings_apply_fee
+  after update on public.bookings
+  deferrable initially deferred
+  for each row
+  when (new.status = 'completed' and old.status is distinct from 'completed')
+  execute function public._apply_booking_fee();
+
+-- ギフト受領時に一律30%を引く
+create function public._apply_gift_fee()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  c_gift_rate constant numeric := 0.30;
+  v_fee int;
+begin
+  if new.coins is null or new.coins <= 0 then
+    return new;
+  end if;
+  v_fee := least(greatest(round(new.coins * c_gift_rate)::int, 0), new.coins);
+
+  if v_fee > 0 then
+    update public.coin_wallets
+      set earned_balance = greatest(0, earned_balance - v_fee)
+      where user_id = new.receiver_id;
+    insert into public.coin_transactions (user_id, amount, type, note)
+      values (new.receiver_id, -v_fee, 'platform_fee', 'gift_fee:' || new.id);
+  end if;
+
+  insert into public.platform_fees (
+    host_id, kind, gift_id, gross_coins, fee_coins, net_coins, applied_rate)
+  values (new.receiver_id, 'gift', new.id, new.coins, v_fee, new.coins - v_fee, c_gift_rate);
+
+  return new;
+end;
+$$;
+
+create trigger gifts_apply_fee
+  after insert on public.gifts
+  for each row
+  execute function public._apply_gift_fee();
+
+-- ------------------------------------------------------------
+-- 手数料をかけない経路(意図的)
+--   ・直前キャンセルの没収分(ゲスト都合・開始後)は、役務の対価ではなく
+--     機会損失の補償なので手数料を取らない。
+--     そもそもこの没収の設計自体が見直し対象(open-issues.md の E-10)。
+--   ・換金申請が却下されて戻る分(return_payout)は再付与なので対象外。
+-- ------------------------------------------------------------
+
+
+-- ============================================================================
+-- 0034_host_dashboard.sql
+-- ============================================================================
+-- ============================================================
+-- ホスト向けダッシュボードの集計
+-- ------------------------------------------------------------
+-- 「頑張れる目標が見つかる」ことを目的にした集計。既存データから導出でき、
+-- 実在する数字だけを返す。集計はすべて JST の暦月を基準にする。
+--
+-- ⚠️ ここに金額ベースの「ランキング(他人との順位)」は含めない。
+--    弁護士見解(Q11-d)で「投げ銭ランキング・人気ランキングは
+--    『人気女性への金銭提供サービス』と見られ危険」と明確に指摘されており、
+--    既存の host_ranking も金額を一切スコアに入れていない。
+--    ここで返すのは**自分自身の実績**だけ。
+-- ============================================================
+
+create function public.host_dashboard(p_at timestamptz default now())
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_start timestamptz;
+  v_end timestamptz;
+  v_ticket int;
+  v_gift int;
+  v_fee int;
+  v_next_bound int;
+  v_cur_rate numeric;
+  v_next_rate numeric;
+  v_result jsonb;
+begin
+  if v_uid is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
+  -- JSTの当月[start, end)
+  v_start := (date_trunc('month', (p_at at time zone 'Asia/Tokyo')) at time zone 'Asia/Tokyo');
+  v_end   := (date_trunc('month', (p_at at time zone 'Asia/Tokyo')) + interval '1 month')
+             at time zone 'Asia/Tokyo';
+
+  v_ticket := public.host_monthly_ticket_gmv(v_uid, p_at);
+
+  select coalesce(sum(pf.gross_coins), 0)::int into v_gift
+  from public.platform_fees pf
+  where pf.host_id = v_uid and pf.kind = 'gift'
+    and pf.created_at >= v_start and pf.created_at < v_end;
+
+  select coalesce(sum(pf.fee_coins), 0)::int into v_fee
+  from public.platform_fees pf
+  where pf.host_id = v_uid
+    and pf.created_at >= v_start and pf.created_at < v_end;
+
+  -- 次のティア(超過累進の次の段)
+  select t.upper_bound, t.rate into v_next_bound, v_cur_rate
+  from public.host_fee_tiers t
+  where t.upper_bound is null or v_ticket < t.upper_bound
+  order by t.step
+  limit 1;
+
+  select t.rate into v_next_rate
+  from public.host_fee_tiers t
+  where t.step = (
+    select min(step) + 1 from public.host_fee_tiers
+    where upper_bound is null or v_ticket < upper_bound
+  );
+
+  v_result := jsonb_build_object(
+    'month_start', v_start,
+    'ticket_coins', v_ticket,
+    'gift_coins', v_gift,
+    'gross_coins', v_ticket + v_gift,
+    'fee_coins', v_fee,
+    'net_coins', (v_ticket + v_gift) - v_fee,
+    'effective_rate', case when (v_ticket + v_gift) > 0
+                           then round(v_fee::numeric / (v_ticket + v_gift), 4) else 0 end,
+    'tier', jsonb_build_object(
+      'current_rate', v_cur_rate,
+      'next_bound', v_next_bound,
+      'next_rate', v_next_rate,
+      'remaining_coins', case when v_next_bound is null then null
+                              else greatest(0, v_next_bound - v_ticket) end
+    )
+  );
+
+  -- 日別の売上(予約の確定額)
+  v_result := v_result || jsonb_build_object('daily', coalesce((
+    select jsonb_agg(jsonb_build_object('day', d.day, 'coins', d.coins) order by d.day)
+    from (
+      select extract(day from (b.scheduled_at at time zone 'Asia/Tokyo'))::int as day,
+             sum(b.coins)::int as coins
+      from public.bookings b
+      where b.host_id = v_uid and b.status = 'completed'
+        and b.scheduled_at >= v_start and b.scheduled_at < v_end
+      group by 1
+    ) d
+  ), '[]'::jsonb));
+
+  -- 指名リピート(金額ベース)と人数
+  v_result := v_result || (
+    select jsonb_build_object(
+      'repeat', jsonb_build_object(
+        'repeat_coins', coalesce(sum(x.coins) filter (where x.is_repeat), 0)::int,
+        'total_coins', coalesce(sum(x.coins), 0)::int,
+        'repeat_rate', case when coalesce(sum(x.coins), 0) > 0
+          then round(coalesce(sum(x.coins) filter (where x.is_repeat), 0)::numeric / sum(x.coins), 4)
+          else 0 end,
+        -- 「リピーター」は当月に2回目以降の予約が1件でもあるゲスト。
+        -- 「新規」は残り。初回と2回目が同じ月にあるゲストを両方に数えないよう、
+        -- 差し引きで出す(単純に filter で数えると二重計上になる)。
+        'repeater_guests', count(distinct x.guest_id) filter (where x.is_repeat),
+        'new_guests', count(distinct x.guest_id)
+                      - count(distinct x.guest_id) filter (where x.is_repeat)
+      ))
+    from (
+      select b.guest_id, b.coins,
+             exists (
+               select 1 from public.bookings p
+               where p.host_id = b.host_id and p.guest_id = b.guest_id
+                 and p.status = 'completed' and p.scheduled_at < b.scheduled_at
+             ) as is_repeat
+      from public.bookings b
+      where b.host_id = v_uid and b.status = 'completed'
+        and b.scheduled_at >= v_start and b.scheduled_at < v_end
+    ) x
+  );
+
+  -- 成約率と初回応答の速さ
+  -- 承諾されたかどうかは promises の有無で判定する(promiseは approve_booking でしか作られない)
+  v_result := v_result || (
+    select jsonb_build_object(
+      'response', jsonb_build_object(
+        'requests', count(*),
+        'approved', count(*) filter (where pr.id is not null),
+        'approval_rate', case when count(*) > 0
+          then round(count(*) filter (where pr.id is not null)::numeric / count(*), 4) else 0 end,
+        'median_reply_seconds', percentile_cont(0.5) within group (
+          order by extract(epoch from (b.scheduled_at - b.created_at))
+        ) filter (where pr.id is not null)
+      ))
+    from public.bookings b
+    left join public.promises pr on pr.booking_id = b.id
+    where b.host_id = v_uid
+      and b.created_at >= v_start and b.created_at < v_end
+  );
+
+  -- 埋まりやすい時間帯(直近4週に自分へ届いたリクエストの 曜日×時間)
+  v_result := v_result || jsonb_build_object('heatmap', coalesce((
+    select jsonb_agg(jsonb_build_object('dow', h.dow, 'hour', h.hour, 'count', h.c))
+    from (
+      select extract(isodow from (b.created_at at time zone 'Asia/Tokyo'))::int as dow,
+             extract(hour   from (b.created_at at time zone 'Asia/Tokyo'))::int as hour,
+             count(*)::int as c
+      from public.bookings b
+      where b.host_id = v_uid
+        and b.created_at >= p_at - interval '28 days'
+      group by 1, 2
+    ) h
+  ), '[]'::jsonb));
+
+  return v_result;
+end;
+$$;
+
+comment on function public.host_dashboard(timestamptz) is
+  'ホスト向けダッシュボードの集計(自分自身の実績のみ)。JSTの暦月基準。金額ベースの他人との順位は意図的に含めない(弁護士Q11-d)。';
+
+revoke all on function public.host_dashboard(timestamptz) from public;
+grant execute on function public.host_dashboard(timestamptz) to authenticated;
+
+
+-- ============================================================================
+-- 0035_safety_fee_and_extension.sql
+-- ============================================================================
+-- ============================================================
+-- 収益施策: (1) あんしん保証料  (3) 延長課金
+-- ------------------------------------------------------------
+-- ■ あんしん保証料
+--   コイン購入時に価格の一定率を上乗せして預かる。ホストの取り分には
+--   一切触れないため、既存ホストの手取りを下げずにテイクレートを上げられる。
+--   根拠は承認制・本人確認・通報ブロック・トラブル時の返金対応という
+--   既存の安全機能で、その提供の対価として受け取る。
+--
+--   ⚠️ 名称に「保険」を使わないこと。返金保証を「保険料」と称すると
+--      保険業法の議論を招く。当社が提供する役務の対価として書く。
+--   ⚠️ 特商法表記の「商品代金以外の必要料金」への記載が必須。
+--
+--   料率は1行だけの設定表に持たせる。パックごとに持たせると改定のたびに
+--   全行を書き換えることになり、取りこぼしが出るため。
+--
+-- ■ 延長課金
+--   進行中(confirmed)の予約に時間とコインを追加する。単価を上げずに
+--   分母を増やせる、最も摩擦の少ない導線。
+--
+--   実装上の注意: 予約作成時と同じく、消費したロットの有効期限を
+--   coin_lot_consumptions に記録する必要がある。これを忘れると、
+--   延長した予約をキャンセルしたときに 0030 の「当初の期限で戻す」処理が
+--   延長分を取りこぼす(記録が無い＝旧予約とみなされ、予約作成時刻を基準に
+--   期限が引き直されてしまう)。
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- 価格設定(1行のみ)
+-- ------------------------------------------------------------
+create table public.platform_pricing (
+  id smallint primary key default 1 check (id = 1),
+  -- コイン購入時に上乗せする「あんしん保証料」の率
+  safety_fee_rate numeric(4, 3) not null default 0.050
+    check (safety_fee_rate >= 0 and safety_fee_rate <= 0.5),
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.platform_pricing is
+  'プラットフォームの価格設定(1行のみ)。あんしん保証料の率など、改定しうる数値をここに集約する。';
+
+insert into public.platform_pricing (id) values (1);
+
+alter table public.platform_pricing enable row level security;
+
+-- 料率は購入前に利用者へ示す情報なので誰でも読める
+create policy "platform_pricing_select_all"
+  on public.platform_pricing for select
+  to authenticated
+  using (true);
+
+-- 購入履歴に、預かった保証料を残す
+alter table public.coin_purchases
+  add column safety_fee_yen int not null default 0 check (safety_fee_yen >= 0);
+
+comment on column public.coin_purchases.safety_fee_yen is
+  'コイン代金に上乗せして預かったあんしん保証料(円)。price_yen はコイン本体の価格で、請求総額は price_yen + safety_fee_yen。';
+
+-- ------------------------------------------------------------
+-- safety_fee_for: 指定価格に対する保証料(円)。Edge Function から使う
+-- ------------------------------------------------------------
+create function public.safety_fee_for(p_price_yen int)
+returns int
+language sql
+stable
+set search_path = public
+as $$
+  select greatest(0, round(p_price_yen * (select safety_fee_rate from public.platform_pricing where id = 1)))::int;
+$$;
+
+comment on function public.safety_fee_for(int) is
+  'コイン価格に対するあんしん保証料(円)。料率は platform_pricing に持つ。';
+
+-- ------------------------------------------------------------
+-- extend_booking: 進行中の予約に時間とコインを追加する
+-- ------------------------------------------------------------
+create function public.extend_booking(p_booking_id uuid, p_additional_minutes int)
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_booking public.bookings;
+  v_hourly_rate int;
+  v_add_coins int;
+  v_paid int;
+  v_bonus int;
+  v_from_paid int;
+  v_from_bonus int;
+  v_paid_lots jsonb;
+  v_bonus_lots jsonb;
+begin
+  if v_uid is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if p_additional_minutes not in (30, 60) then
+    raise exception 'INVALID_DURATION';
+  end if;
+
+  select * into v_booking from public.bookings where id = p_booking_id for update;
+  if v_booking.id is null then
+    raise exception 'BOOKING_NOT_FOUND';
+  end if;
+  if v_uid <> v_booking.guest_id then
+    raise exception 'ONLY_GUEST_CAN_EXTEND';
+  end if;
+  -- 進行中のものだけ。完了後・キャンセル後は延長できない
+  if v_booking.status <> 'confirmed' then
+    raise exception 'BOOKING_NOT_EXTENDABLE';
+  end if;
+
+  select hourly_rate into v_hourly_rate
+  from public.host_settings where user_id = v_booking.host_id for share;
+  if v_hourly_rate is null then
+    raise exception 'HOST_NOT_AVAILABLE';
+  end if;
+
+  v_add_coins := round(v_hourly_rate * p_additional_minutes / 60.0);
+
+  select balance, bonus_balance into v_paid, v_bonus
+  from public.coin_wallets where user_id = v_uid for update;
+  if v_paid is null or (v_paid + coalesce(v_bonus, 0)) < v_add_coins then
+    raise exception 'INSUFFICIENT_COINS';
+  end if;
+
+  v_from_paid := least(v_paid, v_add_coins);
+  v_from_bonus := v_add_coins - v_from_paid;
+
+  update public.coin_wallets
+    set balance = balance - v_from_paid,
+        bonus_balance = bonus_balance - v_from_bonus
+    where user_id = v_uid;
+
+  -- 予約作成時と同じく、消費したロットの当初の期限を記録する。
+  -- これを忘れると延長分がキャンセル返金で期限を引き直されてしまう(0030参照)。
+  v_paid_lots := public._consume_coin_lots_tracked(v_uid, 'paid', v_from_paid);
+  v_bonus_lots := public._consume_coin_lots_tracked(v_uid, 'bonus', v_from_bonus);
+  perform public._record_lot_consumptions(v_uid, p_booking_id, 'paid', v_paid_lots);
+  perform public._record_lot_consumptions(v_uid, p_booking_id, 'bonus', v_bonus_lots);
+
+  -- 予約本体に積み増す。完了時の手数料は増えた後の coins に対してかかる
+  update public.bookings
+    set duration_minutes = duration_minutes + p_additional_minutes,
+        coins = coins + v_add_coins,
+        paid_coins = paid_coins + v_from_paid,
+        bonus_coins = bonus_coins + v_from_bonus
+    where id = p_booking_id;
+
+  insert into public.coin_transactions (user_id, amount, type, related_booking_id, note)
+    values (v_uid, -v_add_coins, 'booking_spend', p_booking_id, 'extend_booking');
+
+  insert into public.notifications (user_id, type, title, body, related_id)
+  values (
+    v_booking.host_id, 'booking_extended',
+    'プレイが' || p_additional_minutes || '分延長されました',
+    v_add_coins || 'コインが追加されました', p_booking_id);
+
+  return v_add_coins;
+end;
+$$;
+
+revoke all on function public.extend_booking(uuid, int) from public;
+grant execute on function public.extend_booking(uuid, int) to authenticated;
+
+-- 通知種別に延長を追加(既存の種別を落とさないこと。既存行が制約違反になる)
+alter table public.notifications drop constraint if exists notifications_type_check;
+alter table public.notifications
+  add constraint notifications_type_check
+  check (type in (
+    'invite_received', 'invite_approved', 'message_received',
+    'verification_approved', 'verification_rejected', 'board_joined',
+    'booking_cancelled', 'booking_completed',
+    'booking_requested', 'booking_approved',
+    'gift_received', 'booking_extended'
+  ));
+
+-- duration_minutes は 30/60/120 固定だったが、延長で任意の合計になりうる
+alter table public.bookings drop constraint if exists bookings_duration_minutes_check;
+alter table public.bookings
+  add constraint bookings_duration_minutes_check
+  check (duration_minutes >= 30 and duration_minutes <= 600);
+
+
+-- ============================================================================
+-- 0036_cancel_board_post.sql
+-- ============================================================================
+-- ============================================================
+-- 募集の取り消し(論理削除)と、更新経路の絞り込み
+-- ------------------------------------------------------------
+-- ■ 取り消し導線が無かった問題
+--   board_posts は open/closed/cancelled の状態を持っていたが、作成者が
+--   自分の募集を取り消す手段がアプリ内に無く、定員が埋まるまで残り続けていた。
+--
+-- ■ 更新ポリシーが緩すぎた問題
+--   0011 の board_posts_update_own_status には
+--   「定員等の直接改変は不可」とコメントされていたが、実際には**全カラムを
+--   更新できる**状態だった。PostgreSQL の RLS はカラム単位の制限ができず
+--   (それは列レベル GRANT の役割)、列レベルの grant も置かれていなかったため。
+--
+--   このままだと作成者は、参加者が集まった後にゲーム名・定員・募集文を
+--   書き換えられる。「Apexのエンジョイ枠」に参加したら別ゲームのガチ募集に
+--   変わっている、ということが起こりうる。
+--
+--   直接 UPDATE を禁止し、状態変更は本マイグレーションの RPC 経由に一本化する。
+--
+-- ■ 物理削除はしない
+--   参加者がいる募集がレコードごと消えると、参加履歴や通報の追跡ができなく
+--   なるため、cancelled にする論理削除にとどめる(delete ポリシーは作らない)。
+-- ============================================================
+
+-- 直接更新を禁止する。以後、状態の変更は cancel_board_post / join_board_post のみ。
+drop policy if exists "board_posts_update_own_status" on public.board_posts;
+
+-- 取り消し理由(任意)。運営が経緯を追えるように残す。
+alter table public.board_posts
+  add column cancelled_at timestamptz,
+  add column cancel_reason text check (cancel_reason is null or char_length(cancel_reason) <= 200);
+
+comment on column public.board_posts.cancelled_at is
+  '作成者が募集を取り消した時刻。物理削除はせず、この列で論理削除を表す。';
+
+-- 通知種別に募集の取り消しを追加(既存の種別を落とさないこと。既存行が制約違反になる)
+alter table public.notifications drop constraint if exists notifications_type_check;
+alter table public.notifications
+  add constraint notifications_type_check
+  check (type in (
+    'invite_received', 'invite_approved', 'message_received',
+    'verification_approved', 'verification_rejected', 'board_joined',
+    'booking_cancelled', 'booking_completed',
+    'booking_requested', 'booking_approved',
+    'gift_received', 'booking_extended', 'board_cancelled'
+  ));
+
+-- ------------------------------------------------------------
+-- cancel_board_post: 作成者が自分の募集を取り消す。
+-- 参加者がいる場合は全員に通知する(黙って消えると、参加者は待ち続けてしまう)。
+-- ------------------------------------------------------------
+create function public.cancel_board_post(p_post_id uuid, p_reason text default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_post public.board_posts;
+  v_name text;
+  v_reason text;
+  v_participant record;
+begin
+  if v_uid is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
+  select * into v_post from public.board_posts where id = p_post_id for update;
+  if v_post.id is null then
+    raise exception 'POST_NOT_FOUND';
+  end if;
+  if v_post.creator_id <> v_uid then
+    raise exception 'ONLY_CREATOR_CAN_CANCEL';
+  end if;
+  if v_post.status = 'cancelled' then
+    return; -- 二重取り消しは何もしない(連打対策)
+  end if;
+
+  v_reason := nullif(btrim(coalesce(p_reason, '')), '');
+
+  update public.board_posts
+    set status = 'cancelled',
+        cancelled_at = now(),
+        cancel_reason = left(v_reason, 200)
+    where id = p_post_id;
+
+  select nickname into v_name from public.profiles where id = v_uid;
+
+  -- 参加表明していた人に知らせる
+  for v_participant in
+    select user_id from public.board_participants where post_id = p_post_id
+  loop
+    insert into public.notifications (user_id, type, title, body, related_id)
+    values (
+      v_participant.user_id,
+      'board_cancelled',
+      coalesce(nullif(v_name, ''), '相手') || 'さんが募集を取り消しました',
+      v_post.game || '・' || v_post.when_text
+        || case when v_reason is null then '' else '（' || v_reason || '）' end,
+      p_post_id
+    );
+  end loop;
+end;
+$$;
+
+revoke all on function public.cancel_board_post(uuid, text) from public;
+grant execute on function public.cancel_board_post(uuid, text) to authenticated;
