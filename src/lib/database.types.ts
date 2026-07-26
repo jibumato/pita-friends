@@ -605,6 +605,14 @@ export type Database = {
         }
         Returns: void
       }
+      record_monitoring_consent: {
+        Args: { p_version: string }
+        Returns: void
+      }
+      revoke_monitoring_consent: {
+        Args: Record<string, never>
+        Returns: void
+      }
       host_ranking: {
         Args: { p_period?: string; p_limit?: number }
         Returns: {
