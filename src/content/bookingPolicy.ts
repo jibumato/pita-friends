@@ -19,7 +19,7 @@ export const CANCELLATION_POLICY_VERSION = '2026-07-26b'
  * ずれると、画面では選べるのに申込時に START_TOO_SOON で弾かれる。
  */
 export const MIN_LEAD_MINUTES = 30
-export const MAX_LEAD_DAYS = 7
+export const MAX_LEAD_DAYS = 14
 
 /**
  * 開始時刻の候補を30分刻みで作る。

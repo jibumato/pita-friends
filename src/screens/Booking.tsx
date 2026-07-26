@@ -173,25 +173,27 @@ export default function Booking({ flow }: { flow: Flow }) {
           </>
         )}
 
-        {/* 時間選択 */}
+        {/* あそぶ時間。選択肢が8つあるので横スクロールにする。 */}
         <span style={{ fontSize: 12, color: C.muted }}>あそぶ時間</span>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="pita-scroll" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
           {BOOKING_DURATIONS.map((min) => {
             const sel = flow.bookingDuration === min
             return (
               <span
                 key={min}
                 onClick={() => flow.setBookingDuration(min)}
+                {...clickable(() => flow.setBookingDuration(min), durationLabel(min))}
                 style={{
-                  flex: 1,
+                  flex: 'none',
                   textAlign: 'center',
                   cursor: 'pointer',
-                  fontSize: 13,
+                  fontSize: 12.5,
                   color: sel ? C.lime : C.ink,
                   background: sel ? C.fill : C.white,
                   border: `1.5px solid ${C.border}`,
-                  padding: '11px 0',
+                  padding: '10px 14px',
                   borderRadius: 8,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {durationLabel(min)}
@@ -199,6 +201,43 @@ export default function Booking({ flow }: { flow: Flow }) {
             )
           })}
         </div>
+
+        {/* 終了時刻。あそぶ時間と同じ値の別の見方なので、どちらを触っても連動する。
+            開始時刻が決まっていないと終了時刻は決められないため、時間指定のときだけ出す。 */}
+        {flow.bookingWhen === 'scheduled' && flow.bookingStartAt && (
+          <>
+            <span style={{ fontSize: 12, color: C.muted }}>終わる時刻</span>
+            <div
+              className="pita-scroll"
+              style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}
+            >
+              {BOOKING_DURATIONS.map((min) => {
+                const end = new Date(flow.bookingStartAt!.getTime() + min * 60_000)
+                const sel = flow.bookingDuration === min
+                return (
+                  <span
+                    key={min}
+                    onClick={() => flow.setBookingDuration(min)}
+                    {...clickable(() => flow.setBookingDuration(min), `${formatStart(end)}まで`)}
+                    style={{
+                      flex: 'none',
+                      cursor: 'pointer',
+                      fontSize: 12.5,
+                      color: sel ? C.lime : C.ink,
+                      background: sel ? C.fill : C.white,
+                      border: `1.5px solid ${C.border}`,
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {formatStart(end)}
+                  </span>
+                )
+              })}
+            </div>
+          </>
+        )}
 
         {/* 料金サマリー */}
         <div
