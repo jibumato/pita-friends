@@ -1,0 +1,64 @@
+# ローカルPostgresでのマイグレーション検証
+
+Supabase に触れずに、ローカルの PostgreSQL でマイグレーションを通しで適用し、
+コインの返金まわりの挙動を確認するための一式です。
+
+`0030_refund_lot_expiry.sql`(返金コインの有効期限)の検証に使いました。
+本番DBには一切触れません。
+
+## 使い方
+
+```bash
+# 1. ローカルPostgresを起動(初回のみ initdb)
+export PGDATA=$HOME/pgdata
+/usr/lib/postgresql/16/bin/initdb -D "$PGDATA" -U postgres --auth=trust
+/usr/lib/postgresql/16/bin/pg_ctl -D "$PGDATA" -o '-p 55432 -k /tmp' -l /tmp/pg.log start
+
+# 2. まっさらなDBを作り、Supabase相当のシムを入れる
+psql -h /tmp -p 55432 -U postgres -c "drop database if exists pita"
+psql -h /tmp -p 55432 -U postgres -c "create database pita"
+psql -h /tmp -p 55432 -U postgres -d pita -c "create extension if not exists pgcrypto"
+psql -h /tmp -p 55432 -U postgres -d pita -c "create publication supabase_realtime"
+psql -h /tmp -p 55432 -U postgres -d pita -c "create role anon nologin; create role authenticated nologin; create role service_role nologin" 
+psql -h /tmp -p 55432 -U postgres -d pita -f supabase/tests/00_supabase_shim.sql
+psql -h /tmp -p 55432 -U postgres -d pita -f supabase/tests/01_storage_shim.sql
+
+# 3. マイグレーションを番号順に全適用
+for f in supabase/migrations/*.sql; do
+  psql -h /tmp -p 55432 -U postgres -d pita -q -v ON_ERROR_STOP=1 -f "$f" || { echo "FAIL $f"; break; }
+done
+
+# 4. テストを流す
+psql -h /tmp -p 55432 -U postgres -d pita -f supabase/tests/10_refund_expiry.sql
+```
+
+> ロールは DB をまたいで共有されるため、2回目以降 `create role` はエラーになります
+> (無視して構いません)。
+
+## シムについて
+
+Supabase 固有のものだけを最小限に置き換えています。
+
+| シム | 中身 |
+|---|---|
+| `auth.users` | id と email だけのテーブル |
+| `auth.uid()` | `current_setting('test.uid')` を返す。テスト中に `set test.uid = '<uuid>'` で切り替える |
+| `storage.buckets` / `objects` / `foldername()` | 本人確認画像・アバター用の最小定義 |
+| `cron.schedule()` | 何もしないダミー(0018がジョブ登録を呼ぶため) |
+
+`set local` ではなく **`set`** を使ってください。psql の各文が独立トランザクション
+になるため、`set local` だと次の文に効きません。
+
+## テストの内容
+
+| ファイル | 確認すること |
+|---|---|
+| `10_refund_expiry.sql` | 5か月前に購入したコインで予約→辞退したとき、返金分が**当初の期限のまま**戻ること(0030の本体) |
+| `11_refund_lapsed.sql` | 返金までに当初の期限が切れていた場合、戻さずキャッシュ残高から差し引き、`expire` の取引履歴が残ること。`restored_at` が入って二重返金されないこと |
+| `12_refund_legacy_fallback.sql` | 0030より前に作られた消費記録の無い予約でも、予約作成時刻を基準に期限を引き直すこと |
+
+### 0030 の効果を確認する
+
+0030 を**除いて**適用すると `10_refund_expiry.sql` 相当のケースが落ちます
+(返金分が「今から6か月後」の新しい期限になり、当初の発行日からの通算で
+約11か月使えるコインが生まれる)。0030 を含めると当初の期限を引き継ぎます。
