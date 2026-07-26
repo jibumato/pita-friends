@@ -5,7 +5,7 @@ import StatusBar from '../components/StatusBar'
 import PitaButton from '../components/PitaButton'
 import { Shield } from '../components/Icon'
 
-/** 予約リクエスト送信後、ホストの承諾を待つ画面(バックエンド予約フロー)。 */
+/** 予約リクエスト送信後、ピタメイトの承諾を待つ画面(バックエンド予約フロー)。 */
 export default function BookingRequested({ flow }: { flow: Flow }) {
   const host = flow.bookingHost
   return (
@@ -43,7 +43,7 @@ export default function BookingRequested({ flow }: { flow: Flow }) {
         </div>
         <span style={{ fontSize: 20, color: C.ink }}>リクエストを送信しました</span>
         <span style={{ fontSize: 12.5, color: C.body, lineHeight: 1.8 }}>
-          {host ? `${host.name}さん` : 'ホスト'}が承諾すると、トークが開いて予約が成立します。
+          {host ? `${host.name}さん` : 'ピタメイト'}が承諾すると、トークが開いて予約が成立します。
           <br />
           コインは確保されています。辞退・24時間の無応答のときは
           <br />

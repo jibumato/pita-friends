@@ -13,13 +13,13 @@ import { fetchMyTrialDiscount } from '../lib/queries'
 export default function Booking({ flow }: { flow: Flow }) {
   const host = flow.bookingHost
   const confirm = usePress(`3px 3px 0 ${C.lavender}`)
-  // このホストで自分に適用される初回お試し割引(0038)。表示専用で、
+  // このピタメイトで自分に適用される初回お試し割引(0038)。表示専用で、
   // 実際の請求額はサーバ(create_booking)が同じ式で決める。
   const [discount, setDiscount] = useState(0)
   const hostUserId = host?.userId ?? null
 
   useEffect(() => {
-    // 直接遷移してきた等、ホスト未指定の場合は安全にさがすへ戻す
+    // 直接遷移してきた等、ピタメイト未指定の場合は安全にさがすへ戻す
     if (!host) flow.go('search')
   }, [host, flow])
 
@@ -164,7 +164,7 @@ export default function Booking({ flow }: { flow: Flow }) {
           </div>
           {discount > 0 && (
             <span style={{ fontSize: 10, color: '#E3DCFF', lineHeight: 1.7 }}>
-              このホストと初めて遊ぶ方向けの割引です。2回目以降は通常価格（
+              このピタメイトと初めて遊ぶ方向けの割引です。2回目以降は通常価格（
               {listCost.toLocaleString()} コイン）になります。
               <br />
               割引は<b style={{ color: '#fff' }}>いま予約する分だけ</b>が対象です。
@@ -240,11 +240,11 @@ export default function Booking({ flow }: { flow: Flow }) {
           <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
             コインは予約確定時に消費されます。
             <br />
-            ・<b style={{ color: C.ink }}>ホスト都合</b>のキャンセル・無断欠席 → コインが<b style={{ color: C.ink }}>全額戻ります</b>
+            ・<b style={{ color: C.ink }}>ピタメイト都合</b>のキャンセル・無断欠席 → コインが<b style={{ color: C.ink }}>全額戻ります</b>
             <br />
             ・<b style={{ color: C.ink }}>あなたの都合</b>のキャンセル → 開始1時間前まで全額戻ります
             <br />
-            　（開始1時間を切ってからは戻らず、コインはホストの報酬になります）
+            　（開始1時間を切ってからは戻らず、コインはピタメイトの報酬になります）
             <br />
             　※戻るのはコインです。日本円での返金はできません。
             <br />

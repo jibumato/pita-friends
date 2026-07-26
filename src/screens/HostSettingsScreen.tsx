@@ -253,7 +253,7 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:47" />
-      <SubHeader title="ホスト設定" onBack={() => flow.go('mypage')} />
+      <SubHeader title="ピタメイト設定" onBack={() => flow.go('mypage')} />
       <div
         className="pita-scroll"
         style={{
@@ -278,7 +278,7 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
         >
           <Shield size={18} style={{ flex: 'none', marginTop: 1 }} />
           <span style={{ fontSize: 11.5, lineHeight: 1.7, color: C.body }}>
-            ホストになると、あなたと一緒に遊ぶ時間をコインで提供できます。掲載は本人確認済みの方のみ。安心設定（誘いを受ける範囲・承認制）は掲載中も有効です。
+            ピタメイトになると、あなたと一緒に遊ぶ時間をコインで提供できます。掲載は本人確認済みの方のみ。安心設定（誘いを受ける範囲・承認制）は掲載中も有効です。
           </span>
         </div>
 
@@ -300,14 +300,14 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
 
         <Card>
           <ListRow
-            label="ホストとして掲載する"
+            label="ピタメイトとして掲載する"
             sub={h.isHost ? '「さがす」に表示されます' : 'オフの間は表示されません'}
             divider={false}
             right={
               <Toggle
                 on={h.isHost}
                 onToggle={() => flow.setHostPref('isHost', !h.isHost)}
-                label="ホストとして掲載する"
+                label="ピタメイトとして掲載する"
               />
             }
           />
@@ -343,7 +343,7 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
           </span>
         </div>
 
-        {/* 初回お試し割引。そのホストと初めて遊ぶゲストにだけ効く。
+        {/* 初回お試し割引。そのピタメイトと初めて遊ぶゲストにだけ効く。
             値引き後の価格をその場で出さないと、いくら受け取れるのか
             分からないまま割引率だけ上げてしまうため、必ず併記する。 */}
         <span style={{ fontSize: 12, color: C.muted }}>初回お試し割引（任意）</span>
@@ -478,7 +478,7 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
             marginBottom: 10,
           }}
         >
-          <span style={{ fontSize: 11.5, color: C.ink }}>ホストとして遊ぶときのルール</span>
+          <span style={{ fontSize: 11.5, color: C.ink }}>ピタメイトとして遊ぶときのルール</span>
           <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
             ・提供するのは「ゲームを一緒に遊ぶ時間」です。出会い・恋愛目的の勧誘は禁止
             <br />

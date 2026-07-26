@@ -472,7 +472,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
           }}
         >
           <span style={{ fontSize: 12, color: '#fff' }}>
-            {booking.coins}コインの予約中です。プレイが終わったら、ゲストが「プレイ完了」を確定するとホストに報酬が届きます。
+            {booking.coins}コインの予約中です。プレイが終わったら、ゲストが「プレイ完了」を確定するとピタメイトに報酬が届きます。
           </span>
           {isGuestOfBooking ? (
             <div
@@ -527,7 +527,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
               >
                 <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
                   延長すると、その場でコインを追加でお支払いいただきます。金額は
-                  ホストさんの時給レートで計算されます。
+                  ピタメイトさんの時給レートで計算されます。
                 </span>
                 {/* 初回割引が効いていた予約では、延長が割引対象外であることを
                     ここで必ず伝える(割引価格のつもりで押されないように)。 */}
@@ -612,8 +612,8 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
             >
               <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
                 {isGuestOfBooking
-                  ? '開始1時間前まではコインが全額戻ります。1時間を切るとコインは戻らず(ホストの報酬になります)、ドタキャンとして記録されます。'
-                  : 'ホスト都合のキャンセルはコインがゲストに全額戻り、あなたのドタキャン記録に残ります。'}
+                  ? '開始1時間前まではコインが全額戻ります。1時間を切るとコインは戻らず(ピタメイトの報酬になります)、ドタキャンとして記録されます。'
+                  : 'ピタメイト都合のキャンセルはコインがゲストに全額戻り、あなたのドタキャン記録に残ります。'}
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
                 <span

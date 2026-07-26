@@ -115,7 +115,7 @@ export default function DesktopSidebar({ flow }: { flow: Flow }) {
       <div style={{ marginTop: 'auto', paddingTop: 14 }}>
         <div
           onClick={() => flow.go('hostSettings')}
-          {...clickable(() => flow.go('hostSettings'), 'ホストになる')}
+          {...clickable(() => flow.go('hostSettings'), 'ピタメイトになる')}
           style={{
             cursor: 'pointer',
             textAlign: 'center',
@@ -128,7 +128,7 @@ export default function DesktopSidebar({ flow }: { flow: Flow }) {
             padding: '10px 0',
           }}
         >
-          {flow.hostSettings.isHost ? 'ホスト設定' : '＋ ホストになる'}
+          {flow.hostSettings.isHost ? 'ピタメイト設定' : '＋ ピタメイトになる'}
         </div>
       </div>
     </div>

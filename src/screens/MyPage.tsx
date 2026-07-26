@@ -290,11 +290,11 @@ export default function MyPage({ flow }: { flow: Flow }) {
 
         {/* メニュー */}
         <Card>
-          {/* デスクトップは「＋ホストになる」がサイドバーに常設されているため、まだホストでない間はここでは重複表示しない。
+          {/* デスクトップは「＋ピタメイトになる」がサイドバーに常設されているため、まだピタメイトでない間はここでは重複表示しない。
               掲載中の場合は現在の料金など実質的な情報があるため、デスクトップでも表示する。 */}
           {(mobile || flow.hostSettings.isHost) && (
             <ListRow
-              label={flow.hostSettings.isHost ? 'ホスト設定' : 'ホストになる'}
+              label={flow.hostSettings.isHost ? 'ピタメイト設定' : 'ピタメイトになる'}
               sub={
                 flow.hostSettings.isHost
                   ? `掲載中 · 30分 ${coinsPer30(flow.hostSettings.hourlyRate)} コイン`
@@ -303,10 +303,10 @@ export default function MyPage({ flow }: { flow: Flow }) {
               onClick={() => flow.go('hostSettings')}
             />
           )}
-          {/* 成績はホストとして掲載している人にだけ意味があるので、掲載中のみ出す。 */}
+          {/* 成績はピタメイトとして掲載している人にだけ意味があるので、掲載中のみ出す。 */}
           {flow.hostSettings.isHost && (
             <ListRow
-              label="ホストの成績"
+              label="ピタメイトの成績"
               sub="今月の手取り・リピート率・埋まりやすい時間帯"
               onClick={() => flow.go('hostDashboard')}
             />

@@ -93,7 +93,7 @@ export default function Profile({ flow }: { flow: Flow }) {
   const verified = useReal ? !!data?.isVerified : true
   const subtitle = useReal
     ? data?.isHost
-      ? `ホスト · 30分 ${coinsPer30(data.hourlyRate)} コイン`
+      ? `ピタメイト · 30分 ${coinsPer30(data.hourlyRate)} コイン`
       : 'ゲーマー'
     : '社会人ゲーマー · 平日夜メイン · 都内'
   const bio = useReal ? data?.bio ?? '' : '仕事終わりの21時から遊べます。ランクはガチすぎず、笑いながら上を目指したい派。建築ゲーも好きなのでまったり勢も歓迎です。'
