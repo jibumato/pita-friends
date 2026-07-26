@@ -20,10 +20,13 @@
 1. ✅ Cloudflare へのデプロイ(`main` にマージすると反映される)
 2. ✅ 環境変数 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` の設定
    ※この2つは公開されても安全な値です(service_roleキーは**絶対に**入れない)
-3. ☐ **独自ドメインを購入し接続**(例: pitafure.jp)
-   - ドメインは特商法表記・規約の「販売URL」にも記載するので早めに確定
-   - Supabaseのリダイレクト設定・StripeのAPP_URLもこれ待ちになっている
-4. ☐ スマホ実機で「ホーム画面に追加」(PWA)が動くか確認
+3. ✅ **独自ドメインの取得・接続**: `https://pitafure.com`(2026-07-26)
+   - 特商法表記の販売URL・index.html の OGP も差し替え済み
+4. ☐ **`www.pitafure.com` の扱いを決める**
+   - 現在 `www` は名前解決しない。`www` 付きで来た利用者がエラーになる
+   - Cloudflare で `www` の CNAME を追加し、リダイレクトルールで
+     apex(`pitafure.com`)へ 301 させるのが一般的
+5. ☐ スマホ実機で「ホーム画面に追加」(PWA)が動くか確認
 
 ## B. Supabase 本番設定
 
@@ -32,7 +35,10 @@
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ☐ **リダイレクトURLの登録**: Authentication → URL Configuration →
-   Site URL と Redirect URLs に本番ドメインを追加
+   - Site URL: `https://pitafure.com`
+   - Redirect URLs: `https://pitafure.com/**`
+   - ※ ここが未設定だと、メール確認やパスワード再設定のリンクが
+     旧 workers.dev ドメインに飛んで動きません
 4. ☐ **pg_cron の確認**: Database → Extensions で `pg_cron` が有効か確認
    (プレイ完了の72時間自動確定に使用。0015参照)
 5. ☐ (推奨)Database → Backups でバックアップ設定を確認(Pro планなら日次)
@@ -47,7 +53,7 @@
 2. ☐ 本番APIキーで Secrets を更新:
    ```bash
    supabase secrets set STRIPE_SECRET_KEY=sk_live_xxx
-   supabase secrets set APP_URL=https://<本番ドメイン>
+   supabase secrets set APP_URL=https://pitafure.com
    ```
 3. ☐ 本番用Webhookエンドポイントを追加(`checkout.session.completed`)し、
    `STRIPE_WEBHOOK_SECRET=whsec_xxx`(本番用)を設定
