@@ -166,6 +166,9 @@ export default function Booking({ flow }: { flow: Flow }) {
             <span style={{ fontSize: 10, color: '#E3DCFF', lineHeight: 1.7 }}>
               このホストと初めて遊ぶ方向けの割引です。2回目以降は通常価格（
               {listCost.toLocaleString()} コイン）になります。
+              <br />
+              割引は<b style={{ color: '#fff' }}>いま予約する分だけ</b>が対象です。
+              あとから延長する分は通常価格になるため、はじめから長めに予約したほうがお得です。
             </span>
           )}
           <div style={{ height: 1.5, background: 'rgba(255,255,255,.3)' }} />
