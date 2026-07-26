@@ -22,12 +22,12 @@ const DEMO_HOSTS = [
 const FEATURES = [
   { icon: '🎮', title: '一緒に遊ぶ時間を予約', body: '上手い人・気の合う人と、30分から。コインで完結するので、外部で連絡先を交換する必要はありません。' },
   { icon: '🛡️', title: 'みんなが安心の設計', body: '誰から誘いを受けるか自分でコントロール。承認制・ワンタップ通報/ブロック・本人確認・みまもり付き。' },
-  { icon: '🏆', title: '実力がちゃんと報われる', body: 'プレイ実績・評価・信頼性でランキング。投げ銭や課金額ではありません。ホストは遊んだ時間が報酬コインに。' },
+  { icon: '🏆', title: '実力がちゃんと報われる', body: 'プレイ実績・評価・信頼性でランキング。投げ銭や課金額ではありません。ピタメイトは遊んだ時間が報酬コインに。' },
 ]
 
 const STEPS = [
-  { n: '01', title: 'さがす', body: '遊びたいゲーム・時間帯からホストを探す。' },
-  { n: '02', title: '予約する', body: '遊ぶ時間をコインで予約。ホストが承諾で成立。' },
+  { n: '01', title: 'さがす', body: '遊びたいゲーム・時間帯からピタメイトを探す。' },
+  { n: '02', title: '予約する', body: '遊ぶ時間をコインで予約。ピタメイトが承諾で成立。' },
   { n: '03', title: '一緒にプレイ', body: 'トークで待ち合わせて合流。終わったら評価。' },
 ]
 
@@ -82,7 +82,7 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
             <a className="lp-navlink" href="#features">特長</a>
             <a className="lp-navlink" href="#how">遊び方</a>
             <a className="lp-navlink" href="#safety">安全</a>
-            <a className="lp-navlink" href="#host">ホスト</a>
+            <a className="lp-navlink" href="#host">ピタメイト</a>
           </nav>
           <button className="lp-cta" onClick={() => (isBackendConfigured ? flow.openLogin() : flow.go('home'))} style={ctaGhostSm}>
             ログイン
@@ -125,10 +125,10 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
               </div>
             </div>
 
-            {/* GameRoom型: ホストのカードグリッド(デモ) */}
+            {/* GameRoom型: ピタメイトのカードグリッド(デモ) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 14, color: C.ink }}>▶ いま遊べるホスト</span>
+                <span style={{ fontSize: 14, color: C.ink }}>▶ いま遊べるピタメイト</span>
                 <span style={{ fontSize: 11.5, color: C.lavender }}>もっと見る ›</span>
               </div>
               <div className="lp-hostgrid">
@@ -207,17 +207,17 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
         </div>
       </section>
 
-      {/* ===== ホスト募集 ===== */}
+      {/* ===== ピタメイト募集 ===== */}
       <section id="host" style={{ ...sectionWrap, background: C.surfaceLavender }}>
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 24px', display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
           <div style={{ maxWidth: '52ch' }}>
-            <h2 style={h2}>得意なゲームで、ホストにも。</h2>
+            <h2 style={h2}>得意なゲームで、ピタメイトにも。</h2>
             <p style={{ fontSize: 15, color: C.body, lineHeight: 1.9, marginTop: 12 }}>
               あなたの遊ぶ時間が報酬コインに。料金は30分ごとに自分で設定。スキマ時間・在宅でOK。
               マナーよく楽しめる人を歓迎します。
             </p>
           </div>
-          <button className="lp-cta" onClick={start} style={{ ...ctaPrimary, padding: '15px 28px', fontSize: 15 }}>ホストとして始める ▶</button>
+          <button className="lp-cta" onClick={start} style={{ ...ctaPrimary, padding: '15px 28px', fontSize: 15 }}>ピタメイトとして始める ▶</button>
         </div>
       </section>
 

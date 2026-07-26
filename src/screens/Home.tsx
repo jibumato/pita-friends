@@ -34,7 +34,7 @@ const DEMO_RANKING: RankingEntry[] = [
   { rank: 5, hostId: 'd5', nickname: 'そら', avatarInitial: 'そ', avatarColor: '#FBD79E', avatarUrl: null, completedCount: 36, mannerScore: 4.7, score: 84, isVerified: true },
 ]
 
-/** デモ時の新人ランキング(実データ接続時は完了数の少ない=新人ホストから導出)。 */
+/** デモ時の新人ランキング(実データ接続時は完了数の少ない=新人ピタメイトから導出)。 */
 const DEMO_ROOKIE: RankingEntry[] = [
   { rank: 1, hostId: 'r1', nickname: 'そうた', avatarInitial: 'そ', avatarColor: '#C9F2C7', avatarUrl: null, completedCount: 8, mannerScore: 4.9, score: 70, isVerified: true },
   { rank: 2, hostId: 'r2', nickname: 'みるく', avatarInitial: 'み', avatarColor: '#F5B8CE', avatarUrl: null, completedCount: 6, mannerScore: 5.0, score: 66, isVerified: true },
@@ -75,7 +75,7 @@ function OnlineStrip({ flow, online }: { flow: Flow; online: OnlineUser[] }) {
         <div style={{ flex: 1 }} />
         <span
           onClick={() => flow.go('search')}
-          {...clickable(() => flow.go('search'), 'ホストをさがす')}
+          {...clickable(() => flow.go('search'), 'ピタメイトをさがす')}
           style={{ cursor: 'pointer', fontSize: 10.5, color: C.lavender, fontWeight: 700 }}
         >
           もっと見る ›
@@ -164,7 +164,7 @@ type RecommendCardData = {
 /** デモの在席状態(実データ接続時は profiles.last_seen_at と Realtime から出す)。 */
 const demoAgo = (min: number) => new Date(Date.now() - min * 60_000).toISOString()
 
-/** デモ時のおすすめホスト(実データ接続時は fetchDiscoverableHosts から生成)。 */
+/** デモ時のおすすめピタメイト(実データ接続時は fetchDiscoverableHosts から生成)。 */
 const DEMO_RECOMMENDED: RecommendCardData[] = [
   { key: 'み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex', '今夜22時〜'], price30: 300, compat: 92, meta: '★4.8・マナー◎' , live: true, presenceStatus: 'ready' },
   { key: 'の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', '週末'], price30: 250, compat: 89, meta: '★4.9・マナー◎' , live: true },
@@ -174,7 +174,7 @@ const DEMO_RECOMMENDED: RecommendCardData[] = [
   { key: 'ゆ', userId: null, initial: 'ゆ', color: C.lavender, name: 'ゆうき', verified: true, chips: ['マイクラ', '平日'], price30: 180, compat: 78, meta: '★4.7・マナー◎' , lastSeenAt: demoAgo(2) },
 ]
 
-/** デモ時の人気ユーザー(実データ接続時は掲載ホストをマナー順に表示)。相性%は出さずプレイ実績で見せる。 */
+/** デモ時の人気ユーザー(実データ接続時は掲載ピタメイトをマナー順に表示)。相性%は出さずプレイ実績で見せる。 */
 const DEMO_POPULAR: RecommendCardData[] = [
   { key: 'p-の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', 'Apex'], price30: 250, compat: null, meta: '★4.9 · 320回プレイ', voiceSeconds: 9 , live: true, presenceStatus: 'ready' },
   { key: 'p-み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex'], price30: 300, compat: null, meta: '★4.8 · 280回プレイ', voiceSeconds: 12 , live: true },
@@ -186,7 +186,7 @@ const DEMO_POPULAR: RecommendCardData[] = [
   { key: 'p-そ', userId: null, initial: 'そ', color: C.avatarOrange, name: 'そら', verified: true, chips: ['Apex'], price30: 200, compat: null, meta: '★4.7 · 170回プレイ', voiceSeconds: 8 , live: true },
 ]
 
-/** おすすめホストのカード(グリッドの1枚)。各カードで押下フィードバックを持たせるため独立コンポーネント。 */
+/** おすすめピタメイトのカード(グリッドの1枚)。各カードで押下フィードバックを持たせるため独立コンポーネント。 */
 function RecommendCard({ data, onOpen }: { data: RecommendCardData; onOpen: () => void }) {
   const press = usePress(`3px 3px 0 ${C.shadowCol}`)
   return (
@@ -680,7 +680,7 @@ function RankingSection({
         >
           まだランキングがありません。
           <br />
-          プレイが記録されると、ここに上位ホストが表示されます。
+          プレイが記録されると、ここに上位ピタメイトが表示されます。
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -912,7 +912,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             <span style={{ fontSize: 18 }}>🏆</span>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
               <span style={{ fontSize: 13, color: C.ink }}>ランキング</span>
-              <span style={{ fontSize: 10, color: C.muted }}>プレイ実績・評価で決まる今週の上位ホスト</span>
+              <span style={{ fontSize: 10, color: C.muted }}>プレイ実績・評価で決まる今週の上位ピタメイト</span>
             </div>
             <span style={{ fontSize: 11, color: C.lavender, fontWeight: 700 }}>見る ›</span>
           </div>
@@ -978,7 +978,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           <NightHome flow={flow} />
         ) : (
         <>
-        {/* 今夜のおすすめマッチ: 複数ホストをカードグリッドで表示(全幅を自然に埋める) */}
+        {/* 今夜のおすすめマッチ: 複数ピタメイトをカードグリッドで表示(全幅を自然に埋める) */}
         {(() => {
           const cards: RecommendCardData[] = isBackendConfigured
             ? recommended.map((h) => ({
@@ -1035,7 +1035,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
         {/* ゲーム一覧: タップでそのゲームに絞ってさがすへ(モバイル・デスクトップ共通)。 */}
         <GameGrid flow={flow} />
 
-        {/* 人気のユーザー: 掲載ホストをカードで並べて探せる(モバイル・デスクトップ共通)。 */}
+        {/* 人気のユーザー: 掲載ピタメイトをカードで並べて探せる(モバイル・デスクトップ共通)。 */}
         {(() => {
           const popular: RecommendCardData[] = isBackendConfigured
             ? [...recommended]
@@ -1095,7 +1095,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
         })()}
 
         {/* ランキング(デスクトップのみ。モバイルは上部のランキング導線カードから)。
-            今週=スコア上位、新人=完了数の少ない順(はじめたばかりの注目ホスト)。 */}
+            今週=スコア上位、新人=完了数の少ない順(はじめたばかりの注目ピタメイト)。 */}
         {!mobile && (
           <div
             style={{

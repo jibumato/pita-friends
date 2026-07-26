@@ -70,8 +70,8 @@ export const screenNames: Record<ScreenKey, string> = {
   safetyPrefs: '安心設定',
   requests: '受け取った誘い',
   wallet: 'コインウォレット',
-  hostSettings: 'ホスト設定',
-  hostDashboard: 'ホストの成績',
+  hostSettings: 'ピタメイト設定',
+  hostDashboard: 'ピタメイトの成績',
   booking: '予約する',
   ranking: 'ランキング',
   adminVerifications: '本人確認の審査(管理)',
@@ -131,7 +131,7 @@ export const recommendedFemalePrefs: SafetyPrefs = {
 
 /**
  * コイン経済(GameRoom型マーケットプレイス)。
- * ユーザーはコインを購入し、ホスト(一緒に遊ぶ時間を提供する相手)に
+ * ユーザーはコインを購入し、ピタメイト(一緒に遊ぶ時間を提供する相手)に
  * 時間単位で消費する。公式コイン決済のみが「安全な金銭のやり取り」で、
  * アプリ外・直接の金銭要求は引き続き禁止・通報対象。
  */
@@ -163,7 +163,7 @@ export const COIN_PACKS: CoinPack[] = [
   { id: 'pack_50000', coins: 50000, bonusCoins: 500, priceYen: 50000 },
 ]
 
-/** ホスト設定(一緒に遊ぶ時間を時給コインで提供する)。 */
+/** ピタメイト設定(一緒に遊ぶ時間を時給コインで提供する)。 */
 export type HostSettings = {
   isHost: boolean
   hourlyRate: number

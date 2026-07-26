@@ -293,7 +293,7 @@ export default function Verify({ flow }: { flow: Flow }) {
           >
             <span style={{ fontSize: 13, color: C.ink }}>📋 審査中です</span>
             <span style={{ fontSize: 10.5, color: C.body, lineHeight: 1.7 }}>
-              運営が内容を確認しています。通常1〜3営業日ほどお時間をいただきます。審査中もアプリの利用は続けられます(ホスト掲載のみ審査完了までお待ちください)。
+              運営が内容を確認しています。通常1〜3営業日ほどお時間をいただきます。審査中もアプリの利用は続けられます(ピタメイト掲載のみ審査完了までお待ちください)。
             </span>
           </div>
         )}

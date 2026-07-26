@@ -110,7 +110,7 @@ function statusLabel(s: PayoutRecord['status']): string {
   return '振込待ち'
 }
 
-/** ホストとしての収益・換金セクション(報酬コインは購入コインとは別会計)。 */
+/** ピタメイトとしての収益・換金セクション(報酬コインは購入コインとは別会計)。 */
 function EarningsSection() {
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null)
   const [hasBankAccount, setHasBankAccount] = useState<boolean | null>(null)
@@ -161,7 +161,7 @@ function EarningsSection() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <span style={{ fontSize: 13, color: C.ink }}>▶ ホストとしての収益</span>
+      <span style={{ fontSize: 13, color: C.ink }}>▶ ピタメイトとしての収益</span>
       <div
         style={{
           background: C.white,
@@ -187,7 +187,7 @@ function EarningsSection() {
 
         {hasBankAccount === false ? (
           <span style={{ fontSize: 11, color: C.body, lineHeight: 1.6 }}>
-            換金するには、ホスト設定から振込先口座を登録してください。
+            換金するには、ピタメイト設定から振込先口座を登録してください。
           </span>
         ) : earnings.earnedBalance > 0 ? (
           <>

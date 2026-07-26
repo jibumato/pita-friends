@@ -117,8 +117,8 @@ export async function updateHostSettingsRemote(
 }
 
 /**
- * そのホストで自分に適用される初回お試し割引の割引率(%)を取得する。
- * 対象外(すでにそのホストと遊んだことがある)・未設定なら0。
+ * そのピタメイトで自分に適用される初回お試し割引の割引率(%)を取得する。
+ * 対象外(すでにそのピタメイトと遊んだことがある)・未設定なら0。
  * 表示専用で、実際の請求額は create_booking がサーバ側で決める。
  */
 export async function fetchMyTrialDiscount(hostId: string): Promise<number> {
@@ -151,7 +151,7 @@ export type DiscoverableHost = {
 }
 
 /**
- * 「さがす」画面向けのホスト一覧。埋め込みリレーション(select内のネスト構文)は
+ * 「さがす」画面向けのピタメイト一覧。埋め込みリレーション(select内のネスト構文)は
  * 手書きDatabase型にRelationshipsメタデータが無く型解決できないため、
  * host_settings / profiles / profile_trust_stats を個別に取得しJS側で結合する。
  */
@@ -513,7 +513,7 @@ export async function sendMessage(promiseId: string, body: string): Promise<void
   if (error) throw error
 }
 
-/** ホストランキングの期間。 */
+/** ピタメイトランキングの期間。 */
 export type RankingPeriod = 'daily' | 'weekly' | 'monthly'
 
 export type RankingEntry = {
@@ -530,7 +530,7 @@ export type RankingEntry = {
 }
 
 /**
- * ホストランキングを取得する。スコアは「完了予約数×品質×信頼性」で、
+ * ピタメイトランキングを取得する。スコアは「完了予約数×品質×信頼性」で、
  * 金額(投げ銭・稼ぎ)は一切含まない(スキル・活動ベース)。
  */
 export async function fetchHostRanking(period: RankingPeriod, limit = 30): Promise<RankingEntry[]> {
@@ -973,11 +973,11 @@ export async function submitAccountRequest(type: AccountRequestType): Promise<vo
 }
 
 /* ============================================================
- * エスクロー予約決済・自社銀行振込によるホストへの報酬支払い。
+ * エスクロー予約決済・自社銀行振込によるピタメイトへの報酬支払い。
  * schema: 0013_escrow_payouts + 0014_bank_payouts。
  * ・購入コイン(balance)と報酬コイン(earned_balance)は別会計。
  *   換金できるのはearned_balanceのみ(不正対策・詳細はマイグレーション参照)。
- * ・ホストは口座を登録して換金申請 → 運営が総合振込で支払う。
+ * ・ピタメイトは口座を登録して換金申請 → 運営が総合振込で支払う。
  * ============================================================ */
 
 export type BookingInfo = {
@@ -1047,7 +1047,7 @@ export async function extendBooking(bookingId: string, additionalMinutes: 30 | 6
   throw error
 }
 
-/** 「プレイ完了」を確定する(ゲスト本人のみ)。ホストの報酬コインに反映される。 */
+/** 「プレイ完了」を確定する(ゲスト本人のみ)。ピタメイトの報酬コインに反映される。 */
 export async function completeBooking(bookingId: string): Promise<void> {
   const { error } = await requireSupabase().rpc('complete_booking', { p_booking_id: bookingId })
   if (error) throw error
@@ -1055,7 +1055,7 @@ export async function completeBooking(bookingId: string): Promise<void> {
 
 /**
  * 予約をキャンセルする(当事者のみ)。返還ルールはDB側(規約第9条):
- * ホスト都合=全額返還 / ゲスト都合1時間前まで=全額返還 / 直前=返還なし。
+ * ピタメイト都合=全額返還 / ゲスト都合1時間前まで=全額返還 / 直前=返還なし。
  */
 export async function cancelBooking(bookingId: string, reason?: string): Promise<void> {
   const { error } = await requireSupabase().rpc('cancel_booking', {
@@ -1117,7 +1117,7 @@ export type EarningsSummary = {
   escrowedCoins: number
 }
 
-/** ホストとしての収益サマリー(換金可能分・エスクロー中分)を取得する。 */
+/** ピタメイトとしての収益サマリー(換金可能分・エスクロー中分)を取得する。 */
 export async function fetchEarnings(): Promise<EarningsSummary> {
   const sb = requireSupabase()
   const { data: auth } = await sb.auth.getUser()
@@ -1205,7 +1205,7 @@ export async function saveBankAccount(account: BankAccount): Promise<void> {
 const PAYOUT_ERROR_MESSAGES: Record<string, string> = {
   MIN_PAYOUT_COINS: `換金は${PAYOUT_MIN_COINS.toLocaleString()}コインから申請できます`,
   NOT_VERIFIED: '換金には本人確認の完了が必要です',
-  BANK_ACCOUNT_NOT_REGISTERED: '先にホスト設定から振込先口座を登録してください',
+  BANK_ACCOUNT_NOT_REGISTERED: '先にピタメイト設定から振込先口座を登録してください',
   INSUFFICIENT_EARNED_BALANCE: '換金可能な残高が足りません',
   GIFT_ON_HOLD: '受け取ったギフトは7日間は換金できません。保留が明けるまでお待ちください',
 }
@@ -1494,9 +1494,9 @@ export async function setPresenceStatus(status: PresenceStatus): Promise<void> {
 }
 
 /**
- * ホスト予約をリクエストし、コインをアトミックに確保する(create_booking RPC)。
+ * ピタメイト予約をリクエストし、コインをアトミックに確保する(create_booking RPC)。
  * この時点では予約は「承諾待ち(requested)」で、約束(トーク)はまだ成立しない。
- * ホストが承諾して初めてトークが開く。戻り値は booking_id。
+ * ピタメイトが承諾して初めてトークが開く。戻り値は booking_id。
  */
 export async function createBookingRemote(
   hostId: string,
@@ -1544,7 +1544,7 @@ export type IncomingBookingRequest = {
   durationMinutes: number
 }
 
-/** 自分(ホスト)宛の承諾待ち予約リクエストを、申込者の信頼情報つきで取得する。 */
+/** 自分(ピタメイト)宛の承諾待ち予約リクエストを、申込者の信頼情報つきで取得する。 */
 export async function fetchIncomingBookingRequests(): Promise<IncomingBookingRequest[]> {
   const sb = requireSupabase()
   const { data: auth } = await sb.auth.getUser()
@@ -1834,7 +1834,7 @@ export async function unblockUser(blockedId: string): Promise<void> {
 }
 
 // ============================================================
-// ホスト向けダッシュボード
+// ピタメイト向けダッシュボード
 // ============================================================
 
 /** ダッシュボードの集計結果(host_dashboard RPCの返り値)。 */
@@ -1869,7 +1869,7 @@ export type HostDashboard = {
   heatmap: { dow: number; hour: number; count: number }[]
 }
 
-/** ホスト向けダッシュボードの集計を取得する。 */
+/** ピタメイト向けダッシュボードの集計を取得する。 */
 export async function fetchHostDashboard(): Promise<HostDashboard> {
   const { data, error } = await requireSupabase().rpc('host_dashboard', {})
   if (error) throw error

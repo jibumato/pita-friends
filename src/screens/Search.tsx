@@ -19,7 +19,7 @@ import { GAMES, coinsPer30, SEARCH_VERIFIED_FILTER as VERIFIED_FILTER, SEARCH_DE
 
 type Phase = 'loading' | 'results' | 'empty' | 'error'
 
-/** デモのモックユーザーと実データのホストを、カード表示用の共通形に正規化する。 */
+/** デモのモックユーザーと実データのピタメイトを、カード表示用の共通形に正規化する。 */
 type DisplayCard = {
   key: string
   initial: string
@@ -71,7 +71,7 @@ export default function Search({ flow }: { flow: Flow }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 初回マウント: バックエンド接続時は実際のホスト一覧を取得、
+  // 初回マウント: バックエンド接続時は実際のピタメイト一覧を取得、
   // 未接続(デモモード)時はこれまでどおり一定時間後にモック結果を表示する。
   useEffect(() => {
     if (!isBackendConfigured) {
@@ -112,7 +112,7 @@ export default function Search({ flow }: { flow: Flow }) {
         setPhase(cards.length > 0 ? 'results' : 'empty')
       })
       .catch((err) => {
-        console.warn('[pita-friends] ホスト一覧の取得に失敗:', err)
+        console.warn('[pita-friends] ピタメイト一覧の取得に失敗:', err)
         if (active) setPhase('error')
       })
     return () => {
@@ -147,7 +147,7 @@ export default function Search({ flow }: { flow: Flow }) {
             <span style={{ fontSize: 21, color: C.ink }}>▶ さがす</span>
             {!mobile && phase === 'results' && (
               <span style={{ fontSize: 11.5, color: C.muted }}>
-                {isBackendConfigured ? `${cards.length}人のホストが見つかりました` : `${cards.length}人が条件にマッチ・相性順`}
+                {isBackendConfigured ? `${cards.length}人のピタメイトが見つかりました` : `${cards.length}人が条件にマッチ・相性順`}
               </span>
             )}
           </div>
@@ -282,7 +282,7 @@ export default function Search({ flow }: { flow: Flow }) {
         >
           {mobile && (
             <span style={{ fontSize: 11.5, color: C.muted }}>
-              {isBackendConfigured ? `${cards.length}人のホストが見つかりました` : `${cards.length}人が条件にマッチ · 相性順`}
+              {isBackendConfigured ? `${cards.length}人のピタメイトが見つかりました` : `${cards.length}人が条件にマッチ · 相性順`}
             </span>
           )}
           <div
@@ -304,7 +304,7 @@ export default function Search({ flow }: { flow: Flow }) {
           </div>
           {isBackendConfigured && allCards.length > 0 && cards.length === 0 && (
             <span style={{ fontSize: 12, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
-              条件に合うホストが見つかりませんでした
+              条件に合うピタメイトが見つかりませんでした
             </span>
           )}
           <div className="search-grid">

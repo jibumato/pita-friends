@@ -9,7 +9,7 @@ export type SearchUser = {
   meta: string
   score: number
   tags: string[]
-  /** ホストとして掲載中の場合の時給コイン(未掲載は undefined) */
+  /** ピタメイトとして掲載中の場合の時給コイン(未掲載は undefined) */
   hourlyRate?: number
 }
 

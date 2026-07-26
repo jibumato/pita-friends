@@ -9,7 +9,7 @@ import { isBackendConfigured } from '../lib/supabase'
 import { fetchHostDashboard, type HostDashboard as Data } from '../lib/queries'
 
 /**
- * ホスト向けダッシュボード。
+ * ピタメイト向けダッシュボード。
  *
  * 目的は「次に何をすれば手取りが増えるか」が1画面で分かること。
  * 表示するのは**自分自身の実績だけ**で、他人との金額順位は出さない
@@ -220,7 +220,7 @@ export default function HostDashboard({ flow }: { flow: Flow }) {
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:45" />
-      <SubHeader title="ホストの成績" onBack={() => flow.go('mypage')} />
+      <SubHeader title="ピタメイトの成績" onBack={() => flow.go('mypage')} />
       <div
         className="pita-scroll"
         style={{

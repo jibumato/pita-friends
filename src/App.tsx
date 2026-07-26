@@ -121,13 +121,13 @@ const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
   'personality',
 ])
 
-/** 予約対象のホスト(さがす画面のカードから渡す最小情報)。 */
+/** 予約対象のピタメイト(さがす画面のカードから渡す最小情報)。 */
 export type BookingHost = {
   name: string
   initial: string
   color: string
   hourlyRate: number
-  /** 実データのホスト(Supabase)の場合のみ設定される。デモのモックホストにはない。 */
+  /** 実データのピタメイト(Supabase)の場合のみ設定される。デモのモックピタメイトにはない。 */
   userId?: string
 }
 
@@ -184,7 +184,7 @@ export type Flow = {
   isAdmin: boolean
   /** 自分のオンライン時の状態(今すぐ遊べる/オンライン/取り込み中)。 */
   presenceStatus: PresenceStatus
-  /** ホスト設定の直近の書き込みエラー(本人確認未完了等)。表示専用、次の操作で上書きされる。 */
+  /** ピタメイト設定の直近の書き込みエラー(本人確認未完了等)。表示専用、次の操作で上書きされる。 */
   hostSettingsError: string | null
   setNickname: (n: string) => void
   /** 自分の状態を切り替える(実データ接続時はDBにも保存)。 */
@@ -311,7 +311,7 @@ export default function App() {
   const [authChecking, setAuthChecking] = useState(isBackendConfigured)
 
   // サインイン/起動時のセッション復元後に、本人のアカウントデータ(プロフィール/
-  // 安心設定/ホスト設定/コイン残高/信頼スタッツ)をSupabaseから読み込み、
+  // 安心設定/ピタメイト設定/コイン残高/信頼スタッツ)をSupabaseから読み込み、
   // デモ用のローカル状態を実データで上書きする。
   const hydrateAccount = useCallback(async (userId: string) => {
     try {
@@ -384,7 +384,7 @@ export default function App() {
             }
           } else if (connectParam) {
             // オンボーディング完了はaccount.updated Webhookで反映されるため、
-            // ホスト設定画面に戻して(その画面が自分で状況を再取得する)
+            // ピタメイト設定画面に戻して(その画面が自分で状況を再取得する)
             setState((p) => ({ ...p, screen: 'hostSettings' }))
           } else {
             setState((p) => ({ ...p, screen: 'home' }))
@@ -512,13 +512,13 @@ export default function App() {
     const host = state.bookingHost
     if (!host) return
 
-    // 実データのホスト(Supabase側にuserIdを持つ)は、コイン消費と予約作成を
-    // アトミックに行うcreate_booking RPCを呼ぶ。デモのモックホストは
+    // 実データのピタメイト(Supabase側にuserIdを持つ)は、コイン消費と予約作成を
+    // アトミックに行うcreate_booking RPCを呼ぶ。デモのモックピタメイトは
     // これまでどおりローカル計算のみで進める。
     if (isBackendConfigured && host.userId && state.userId) {
       setState((p) => ({ ...p, bookingInsufficient: false, bookingError: null }))
       try {
-        // 予約はリクエスト(承諾待ち)として作られる。ホストが承諾するまで
+        // 予約はリクエスト(承諾待ち)として作られる。ピタメイトが承諾するまで
         // トークは開かないので、送信完了→承諾待ち画面に遷移する。
         await createBookingRemote(host.userId, state.bookingDuration, CANCELLATION_POLICY_VERSION)
         const cost = coinsForDuration(host.hourlyRate, state.bookingDuration)
@@ -534,7 +534,7 @@ export default function App() {
         if (message.includes('INSUFFICIENT_COINS')) {
           setState((p) => ({ ...p, bookingInsufficient: true }))
         } else if (message.includes('HOST_NOT_AVAILABLE')) {
-          setState((p) => ({ ...p, bookingError: 'このホストは現在、予約を受け付けていません。' }))
+          setState((p) => ({ ...p, bookingError: 'このピタメイトは現在、予約を受け付けていません。' }))
         } else {
           setState((p) => ({
             ...p,
@@ -728,8 +728,8 @@ export default function App() {
         updateHostSettingsRemote(state.userId, { [dbKey]: value }).catch((err) => {
           const message =
             err instanceof Error && err.message.includes('HOST_REQUIRES_VERIFICATION')
-              ? 'ホストとして掲載するには、本人確認の完了が必要です。「本人確認ステータス」から書類を提出してください(審査完了まで数日かかる場合があります)。'
-              : 'ホスト設定の保存に失敗しました。時間をおいて再度お試しください。'
+              ? 'ピタメイトとして掲載するには、本人確認の完了が必要です。「本人確認ステータス」から書類を提出してください(審査完了まで数日かかる場合があります)。'
+              : 'ピタメイト設定の保存に失敗しました。時間をおいて再度お試しください。'
           console.warn('[pita-friends] host_settings更新に失敗:', err)
           // 反映できなかった場合は表示上も元に戻す
           setState((p) => ({
