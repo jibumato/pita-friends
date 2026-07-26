@@ -9,6 +9,7 @@ import { isBackendConfigured } from '../lib/supabase'
 import {
   cancelBooking,
   completeBooking,
+  extendBooking,
   fetchBookingForPromise,
   fetchMessages,
   fetchPaidBalance,
@@ -25,6 +26,7 @@ import {
   type ThreadPartner,
 } from '../lib/queries'
 import { REVIEW_TAGS } from '../flow'
+import { clickable } from '../hooks/clickable'
 import { inspectText, guardWarningText, type GuardHit } from '../lib/contentGuard'
 import { recordContentFlag } from '../lib/queries'
 
@@ -215,6 +217,10 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   const [hits, setHits] = useState<GuardHit[]>([])
   const [sending, setSending] = useState(false)
   const [booking, setBooking] = useState<BookingInfo | null>(null)
+  /** 延長の選択肢を開いているか。誤タップで課金しないよう一段挟む。 */
+  const [extendOpen, setExtendOpen] = useState(false)
+  const [extending, setExtending] = useState(false)
+  const [extendMsg, setExtendMsg] = useState<string | null>(null)
   const [completing, setCompleting] = useState(false)
   const [completeError, setCompleteError] = useState<string | null>(null)
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -343,6 +349,36 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
     }
   }
 
+  async function handleExtend(minutes: 30 | 60) {
+    if (!booking || extending) return
+    setExtending(true)
+    setExtendMsg(null)
+    try {
+      const added = await extendBooking(booking.id, minutes)
+      // サーバが確定した追加コイン数で手元の表示を更新する
+      setBooking({
+        ...booking,
+        coins: booking.coins + added,
+        durationMinutes: booking.durationMinutes + minutes,
+      })
+      setExtendOpen(false)
+      setExtendMsg(`${minutes}分延長しました(+${added}コイン)`)
+    } catch (e) {
+      setExtendMsg(e instanceof Error ? e.message : '延長できませんでした')
+    } finally {
+      setExtending(false)
+    }
+  }
+
+  /**
+   * 延長の見積り。時給レートは coins ÷ 時間 から逆算する
+   * (延長を重ねても比は変わらない)。確定額はサーバ側が決める。
+   */
+  function estimateExtendCoins(minutes: number): number {
+    if (!booking || booking.durationMinutes <= 0) return 0
+    return Math.round((booking.coins / booking.durationMinutes) * minutes)
+  }
+
   const isGuestOfBooking = booking && myId === booking.guestId
   const isCancelledBooking = booking?.status.startsWith('cancelled') || booking?.status.startsWith('no_show')
 
@@ -453,6 +489,85 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
             </div>
           ) : (
             <span style={{ fontSize: 10.5, color: '#E3DCFF' }}>ゲスト側の確定をお待ちください(72時間で自動確定)</span>
+          )}
+          {/* 延長はゲストのみ。プレイ中に「もう少し遊びたい」と思った瞬間に押せる位置に置く。 */}
+          {isGuestOfBooking &&
+            (!extendOpen ? (
+              <span
+                onClick={() => setExtendOpen(true)}
+                {...clickable(() => setExtendOpen(true), 'プレイ時間を延長する')}
+                style={{
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  fontSize: 12,
+                  color: C.ink,
+                  background: C.white,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 6,
+                  padding: '8px 0',
+                }}
+              >
+                ＋ プレイ時間を延長する
+              </span>
+            ) : (
+              <div
+                style={{
+                  background: C.white,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: '9px 11px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
+                  延長すると、その場でコインを追加でお支払いいただきます。金額は
+                  ホストさんの時給レートで計算されます。
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {([30, 60] as const).map((min) => (
+                    <span
+                      key={min}
+                      onClick={() => handleExtend(min)}
+                      {...clickable(() => handleExtend(min), `${min}分延長する`)}
+                      style={{
+                        flex: 1,
+                        textAlign: 'center',
+                        cursor: extending ? 'not-allowed' : 'pointer',
+                        opacity: extending ? 0.6 : 1,
+                        fontSize: 11.5,
+                        color: C.ink,
+                        background: C.lime,
+                        border: `1.5px solid ${C.border}`,
+                        borderRadius: 6,
+                        padding: '8px 0',
+                      }}
+                    >
+                      +{min}分
+                      <br />
+                      <span style={{ fontSize: 10, color: C.body }}>
+                        約{estimateExtendCoins(min).toLocaleString()}コイン
+                      </span>
+                    </span>
+                  ))}
+                </div>
+                <span
+                  onClick={() => setExtendOpen(false)}
+                  {...clickable(() => setExtendOpen(false), 'やめる')}
+                  style={{
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    fontSize: 11,
+                    color: C.muted,
+                  }}
+                >
+                  やめる
+                </span>
+              </div>
+            ))}
+          {extendMsg && (
+            <span style={{ fontSize: 10.5, color: '#E3DCFF', textAlign: 'center' }}>{extendMsg}</span>
           )}
           {!cancelOpen ? (
             <span
