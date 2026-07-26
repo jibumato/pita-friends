@@ -8,6 +8,7 @@ import StatusBar from '../components/StatusBar'
 import { SubHeader, Toggle, Card, ListRow } from '../components/Ui'
 import { Coin, Shield } from '../components/Icon'
 import { GAMES, coinsPer30 } from '../flow'
+import GameThumb from '../components/GameThumb'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchBankAccount, saveBankAccount, normalizeKanaName, type BankAccount } from '../lib/queries'
@@ -354,10 +355,14 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
                   color: sel ? C.lime : C.ink,
                   background: sel ? C.fill : C.white,
                   border: `1.5px solid ${C.border}`,
-                  padding: '7px 13px',
+                  padding: '5px 11px 5px 6px',
                   borderRadius: 4,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
                 }}
               >
+                <GameThumb name={g} size={22} />
                 {g}
               </span>
             )

@@ -7,15 +7,19 @@ import AvatarEditor from '../components/AvatarEditor'
 import { ChevronLeft, Shield } from '../components/Icon'
 import { GAMES, genderLabel, type Gender } from '../flow'
 import { usePress } from '../hooks/usePress'
+import GameThumb from '../components/GameThumb'
 
 function ChipRow({
   options,
   value,
   onPick,
+  thumbs,
 }: {
   options: readonly string[]
   value: string
   onPick: (v: string) => void
+  /** ゲーム一覧のときだけサムネを出す(プレイスタイル等の一般チップには不要)。 */
+  thumbs?: boolean
 }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -31,10 +35,14 @@ function ChipRow({
               color: sel ? C.lime : C.ink,
               background: sel ? C.fill : C.white,
               border: `1.5px solid ${C.border}`,
-              padding: '7px 13px',
+              padding: thumbs ? '5px 11px 5px 6px' : '7px 13px',
               borderRadius: 4,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: thumbs ? 7 : 0,
             }}
           >
+            {thumbs && <GameThumb name={o} size={22} />}
             {o}
           </span>
         )
@@ -92,7 +100,7 @@ export default function Setup({ flow }: { flow: Flow }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <span style={{ fontSize: 12, color: C.muted }}>よく遊ぶゲーム</span>
-          <ChipRow options={GAMES} value={flow.game} onPick={flow.setGame} />
+          <ChipRow options={GAMES} value={flow.game} onPick={flow.setGame} thumbs />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <span style={{ fontSize: 12, color: C.muted }}>プレイスタイル</span>
