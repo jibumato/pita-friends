@@ -966,6 +966,8 @@ export type BookingInfo = {
   guestId: string
   hostId: string
   coins: number
+  /** 延長を含む現在の合計プレイ時間(分)。延長費用の見積り表示に使う。 */
+  durationMinutes: number
   status: string
   scheduledAt: string
 }
@@ -983,7 +985,7 @@ export async function fetchBookingForPromise(promiseId: string): Promise<Booking
 
   const { data: booking, error: bErr } = await sb
     .from('bookings')
-    .select('id, guest_id, host_id, coins, status, scheduled_at')
+    .select('id, guest_id, host_id, coins, duration_minutes, status, scheduled_at')
     .eq('id', promise.booking_id)
     .single()
   if (bErr) throw bErr
@@ -992,9 +994,27 @@ export async function fetchBookingForPromise(promiseId: string): Promise<Booking
     guestId: booking.guest_id,
     hostId: booking.host_id,
     coins: booking.coins,
+    durationMinutes: booking.duration_minutes,
     status: booking.status,
     scheduledAt: booking.scheduled_at,
   }
+}
+
+/**
+ * プレイ時間を延長する(ゲスト本人・進行中のみ)。
+ * 追加で消費したコイン数を返す。金額はサーバ側が時給レートから決める。
+ */
+export async function extendBooking(bookingId: string, additionalMinutes: 30 | 60): Promise<number> {
+  const { data, error } = await requireSupabase().rpc('extend_booking', {
+    p_booking_id: bookingId,
+    p_additional_minutes: additionalMinutes,
+  })
+  if (!error) return (data as number) ?? 0
+  const msg = error.message
+  if (/INSUFFICIENT_COINS/.test(msg)) throw new Error('コインが足りません')
+  if (/BOOKING_NOT_EXTENDABLE/.test(msg)) throw new Error('進行中の予約のみ延長できます')
+  if (/ONLY_GUEST_CAN_EXTEND/.test(msg)) throw new Error('予約したご本人のみ延長できます')
+  throw error
 }
 
 /** 「プレイ完了」を確定する(ゲスト本人のみ)。ホストの報酬コインに反映される。 */
