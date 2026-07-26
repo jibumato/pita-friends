@@ -118,6 +118,7 @@
 |---|---|---|
 | 随時 | 本人確認の審査(承認/却下) | `docs/manual-verification-review.md` |
 | 随時 | 通報の審査・対応 | `docs/trust-safety-spec.md` |
+| 随時 | 個別相談(返還申告)の判断 | `docs/refund-claim-policy.md` |
 | 月次 | 換金の締め→総合振込→消し込み | `docs/payouts-bank-operations.md` |
 | 月次 | Stripe入金と`coin_purchases`の突合 | — |
 | 半期 | 前払式残高の確認(3/31・9/30基準日) | `coin-economy-legal-review.md` §4.1 |
