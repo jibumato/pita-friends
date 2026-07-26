@@ -45,6 +45,8 @@
      `cancel_booking` を差し替え、返還率を `platform_pricing` に集約)
    - `0041_longer_bookings.sql` … あそぶ時間を30分刻み・最長4時間に、
      予約できる先を14日に(`create_booking`を差し替え)
+   - `0042_booking_hold.sql` … 申し出・通報があった予約の自動確定を保留する
+     (E-12。`auto_complete_bookings`を差し替え。**返還の窓口を開ける前に必須**)
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ✅ **リダイレクトURLの登録**(2026-07-26): Authentication → URL Configuration
