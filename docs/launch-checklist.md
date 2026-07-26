@@ -3,25 +3,27 @@
 上から順に進めれば公開できる構成にしてあります。コードは全機能実装済みなので、
 残りは **(A)ホスティング → (B)Supabase本番設定 → (C)Stripe本番化 → (D)法務ゲート** の4つです。
 
+> **残論点の全体像は [open-issues.md](open-issues.md) にまとめてあります。**
+> 「いま何が全体を止めているか」「どれから着手すべきか」を知りたい場合は
+> そちらを先に読んでください。本ファイルは各項目の手順書です。
+
 > 凡例: ☐ 未着手 / 項目末尾の(必須)は公開のブロッカー、(推奨)は後追い可
 
 ---
 
-## A. ホスティング(Vercel推奨・無料枠で可)
+## A. ホスティング(Cloudflare で稼働中)
 
-1. ☐ [vercel.com](https://vercel.com) にGitHubでサインアップ
-2. ☐ 「Add New → Project」で `jibumato/pita-friends` をインポート
-   - Framework: **Vite**(自動検出)。Build Command `npm run build` / Output `dist` のままでOK
-3. ☐ Environment Variables に以下を設定(必須):
-   ```
-   VITE_SUPABASE_URL      = https://<プロジェクトRef>.supabase.co
-   VITE_SUPABASE_ANON_KEY = <anonキー>
-   ```
+> 当初はVercelを想定していましたが、**実際にはCloudflareで運用しています**
+> (2026-07-26に実態へ合わせて更新)。`wrangler.jsonc` の `assets` 設定による
+> 静的配信で、Workerスクリプトは使っていません。
+
+1. ✅ Cloudflare へのデプロイ(`main` にマージすると反映される)
+2. ✅ 環境変数 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` の設定
    ※この2つは公開されても安全な値です(service_roleキーは**絶対に**入れない)
-4. ☐ Deploy → `https://<プロジェクト名>.vercel.app` で表示確認
-5. ☐ (推奨)独自ドメインを購入し、Vercelの Domains で接続(例: pitafure.jp)
+3. ☐ **独自ドメインを購入し接続**(例: pitafure.jp)
    - ドメインは特商法表記・規約の「販売URL」にも記載するので早めに確定
-6. ☐ スマホ実機で「ホーム画面に追加」(PWA)が動くか確認
+   - Supabaseのリダイレクト設定・StripeのAPP_URLもこれ待ちになっている
+4. ☐ スマホ実機で「ホーム画面に追加」(PWA)が動くか確認
 
 ## B. Supabase 本番設定
 
