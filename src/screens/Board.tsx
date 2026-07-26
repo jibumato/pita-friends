@@ -8,16 +8,42 @@ import { Plus, PlusCircle } from '../components/Icon'
 import { EmptyState } from '../components/States'
 import { boardPosts } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
-import { fetchBoardPosts, joinBoardPost, type BoardPostItem } from '../lib/queries'
+import { fetchBoardPosts, joinBoardPost, cancelBoardPost, type BoardPostItem } from '../lib/queries'
 import { useIsMobile } from '../hooks/useMediaQuery'
+import { clickable } from '../hooks/clickable'
 
 const DEMO_FILTERS = ['すべて', '自分の募集', '今夜', 'Apex', 'まったり']
 const REAL_FILTERS = ['すべて', '自分の募集', '今夜', 'Apex', 'エンジョイ']
 
-function RealPostCard({ p, onJoined }: { p: BoardPostItem; onJoined: (id: string, full: boolean) => void }) {
+function RealPostCard({
+  p,
+  onJoined,
+  onCancelled,
+}: {
+  p: BoardPostItem
+  onJoined: (id: string, full: boolean) => void
+  onCancelled: (id: string) => void
+}) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [joined, setJoined] = useState(p.hasJoined)
+  /** 取り消しは戻せないので、一度確認を挟む。 */
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
+
+  async function handleCancel() {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      await cancelBoardPost(p.id)
+      onCancelled(p.id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '取り消しに失敗しました')
+      setConfirmingCancel(false)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function handleJoin() {
     if (busy || joined || p.isMine) return
@@ -126,7 +152,29 @@ function RealPostCard({ p, onJoined }: { p: BoardPostItem; onJoined: (id: string
         <span style={{ fontSize: 10.5, color: C.muted }}>★{p.creatorManner.toFixed(1)}</span>
         <div style={{ flex: 1 }} />
         {p.isMine ? (
-          <span style={{ fontSize: 11, color: C.muted }}>自分の募集</span>
+          <span
+            onClick={() => !busy && setConfirmingCancel(true)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                if (!busy) setConfirmingCancel(true)
+              }
+            }}
+            style={{
+              cursor: busy ? 'default' : 'pointer',
+              opacity: busy ? 0.6 : 1,
+              fontSize: 12,
+              color: C.ink,
+              background: C.white,
+              border: `1.5px solid ${C.border}`,
+              padding: '7px 14px',
+              borderRadius: 4,
+            }}
+          >
+            募集を取り消す
+          </span>
         ) : (
           <span
             onClick={handleJoin}
@@ -146,6 +194,61 @@ function RealPostCard({ p, onJoined }: { p: BoardPostItem; onJoined: (id: string
           </span>
         )}
       </div>
+      {confirmingCancel && (
+        <div
+          style={{
+            background: C.surfaceLavender,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 8,
+            padding: '11px 13px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 9,
+          }}
+        >
+          <span style={{ fontSize: 11.5, color: C.ink, lineHeight: 1.7 }}>
+            この募集を取り消します。
+            {p.joinedCount > 0 && (
+              <>
+                <br />
+                すでに <b>{p.joinedCount}人</b> が参加表明しています。取り消すとその方々に通知が届きます。
+              </>
+            )}
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <span
+              onClick={handleCancel}
+              {...clickable(handleCancel, '募集を取り消す')}
+              style={{
+                cursor: busy ? 'default' : 'pointer',
+                opacity: busy ? 0.6 : 1,
+                fontSize: 12,
+                color: C.ctaFg,
+                background: C.ctaBg,
+                padding: '7px 16px',
+                borderRadius: 4,
+              }}
+            >
+              {busy ? '処理中…' : '取り消す'}
+            </span>
+            <span
+              onClick={() => setConfirmingCancel(false)}
+              {...clickable(() => setConfirmingCancel(false), 'やめる')}
+              style={{
+                cursor: 'pointer',
+                fontSize: 12,
+                color: C.ink,
+                background: C.white,
+                border: `1.5px solid ${C.border}`,
+                padding: '7px 16px',
+                borderRadius: 4,
+              }}
+            >
+              やめる
+            </span>
+          </div>
+        </div>
+      )}
       {error && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{error}</span>}
     </div>
   )
@@ -167,6 +270,10 @@ export default function Board({ flow }: { flow: Flow }) {
       active = false
     }
   }, [])
+
+  const handleCancelled = (postId: string) => {
+    setRealPosts((xs) => (xs ? xs.filter((x) => x.id !== postId) : xs))
+  }
 
   const handleJoined = (postId: string, full: boolean) => {
     if (!full) return
@@ -283,7 +390,7 @@ export default function Board({ flow }: { flow: Flow }) {
         >
           <div className="search-grid">
           {isBackendConfigured
-            ? filteredReal.map((p) => <RealPostCard key={p.id} p={p} onJoined={handleJoined} />)
+            ? filteredReal.map((p) => <RealPostCard key={p.id} p={p} onJoined={handleJoined} onCancelled={handleCancelled} />)
             : demoPosts.map((p) => (
                 <div
                   key={p.title}

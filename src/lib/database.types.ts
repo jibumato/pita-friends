@@ -65,6 +65,8 @@ export type NotificationType =
   | 'booking_requested'
   | 'booking_approved'
   | 'gift_received'
+  | 'booking_extended'
+  | 'board_cancelled'
 export type AccountRequestType = 'data_export' | 'account_deletion'
 export type AccountRequestStatus = 'pending' | 'processing' | 'completed'
 
@@ -603,6 +605,10 @@ export type Database = {
           p_matched: string
           p_proceeded?: boolean
         }
+        Returns: void
+      }
+      cancel_board_post: {
+        Args: { p_post_id: string; p_reason?: string | null }
         Returns: void
       }
       host_dashboard: {

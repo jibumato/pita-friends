@@ -29,6 +29,8 @@ const ICON_BY_TYPE: Record<NotificationType, { icon: string; tint: string }> = {
   booking_requested: { icon: '📨', tint: C.avatarPink },
   booking_approved: { icon: '🤝', tint: C.lime },
   gift_received: { icon: '🎁', tint: C.avatarPink },
+  booking_extended: { icon: '⏱️', tint: C.lavender },
+  board_cancelled: { icon: '🚫', tint: C.avatarOrange },
 }
 
 function timeLabel(iso: string): string {
