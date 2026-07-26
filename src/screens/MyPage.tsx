@@ -355,12 +355,27 @@ export default function MyPage({ flow }: { flow: Flow }) {
           <ListRow label="利用規約" onClick={() => flow.openLegalDoc('terms')} />
           <ListRow label="プライバシーポリシー" divider={false} onClick={() => flow.openLegalDoc('privacy')} />
         </Card>
-        <span
+        <div
           onClick={flow.signOut}
-          style={{ textAlign: 'center', fontSize: 11.5, color: C.placeholder, cursor: 'pointer' }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') flow.signOut()
+          }}
+          style={{
+            cursor: 'pointer',
+            textAlign: 'center',
+            fontSize: 13,
+            color: C.badge,
+            background: C.white,
+            border: `1.5px solid ${C.badge}`,
+            borderRadius: 10,
+            padding: '11px 14px',
+            marginBottom: 4,
+          }}
         >
           ログアウト
-        </span>
+        </div>
       </div>
       <BottomTabs current={flow.screen} onNavigate={flow.go} />
     </Screen>
