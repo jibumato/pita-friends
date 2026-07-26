@@ -1502,14 +1502,30 @@ export async function createBookingRemote(
   hostId: string,
   durationMinutes: 30 | 60 | 120,
   policyVersion: string,
+  /** 希望開始時刻。null なら「今すぐ」(承諾時点が開始時刻)。 */
+  scheduledAt: Date | null = null,
 ): Promise<string> {
   const { data, error } = await requireSupabase().rpc('create_booking', {
     p_host_id: hostId,
     p_duration_minutes: durationMinutes,
     p_policy_version: policyVersion,
+    p_scheduled_at: scheduledAt ? scheduledAt.toISOString() : null,
   })
   if (error) throw error
   return data as string
+}
+
+/**
+ * いまキャンセルしたら何%戻るかを取得する。
+ * 判定はサーバ(booking_refund_percent)の1か所に集約してあり、
+ * 画面で別途計算しないこと(ずれると表示と実額が食い違う)。
+ */
+export async function fetchMyRefundPercent(bookingId: string): Promise<number> {
+  const { data, error } = await requireSupabase().rpc('my_booking_refund_percent', {
+    p_booking_id: bookingId,
+  })
+  if (error) throw error
+  return Number(data ?? 0)
 }
 
 /** 保有コイン(有償+ボーナス)のうち最も近い有効期限を返す(なければnull)。 */
