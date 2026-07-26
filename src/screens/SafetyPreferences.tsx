@@ -43,7 +43,7 @@ export default function SafetyPreferences({ flow }: { flow: Flow }) {
         >
           <Shield size={18} style={{ flex: 'none', marginTop: 1 }} />
           <span style={{ fontSize: 11.5, lineHeight: 1.7, color: C.body }}>
-            あなたのペースで安心して遊ぶための設定です。ピタフレは<b style={{ color: C.ink }}>ゲームを一緒に楽しむ場</b>で、出会い目的の利用は禁止しています。設定はいつでも変更できます。
+            あなたのペースで安心して遊ぶための設定です。ピタフレは<b style={{ color: C.ink }}>ゲームを一緒に楽しむ場</b>で、目的以外での利用は禁止しています。設定はいつでも変更できます。
           </span>
         </div>
 

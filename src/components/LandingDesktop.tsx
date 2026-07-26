@@ -21,7 +21,7 @@ const DEMO_HOSTS = [
 
 const FEATURES = [
   { icon: '🎮', title: '一緒に遊ぶ時間を予約', body: '上手い人・気の合う人と、30分から。コインで完結するので、外部で連絡先を交換する必要はありません。' },
-  { icon: '🛡️', title: '女性も安心の設計', body: '誰から誘いを受けるか自分でコントロール。承認制・ワンタップ通報/ブロック・本人確認・みまもり付き。' },
+  { icon: '🛡️', title: 'みんなが安心の設計', body: '誰から誘いを受けるか自分でコントロール。承認制・ワンタップ通報/ブロック・本人確認・みまもり付き。' },
   { icon: '🏆', title: '実力がちゃんと報われる', body: 'プレイ実績・評価・信頼性でランキング。投げ銭や課金額ではありません。ホストは遊んだ時間が報酬コインに。' },
 ]
 
@@ -196,7 +196,7 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: '40px 32px', background: C.fill, borderRadius: 22, border: `2px solid ${C.border}`, boxShadow: `8px 8px 0 ${C.lavender}` }}>
           <h2 style={{ ...h2, color: '#fff', textAlign: 'center' }}>ここは、ゲームを楽しむ場所です</h2>
           <p style={{ fontSize: 15, color: '#E3DCFF', textAlign: 'center', lineHeight: 1.9, margin: '14px auto 0', maxWidth: '52ch' }}>
-            出会い・恋愛目的の利用は禁止しています。誰もが安心して遊べるよう、女性の安全を最優先に設計しました。
+            ゲームを一緒に楽しむ以外の目的での利用は禁止しています。誰もが安心して遊べるよう、みなさんの安全を最優先に設計しました。
             みんなが気持ちよく遊べる場を、運営とユーザーで一緒に守ります。
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 22 }}>
