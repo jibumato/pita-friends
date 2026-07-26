@@ -48,6 +48,43 @@ function StepRow({
   )
 }
 
+/**
+ * 提出前の注意書き。本人確認の目的では取得してはならない情報(本籍地・個人番号・
+ * 健康保険証の記号番号等)を、ユーザー側で隠してもらうための案内。
+ * マイナンバーカードは裏面に個人番号があるため、書類の例示からは外している。
+ */
+function MaskingNotice() {
+  return (
+    <div
+      style={{
+        background: C.surface,
+        border: `1.5px solid ${C.border}`,
+        borderRadius: 10,
+        padding: '11px 13px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 5,
+      }}
+    >
+      <span style={{ fontSize: 11.5, color: C.ink }}>撮影前におねがいします</span>
+      <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.75 }}>
+        次の情報は本人確認に使わないため、
+        <b style={{ color: C.ink }}>付箋や指で隠して撮影</b>
+        してください。
+      </span>
+      <ul style={{ margin: 0, paddingLeft: 17, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <li style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>本籍地(旧い運転免許証に記載があります)</li>
+        <li style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>マイナンバー(個人番号)</li>
+        <li style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>健康保険証の記号・番号・保険者番号</li>
+      </ul>
+      <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.75 }}>
+        <b style={{ color: C.ink }}>マイナンバーカードは表面のみ</b>
+        ご利用ください(裏面は個人番号が記載されているためお預かりできません)。写り込んでいた場合は、確認前に運営で消去します。
+      </span>
+    </div>
+  )
+}
+
 /** 書類/顔写真を撮影・選択させるカード。ファイル選択後はファイル名を表示する。 */
 function PhotoPicker({
   n,
@@ -196,7 +233,7 @@ export default function Verify({ flow }: { flow: Flow }) {
               gap: 14,
             }}
           >
-            <StepRow n={1} title="本人確認書類を撮影" sub="運転免許証・マイナンバーカード等" status="done" />
+            <StepRow n={1} title="本人確認書類を撮影" sub="運転免許証・パスポート等" status="done" />
             <div style={{ height: 1.5, background: C.divider }} />
             <StepRow n={2} title="顔写真で本人照合" sub="1分で完了 · 書類は暗号化保存" status="pending" />
           </div>
@@ -218,11 +255,12 @@ export default function Verify({ flow }: { flow: Flow }) {
             <PhotoPicker
               n={1}
               title="本人確認書類を撮影"
-              sub="運転免許証・マイナンバーカード等(タップして撮影/選択)"
+              sub="運転免許証・パスポート等(タップして撮影/選択)"
               file={documentFile}
               capture="environment"
               onPick={setDocumentFile}
             />
+            <MaskingNotice />
             <div style={{ height: 1.5, background: C.divider }} />
             <PhotoPicker
               n={2}
