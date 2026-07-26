@@ -1,4 +1,4 @@
--- ピタフレ 全スキーマ結合版 (0001〜0042)
+-- ピタフレ 全スキーマ結合版 (0001〜0046)
 -- Supabase ダッシュボードの SQL Editor に、このファイルの中身をそのまま貼り付けて一括実行できます。
 -- 既に途中まで適用済みの場合は、未適用の番号のファイルだけを番号順に実行してください。
 -- 注意: 適用済みのDBにこのファイル全体を流すと "already exists" で途中中断します。
@@ -8656,3 +8656,944 @@ order by b.held_at;
 comment on view public.held_bookings_overview is
   '自動確定を保留している予約の一覧。is_overdue が true のものは判断が滞っている'
   '(ピタメイトの資金を凍結し続けている)ので優先して処理すること。';
+
+
+-- ============================================================================
+-- 0043_integrity_checks.sql
+-- ============================================================================
+-- ============================================================
+-- 0043_integrity_checks.sql
+-- 取引データの整合性を毎日自動で照合し、ズレを検知する
+-- ------------------------------------------------------------
+-- 背景: お金を扱う以上、いちばん怖いのは「壊れたことに気づかないまま
+-- 時間が経つ」ことです。バックアップを持っていても、破損に3か月気づかなければ
+-- どの時点まで巻き戻すのが正しいのか判断できず、復元しても意味がありません。
+-- 予防(0044の追記専用化)や復旧(PITR)より先に、まず**検知**を置きます。
+--
+-- 幸い、この設計にはもともと冗長性があります。
+--   ・coin_wallets.balance / bonus_balance は coin_lots の集計キャッシュ
+--   ・coin_transactions は全ての残高変動の履歴(0003〜0042で67か所から記録)
+--   ・coin_purchases は Stripe 側にも同じ記録が残る
+-- つまり「同じ事実を別の形で持っている」ため、突き合わせれば破損が分かります。
+--
+-- いちばん効く不変条件はこれです:
+--   Σ coin_transactions.amount == balance + bonus_balance + earned_balance
+-- 残高の変動は必ず1行の履歴を伴うので、どのバケット(有償/ボーナス/報酬)に
+-- 入ったかを分類しなくても、合計だけで全てのズレを捕まえられます。
+--
+-- 特に危ないのは greatest(0, balance - X) 形式の更新です(0018のexpire_coins、
+-- 0030/0040の失効差し引き、0033の手数料控除)。既にズレていると更新側だけが
+-- 0で止まり、履歴には満額が残るため、ズレが静かに拡大します。C3がこれを捕まえます。
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- integrity_checks: 照合結果の記録
+-- ------------------------------------------------------------
+create table if not exists public.integrity_checks (
+  id uuid primary key default gen_random_uuid(),
+  ran_at timestamptz not null default now(),
+  check_name text not null,
+  severity text not null check (severity in ('ok', 'warn', 'error')),
+  -- ズレていた対象の件数(ok のときは 0、情報系は対象数)
+  affected_count int not null default 0,
+  -- ズレの合計(コイン単位)。情報系の指標値もここに入れる
+  total_gap bigint not null default 0,
+  -- 対象の内訳(先頭20件まで)。運営が個別に追える形で残す
+  detail jsonb not null default '{}'::jsonb
+);
+
+comment on table public.integrity_checks is
+  '取引データの日次整合性チェックの結果。severity=error の行が出たら、その日のうちに原因を特定すること。';
+
+alter table public.integrity_checks enable row level security;
+
+-- 閲覧は管理者のみ。書き込みポリシーは作らない(関数経由のみ)。
+drop policy if exists "integrity_checks_select_admin" on public.integrity_checks;
+create policy "integrity_checks_select_admin"
+  on public.integrity_checks for select
+  to authenticated
+  using (exists (select 1 from public.admins where user_id = auth.uid()));
+
+create index if not exists integrity_checks_ran_idx
+  on public.integrity_checks (ran_at desc, check_name);
+
+-- 通知タイプに整合性アラートを追加
+alter table public.notifications drop constraint if exists notifications_type_check;
+alter table public.notifications
+  add constraint notifications_type_check
+  check (type in (
+    'invite_received', 'invite_approved', 'message_received',
+    'verification_approved', 'verification_rejected', 'board_joined',
+    'booking_cancelled', 'booking_completed',
+    'booking_requested', 'booking_approved',
+    'gift_received', 'booking_extended', 'board_cancelled',
+    'integrity_alert'
+  ));
+
+-- ------------------------------------------------------------
+-- run_integrity_checks: 全チェックを実行して結果を記録する
+--   ・cron(service_role)からの実行と、管理者による手動実行の両方を許可
+--   ・error が1件でもあれば管理者全員に通知する
+--   ・戻り値は error だったチェックの数(0なら健全)
+-- ------------------------------------------------------------
+create or replace function public.run_integrity_checks()
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_run_at timestamptz := now();
+  v_errors int := 0;
+  v_count int;
+  v_gap bigint;
+  v_detail jsonb;
+begin
+  -- service_role/cron から呼ぶときは auth.uid() が null。
+  -- ログイン中のユーザーが呼ぶ場合は管理者に限る。
+  if auth.uid() is not null
+     and not exists (select 1 from public.admins where user_id = auth.uid()) then
+    raise exception 'NOT_ADMIN';
+  end if;
+
+  -- ============================================================
+  -- C1/C2: 残高キャッシュ vs コインロットの残
+  --   balance は「未失効ロットの合計」のキャッシュ。ここがズレると
+  --   利用者から見える残高が実体と食い違う。
+  --   失効済みロットは expire_coins() が remaining=0 にするため、
+  --   期限で絞らず全ロットを合計してよい。
+  -- ============================================================
+  with agg as (
+    select w.user_id,
+           w.balance as cached,
+           coalesce((select sum(l.remaining) from public.coin_lots l
+                     where l.user_id = w.user_id and l.kind = 'paid'), 0) as lots
+    from public.coin_wallets w
+  ),
+  bad as (select * from agg where cached <> lots)
+  select count(*), coalesce(sum(abs(cached - lots)), 0),
+         coalesce(jsonb_agg(jsonb_build_object(
+           'user_id', user_id, 'cached', cached, 'lots', lots)
+         ) filter (where true), '[]'::jsonb)
+    into v_count, v_gap, v_detail
+  from (select * from bad order by abs(cached - lots) desc limit 20) t;
+
+  insert into public.integrity_checks (ran_at, check_name, severity, affected_count, total_gap, detail)
+  values (v_run_at, 'wallet_vs_lots_paid',
+          case when v_count = 0 then 'ok' else 'error' end,
+          v_count, v_gap, jsonb_build_object('rows', v_detail));
+  v_errors := v_errors + case when v_count = 0 then 0 else 1 end;
+
+  with agg as (
+    select w.user_id,
+           w.bonus_balance as cached,
+           coalesce((select sum(l.remaining) from public.coin_lots l
+                     where l.user_id = w.user_id and l.kind = 'bonus'), 0) as lots
+    from public.coin_wallets w
+  ),
+  bad as (select * from agg where cached <> lots)
+  select count(*), coalesce(sum(abs(cached - lots)), 0),
+         coalesce(jsonb_agg(jsonb_build_object(
+           'user_id', user_id, 'cached', cached, 'lots', lots)), '[]'::jsonb)
+    into v_count, v_gap, v_detail
+  from (select * from bad order by abs(cached - lots) desc limit 20) t;
+
+  insert into public.integrity_checks (ran_at, check_name, severity, affected_count, total_gap, detail)
+  values (v_run_at, 'wallet_vs_lots_bonus',
+          case when v_count = 0 then 'ok' else 'error' end,
+          v_count, v_gap, jsonb_build_object('rows', v_detail));
+  v_errors := v_errors + case when v_count = 0 then 0 else 1 end;
+
+  -- ============================================================
+  -- C3: 残高の合計 vs 履歴の累計(いちばん強いチェック)
+  --   残高変動は必ず coin_transactions に1行残るので、3つの残高の合計は
+  --   履歴の累計と一致するはず。バケットの分類が要らないのが利点。
+  -- ============================================================
+  with agg as (
+    select w.user_id,
+           w.balance + w.bonus_balance + w.earned_balance as wallet_total,
+           coalesce((select sum(t.amount) from public.coin_transactions t
+                     where t.user_id = w.user_id), 0) as ledger_total
+    from public.coin_wallets w
+  ),
+  bad as (select * from agg where wallet_total <> ledger_total)
+  select count(*), coalesce(sum(abs(wallet_total - ledger_total)), 0),
+         coalesce(jsonb_agg(jsonb_build_object(
+           'user_id', user_id, 'wallet_total', wallet_total, 'ledger_total', ledger_total)), '[]'::jsonb)
+    into v_count, v_gap, v_detail
+  from (select * from bad order by abs(wallet_total - ledger_total) desc limit 20) t;
+
+  insert into public.integrity_checks (ran_at, check_name, severity, affected_count, total_gap, detail)
+  values (v_run_at, 'wallet_vs_ledger',
+          case when v_count = 0 then 'ok' else 'error' end,
+          v_count, v_gap, jsonb_build_object('rows', v_detail));
+  v_errors := v_errors + case when v_count = 0 then 0 else 1 end;
+
+  -- ============================================================
+  -- C4: 入金記録 vs 履歴(Stripe経由の付与)
+  --   coin_purchases.coins_credited は「有償分+ボーナス分」の合計。
+  --   Webhookの二重処理や付与漏れをここで捕まえる。
+  --   Stripeのダッシュボード側とも突き合わせられる唯一の接点。
+  -- ============================================================
+  with agg as (
+    select p.user_id,
+           sum(p.coins_credited) as purchased,
+           coalesce((select sum(t.amount) from public.coin_transactions t
+                     where t.user_id = p.user_id
+                       and t.type in ('purchase', 'bonus')
+                       and t.note like 'stripe:%'), 0) as ledger
+    from public.coin_purchases p
+    group by p.user_id
+  ),
+  bad as (select * from agg where purchased <> ledger)
+  select count(*), coalesce(sum(abs(purchased - ledger)), 0),
+         coalesce(jsonb_agg(jsonb_build_object(
+           'user_id', user_id, 'purchased', purchased, 'ledger', ledger)), '[]'::jsonb)
+    into v_count, v_gap, v_detail
+  from (select * from bad order by abs(purchased - ledger) desc limit 20) t;
+
+  insert into public.integrity_checks (ran_at, check_name, severity, affected_count, total_gap, detail)
+  values (v_run_at, 'purchase_vs_ledger',
+          case when v_count = 0 then 'ok' else 'error' end,
+          v_count, v_gap, jsonb_build_object('rows', v_detail));
+  v_errors := v_errors + case when v_count = 0 then 0 else 1 end;
+
+  -- ============================================================
+  -- C5: 換金申請 vs 履歴
+  --   換金は申請時点(reserve)で earned_balance から引き、type='payout' を
+  --   記録する。失敗時は 'refund' で戻すので、payoutの合計は申請の合計と一致する。
+  --   ここがズレると「振り込んだのに残高が減っていない」等の直接の損失になる。
+  -- ============================================================
+  with agg as (
+    select p.user_id,
+           sum(p.coins) as requested,
+           coalesce((select -sum(t.amount) from public.coin_transactions t
+                     where t.user_id = p.user_id and t.type = 'payout'), 0) as ledger
+    from public.payouts p
+    group by p.user_id
+  ),
+  bad as (select * from agg where requested <> ledger)
+  select count(*), coalesce(sum(abs(requested - ledger)), 0),
+         coalesce(jsonb_agg(jsonb_build_object(
+           'user_id', user_id, 'requested', requested, 'ledger', ledger)), '[]'::jsonb)
+    into v_count, v_gap, v_detail
+  from (select * from bad order by abs(requested - ledger) desc limit 20) t;
+
+  insert into public.integrity_checks (ran_at, check_name, severity, affected_count, total_gap, detail)
+  values (v_run_at, 'payout_vs_ledger',
+          case when v_count = 0 then 'ok' else 'error' end,
+          v_count, v_gap, jsonb_build_object('rows', v_detail));
+  v_errors := v_errors + case when v_count = 0 then 0 else 1 end;
+
+  -- ============================================================
+  -- C6: 預かり中の予約の内訳
+  --   coins = paid_coins + bonus_coins が崩れていると、キャンセル返還で
+  --   戻す量を誤る(返しすぎ/返し足りない)。
+  -- ============================================================
+  select count(*), coalesce(sum(abs(b.coins - (b.paid_coins + b.bonus_coins))), 0),
+         coalesce(jsonb_agg(jsonb_build_object(
+           'booking_id', b.id, 'coins', b.coins,
+           'paid_coins', b.paid_coins, 'bonus_coins', b.bonus_coins)), '[]'::jsonb)
+    into v_count, v_gap, v_detail
+  from (
+    select * from public.bookings
+    where status in ('requested', 'confirmed')
+      and coins <> paid_coins + bonus_coins
+    order by abs(coins - (paid_coins + bonus_coins)) desc
+    limit 20
+  ) b;
+
+  insert into public.integrity_checks (ran_at, check_name, severity, affected_count, total_gap, detail)
+  values (v_run_at, 'escrow_split',
+          case when v_count = 0 then 'ok' else 'error' end,
+          v_count, v_gap, jsonb_build_object('rows', v_detail));
+  v_errors := v_errors + case when v_count = 0 then 0 else 1 end;
+
+  -- ============================================================
+  -- C7: 失効処理が動いているか
+  --   期限切れなのに残っているロットが溜まっていたら、日次の
+  --   expire_coins() が止まっている(=資金決済法の適用除外の前提が崩れる)。
+  --   1日1回の実行なので、2日の猶予を見てから警告する。
+  -- ============================================================
+  select count(*), coalesce(sum(l.remaining), 0),
+         coalesce(jsonb_agg(jsonb_build_object(
+           'lot_id', l.id, 'user_id', l.user_id,
+           'remaining', l.remaining, 'expires_at', l.expires_at)), '[]'::jsonb)
+    into v_count, v_gap, v_detail
+  from (
+    select * from public.coin_lots
+    where remaining > 0 and expires_at < now() - interval '2 days'
+    order by expires_at
+    limit 20
+  ) l;
+
+  insert into public.integrity_checks (ran_at, check_name, severity, affected_count, total_gap, detail)
+  values (v_run_at, 'stale_expired_lots',
+          case when v_count = 0 then 'ok' else 'warn' end,
+          v_count, v_gap, jsonb_build_object('rows', v_detail));
+
+  -- ============================================================
+  -- C8(情報): 預かり中コインの総額
+  --   ズレではないが、毎日記録して時系列で見られるようにする。
+  --   前払式支払手段の残高監視(基準日3/31・9/30)の材料にもなる。
+  -- ============================================================
+  select count(*), coalesce(sum(coins), 0)
+    into v_count, v_gap
+  from public.bookings
+  where status in ('requested', 'confirmed');
+
+  insert into public.integrity_checks (ran_at, check_name, severity, affected_count, total_gap, detail)
+  values (v_run_at, 'escrow_outstanding', 'ok', v_count, v_gap,
+          jsonb_build_object('note', '預かり中(未完了)の予約とコイン総額'));
+
+  -- ============================================================
+  -- C9(情報): 未使用コインの総額(発行残高)
+  -- ============================================================
+  select count(*), coalesce(sum(balance + bonus_balance), 0)
+    into v_count, v_gap
+  from public.coin_wallets
+  where balance + bonus_balance > 0;
+
+  insert into public.integrity_checks (ran_at, check_name, severity, affected_count, total_gap, detail)
+  values (v_run_at, 'unused_coin_balance', 'ok', v_count, v_gap,
+          jsonb_build_object('note', '未使用の前払式コイン(有償+ボーナス)の総額'));
+
+  -- ============================================================
+  -- error が出たら管理者に通知する
+  -- ============================================================
+  if v_errors > 0 then
+    insert into public.notifications (user_id, type, title, body)
+    select a.user_id, 'integrity_alert',
+           '取引データの不整合を検知しました',
+           v_errors::text || '件のチェックがエラーになりました。integrity_checks を確認してください。'
+    from public.admins a;
+  end if;
+
+  return v_errors;
+end;
+$$;
+
+comment on function public.run_integrity_checks() is
+  '取引データの整合性を照合し integrity_checks に記録する。errorがあれば管理者に通知。cronから毎日実行。';
+
+revoke all on function public.run_integrity_checks() from public;
+grant execute on function public.run_integrity_checks() to authenticated;
+
+-- ------------------------------------------------------------
+-- integrity_latest: 直近の実行結果だけを見るビュー(運営用)
+-- ------------------------------------------------------------
+create or replace view public.integrity_latest
+with (security_invoker = true) as
+select c.*
+from public.integrity_checks c
+where c.ran_at = (select max(ran_at) from public.integrity_checks)
+order by
+  case c.severity when 'error' then 0 when 'warn' then 1 else 2 end,
+  c.check_name;
+
+comment on view public.integrity_latest is
+  '最後に実行した整合性チェックの結果。severityの重い順に並ぶ。';
+
+-- ------------------------------------------------------------
+-- 古い記録の掃除(90日より前は消す。日次×9チェックなので放置しても
+-- 大きくはならないが、無限に増やす理由もない)
+-- ------------------------------------------------------------
+create or replace function public.prune_integrity_checks()
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_deleted int;
+begin
+  delete from public.integrity_checks where ran_at < now() - interval '90 days';
+  get diagnostics v_deleted = row_count;
+  return v_deleted;
+end;
+$$;
+
+revoke all on function public.prune_integrity_checks() from public;
+
+-- ------------------------------------------------------------
+-- cronに登録(pg_cronが使える環境のみ)
+--   毎日 04:07 に実行。expire_coins(03:11)の後になるよう時刻をずらしている
+--   (失効処理の直後に照合したいため)。
+-- ------------------------------------------------------------
+do $$
+begin
+  if exists (select 1 from pg_available_extensions where name = 'pg_cron') then
+    create extension if not exists pg_cron;
+    perform cron.schedule('run-integrity-checks', '7 4 * * *', 'select public.run_integrity_checks()');
+    perform cron.schedule('prune-integrity-checks', '37 4 * * 0', 'select public.prune_integrity_checks()');
+  end if;
+exception when others then
+  raise notice 'pg_cronの登録をスキップしました: %', sqlerrm;
+end;
+$$;
+
+
+-- ============================================================================
+-- 0044_ledger_immutable.sql
+-- ============================================================================
+-- ============================================================
+-- 0044_ledger_immutable.sql
+-- 取引台帳を追記専用にし、誤操作による破壊を防ぐ
+-- ------------------------------------------------------------
+-- 背景: 実務でDBが壊れる原因は、ハードウェア故障よりも運用中の人為ミスが
+-- 圧倒的に多いです。Supabaseの管理画面から行を選んで消す、SQL Editorで
+-- where を付け忘れた UPDATE を流す、といったものです。
+-- RLSは効きません。管理画面もEdge Functionも service_role で動くため、
+-- RLSを迂回できるからです。テーブル側で拒否する必要があります。
+--
+-- ただし「絶対に変更できない」のは運用として無理があります。いつか正当な
+-- 訂正(誤った付与の取り消しなど)が必要になり、そのときトリガーごと外されて
+-- 二度と戻らない、というのが最悪の結末です。
+-- そこで「明示的に宣言すれば通るが、宣言は必ず記録される」形にします。
+--
+--   set local app.ledger_override = 'on';   -- 同一トランザクション内でのみ有効
+--
+-- これで防げるのは「うっかり」です。狙いはそこで十分で、意図的な操作は
+-- ledger_audit に旧値ごと残るため、後から必ず追えます。
+--
+-- どこを守るか:
+--   coin_transactions / coin_purchases … 変更も削除も禁止(純粋な履歴)
+--   payouts                            … 削除禁止。金額・宛先の変更も禁止
+--                                        (status/振込結果の更新は通常運用)
+--   coin_lots                          … 削除禁止(remainingの更新は消費・失効で必要)
+--   coin_lot_consumptions              … 削除禁止(restored_atの更新のみ許可)
+--   bookings                           … 削除禁止(預かり中のコインが宙に浮く)
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- ledger_audit: 保護を明示的に解除して行った変更の記録
+-- ------------------------------------------------------------
+create table if not exists public.ledger_audit (
+  id uuid primary key default gen_random_uuid(),
+  at timestamptz not null default now(),
+  table_name text not null,
+  op text not null check (op in ('UPDATE', 'DELETE')),
+  actor uuid,
+  old_row jsonb,
+  new_row jsonb
+);
+
+comment on table public.ledger_audit is
+  '追記専用の保護を app.ledger_override で解除して行った台帳の変更履歴。旧値を含むので、誤った訂正はここから復元できる。';
+
+alter table public.ledger_audit enable row level security;
+
+drop policy if exists "ledger_audit_select_admin" on public.ledger_audit;
+create policy "ledger_audit_select_admin"
+  on public.ledger_audit for select
+  to authenticated
+  using (exists (select 1 from public.admins where user_id = auth.uid()));
+
+create index if not exists ledger_audit_at_idx on public.ledger_audit (at desc);
+
+-- ------------------------------------------------------------
+-- _ledger_override_on: 保護の解除が宣言されているか
+-- ------------------------------------------------------------
+create or replace function public._ledger_override_on()
+returns boolean
+language sql
+stable
+set search_path = public
+as $$
+  select coalesce(current_setting('app.ledger_override', true), '') = 'on';
+$$;
+
+-- ------------------------------------------------------------
+-- _ledger_record_bypass: 解除して行った操作を記録する
+-- ------------------------------------------------------------
+create or replace function public._ledger_record_bypass(
+  p_table text, p_op text, p_old jsonb, p_new jsonb)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into public.ledger_audit (table_name, op, actor, old_row, new_row)
+  values (p_table, p_op, auth.uid(), p_old, p_new);
+$$;
+
+-- ------------------------------------------------------------
+-- _ledger_immutable: 変更も削除も禁止(coin_transactions / coin_purchases)
+-- ------------------------------------------------------------
+create or replace function public._ledger_immutable()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public._ledger_override_on() then
+    raise exception 'LEDGER_IMMUTABLE: % は追記専用です(% は禁止)。訂正が必要な場合は打ち消しの行を追加してください。やむを得ず直接操作する場合は同一トランザクションで set local app.ledger_override = ''on'' を宣言してください(操作は ledger_audit に記録されます)。',
+      TG_TABLE_NAME, TG_OP;
+  end if;
+
+  perform public._ledger_record_bypass(
+    TG_TABLE_NAME, TG_OP,
+    to_jsonb(OLD),
+    case when TG_OP = 'UPDATE' then to_jsonb(NEW) else null end);
+
+  if TG_OP = 'DELETE' then return OLD; end if;
+  return NEW;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- _ledger_no_delete: 削除のみ禁止(coin_lots / bookings)
+-- ------------------------------------------------------------
+create or replace function public._ledger_no_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public._ledger_override_on() then
+    raise exception 'LEDGER_IMMUTABLE: % の行は削除できません。やむを得ない場合は同一トランザクションで set local app.ledger_override = ''on'' を宣言してください(操作は ledger_audit に記録されます)。',
+      TG_TABLE_NAME;
+  end if;
+
+  perform public._ledger_record_bypass(TG_TABLE_NAME, 'DELETE', to_jsonb(OLD), null);
+  return OLD;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- _payout_amount_immutable: 換金の金額・宛先の変更を禁止
+--   status / stripe_transfer_id / failure_reason の更新は通常運用なので通す。
+-- ------------------------------------------------------------
+create or replace function public._payout_amount_immutable()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if OLD.user_id is distinct from NEW.user_id
+     or OLD.coins is distinct from NEW.coins
+     or OLD.amount_yen is distinct from NEW.amount_yen
+     or OLD.created_at is distinct from NEW.created_at then
+    if not public._ledger_override_on() then
+      raise exception 'LEDGER_IMMUTABLE: 換金の金額・宛先は変更できません。取り消す場合は mark_payout_failed() で失敗にして戻してください。';
+    end if;
+    perform public._ledger_record_bypass('payouts', 'UPDATE', to_jsonb(OLD), to_jsonb(NEW));
+  end if;
+  return NEW;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- _consumption_restore_only: 消費記録は restored_at の更新のみ許可
+--   (0030の返金で「当初の有効期限」を引き継ぐための記録。ここが書き換わると
+--    返金コインの期限が延び、資金決済法の適用除外の前提が崩れる)
+-- ------------------------------------------------------------
+create or replace function public._consumption_restore_only()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if OLD.user_id is distinct from NEW.user_id
+     or OLD.booking_id is distinct from NEW.booking_id
+     or OLD.kind is distinct from NEW.kind
+     or OLD.expires_at is distinct from NEW.expires_at
+     or OLD.coins is distinct from NEW.coins
+     or OLD.created_at is distinct from NEW.created_at then
+    if not public._ledger_override_on() then
+      raise exception 'LEDGER_IMMUTABLE: coin_lot_consumptions は restored_at 以外を変更できません。';
+    end if;
+    perform public._ledger_record_bypass('coin_lot_consumptions', 'UPDATE', to_jsonb(OLD), to_jsonb(NEW));
+  end if;
+  return NEW;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- トリガーの設置
+-- ------------------------------------------------------------
+drop trigger if exists coin_transactions_immutable on public.coin_transactions;
+create trigger coin_transactions_immutable
+  before update or delete on public.coin_transactions
+  for each row execute function public._ledger_immutable();
+
+drop trigger if exists coin_purchases_immutable on public.coin_purchases;
+create trigger coin_purchases_immutable
+  before update or delete on public.coin_purchases
+  for each row execute function public._ledger_immutable();
+
+drop trigger if exists payouts_no_delete on public.payouts;
+create trigger payouts_no_delete
+  before delete on public.payouts
+  for each row execute function public._ledger_no_delete();
+
+drop trigger if exists payouts_amount_immutable on public.payouts;
+create trigger payouts_amount_immutable
+  before update on public.payouts
+  for each row execute function public._payout_amount_immutable();
+
+drop trigger if exists coin_lots_no_delete on public.coin_lots;
+create trigger coin_lots_no_delete
+  before delete on public.coin_lots
+  for each row execute function public._ledger_no_delete();
+
+drop trigger if exists coin_lot_consumptions_no_delete on public.coin_lot_consumptions;
+create trigger coin_lot_consumptions_no_delete
+  before delete on public.coin_lot_consumptions
+  for each row execute function public._ledger_no_delete();
+
+drop trigger if exists coin_lot_consumptions_restore_only on public.coin_lot_consumptions;
+create trigger coin_lot_consumptions_restore_only
+  before update on public.coin_lot_consumptions
+  for each row execute function public._consumption_restore_only();
+
+drop trigger if exists bookings_no_delete on public.bookings;
+create trigger bookings_no_delete
+  before delete on public.bookings
+  for each row execute function public._ledger_no_delete();
+
+-- ------------------------------------------------------------
+-- 補足: この時点で auth.users の削除は失敗するようになります。
+-- 上記テーブルは全て auth.users に on delete cascade でぶら下がっているため、
+-- ユーザーを物理削除しようとすると台帳の削除が走り、ここで止まります。
+-- 「入金記録も換金記録も黙って消える」よりは、止まって気づけるほうが安全です。
+-- 退会そのものは 0045 の匿名化で行います。
+-- ------------------------------------------------------------
+
+
+-- ============================================================================
+-- 0045_evidence_refund_percent.sql
+-- ============================================================================
+-- ============================================================
+-- 0045_evidence_refund_percent.sql
+-- 立証材料ビューの返還率が常に0%になる不具合を直す
+-- ------------------------------------------------------------
+-- 0040 で guest_cancellation_evidence を作り直したとき、返還率の算出に
+-- b.status(=キャンセル**後**の状態)をそのまま渡していました。
+-- booking_refund_percent() は「'confirmed' 以外は0」と判定するため、
+-- キャンセル済みの行では必ず 0 が返っていました。
+--
+-- このビューは消費者契約法9条の「平均的な損害」を検討するための材料です。
+-- 実際には全額戻していたケースまで「返還0%」と記録されるので、そのまま
+-- 弁護士や当局に出すと事実と逆の説明をしてしまいます。
+--
+-- キャンセル直前の状態を confirmed_at の有無から復元して渡します。
+-- あわせて、ゲスト都合以外(ピタメイト都合・辞退・無断欠席)は「率」の
+-- 概念が違うので null にし、混ざらないようにします。
+-- ============================================================
+
+drop view if exists public.guest_cancellation_evidence;
+
+create view public.guest_cancellation_evidence
+with (security_invoker = true)
+as
+select
+  b.id as booking_id,
+  b.guest_id,
+  b.host_id,
+  b.status,
+  b.policy_version,
+  b.policy_agreed_at,
+  b.created_at as requested_at,
+  b.confirmed_at as approved_at,
+  b.requested_start_at,
+  b.scheduled_at as starts_at,
+  b.cancelled_at,
+  b.coins,
+  b.list_coins,
+  b.discount_percent,
+  extract(epoch from (b.cancelled_at - b.confirmed_at))::int as seconds_after_approval,
+  extract(epoch from (b.scheduled_at - b.cancelled_at))::int as seconds_before_start,
+  -- キャンセル直前の状態を復元して率を出す。
+  -- ゲスト都合のキャンセルだけが「段階制の返還率」の対象。
+  case
+    when b.status = 'cancelled_by_guest' then
+      public.booking_refund_percent(
+        case when b.confirmed_at is not null then 'confirmed' else 'requested' end,
+        b.confirmed_at, b.scheduled_at, b.cancelled_at)
+    else null
+  end as refund_percent_at_cancel
+from public.bookings b
+where b.cancelled_at is not null;
+
+comment on view public.guest_cancellation_evidence is
+  'キャンセルの実態(承諾からの経過・開始までの残り・適用された返還率)。'
+  '消費者契約法9条の「平均的な損害」を検討するための材料。0040で承諾時刻ベースに修正し、'
+  '0045でキャンセル直前の状態から返還率を復元するよう修正(それ以前は常に0%と表示されていた)。';
+
+
+-- ============================================================================
+-- 0046_account_anonymize.sql
+-- ============================================================================
+-- ============================================================
+-- 0046_account_anonymize.sql
+-- 退会を「物理削除」から「匿名化」に変える
+-- ------------------------------------------------------------
+-- 【いま何が起きるか】
+-- coin_wallets / coin_transactions / coin_lots / coin_purchases / payouts /
+-- bookings は、すべて auth.users に on delete cascade でぶら下がっています。
+-- つまり Supabase の管理画面からユーザーを1人消すと、その人の入金記録も
+-- 換金記録も一緒に消えます。警告は出ません。「監査用」と書いた
+-- coin_transactions ごと消えます。
+--
+-- そして account_requests(アカウント削除請求)は運営が手動で対応する設計なので、
+-- 退会対応をした瞬間にこれを踏みます。事故ではなく通常運用で起きます。
+--
+-- 【なぜ消してはいけないか】
+-- 消えるのは帳簿として保存義務のある記録です(所得税法上7年、資金決済法上の
+-- 記録保持)。削除請求に応じる義務があるのは**個人情報**であって、取引金額の
+-- 記録ではありません。プライバシーポリシー草案も
+-- 「法令上の保存義務がある場合を除き削除」と書いており、実装と食い違っています。
+--
+-- 【この移行でやること】
+--   ・氏名・連絡先・口座・画像など、その人を識別する情報は消す
+--   ・金額と日時の記録は残す(誰のものかは user_id でのみ辿れる状態にする)
+--   ・未処理の取引が残っているうちは実行できないようにする
+--   ・残っている前払いコインは失効させ、履歴に1行残す(残高だけ0にすると
+--     0043の照合が鳴るため)
+--
+-- なお 0044 の保護により、この関数を使わずユーザーを物理削除しようとすると
+-- LEDGER_IMMUTABLE で止まります。黙って消えることはもうありません。
+-- ============================================================
+
+-- 退会時のコイン失効を履歴で区別できるようにする
+alter table public.coin_transactions drop constraint if exists coin_transactions_type_check;
+alter table public.coin_transactions
+  add constraint coin_transactions_type_check
+  check (type in (
+    'purchase', 'booking_spend', 'refund', 'bonus',
+    'booking_earned', 'payout', 'expire',
+    'gift_sent', 'gift_received',
+    'platform_fee', 'withdrawal'
+  ));
+
+-- 匿名化済みかどうかを画面側で判別できるようにする
+alter table public.profiles
+  add column if not exists anonymized_at timestamptz;
+
+comment on column public.profiles.anonymized_at is
+  '退会により匿名化した時刻。非nullの行は「退会したユーザー」として表示する。';
+
+-- ------------------------------------------------------------
+-- account_anonymizations: 匿名化の実施記録
+--   誰の請求で・いつ・誰が実行したかを残す(個人情報保護法上の対応記録)
+-- ------------------------------------------------------------
+create table if not exists public.account_anonymizations (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  anonymized_at timestamptz not null default now(),
+  actor uuid,
+  reason text not null default 'user_request',
+  forfeited_paid int not null default 0,
+  forfeited_bonus int not null default 0
+);
+
+comment on table public.account_anonymizations is
+  '退会(匿名化)の実施記録。個人情報の削除請求に対応したことの証跡。';
+
+alter table public.account_anonymizations enable row level security;
+
+drop policy if exists "account_anonymizations_select_admin" on public.account_anonymizations;
+create policy "account_anonymizations_select_admin"
+  on public.account_anonymizations for select
+  to authenticated
+  using (exists (select 1 from public.admins where user_id = auth.uid()));
+
+-- ------------------------------------------------------------
+-- anonymize_user: 退会処理の本体(管理者のみ)
+-- ------------------------------------------------------------
+create or replace function public.anonymize_user(
+  p_user_id uuid,
+  p_reason text default 'user_request'
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_paid int;
+  v_bonus int;
+  v_earned int;
+  v_open_bookings int;
+  v_pending_payouts int;
+  v_has_deleted_at boolean;
+begin
+  if not exists (select 1 from public.admins where user_id = auth.uid()) then
+    raise exception 'NOT_ADMIN';
+  end if;
+  if p_user_id is null then
+    raise exception 'INVALID_USER';
+  end if;
+  if exists (select 1 from public.account_anonymizations where user_id = p_user_id) then
+    raise exception 'ALREADY_ANONYMIZED';
+  end if;
+
+  -- ------------------------------------------------------------
+  -- 未処理の取引が残っているうちは実行しない。
+  -- 匿名化してから「振込先が分からない」「相手が誰か分からない」と
+  -- なるのを防ぐ。先に決着をつけてから退会させる。
+  -- ------------------------------------------------------------
+  select count(*) into v_open_bookings from public.bookings
+    where (guest_id = p_user_id or host_id = p_user_id)
+      and status in ('requested', 'confirmed');
+  if v_open_bookings > 0 then
+    raise exception 'OPEN_BOOKINGS_REMAIN';
+  end if;
+
+  select count(*) into v_pending_payouts from public.payouts
+    where user_id = p_user_id and status = 'pending';
+  if v_pending_payouts > 0 then
+    raise exception 'PENDING_PAYOUT_REMAINS';
+  end if;
+
+  select balance, bonus_balance, earned_balance
+    into v_paid, v_bonus, v_earned
+    from public.coin_wallets where user_id = p_user_id for update;
+
+  -- 報酬は役務の対価(未払金)なので、勝手に消してはいけない。
+  -- 換金するか、本人の意思で放棄してもらうまで退会させない。
+  if coalesce(v_earned, 0) > 0 then
+    raise exception 'EARNED_BALANCE_REMAINS';
+  end if;
+
+  -- ------------------------------------------------------------
+  -- 残っている前払いコインを失効させる(規約:退会時の払戻しなし)。
+  -- 残高だけ0にすると履歴と食い違い、0043の照合が鳴るので、
+  -- ロット・残高・履歴の3点セットで落とす。
+  -- ------------------------------------------------------------
+  update public.coin_lots set remaining = 0
+    where user_id = p_user_id and remaining > 0;
+
+  if coalesce(v_paid, 0) + coalesce(v_bonus, 0) > 0 then
+    update public.coin_wallets set balance = 0, bonus_balance = 0
+      where user_id = p_user_id;
+    insert into public.coin_transactions (user_id, amount, type, note)
+      values (p_user_id, -(coalesce(v_paid, 0) + coalesce(v_bonus, 0)),
+              'withdrawal', 'anonymize:' || p_reason);
+  end if;
+
+  -- ------------------------------------------------------------
+  -- ここから個人を識別する情報を消す
+  -- ------------------------------------------------------------
+  update public.profiles set
+    nickname = '退会したユーザー',
+    gender = 'na',
+    avatar_initial = '',
+    avatar_color = '#CCCCCC',
+    favorite_games = '{}',
+    play_style = 'エンジョイ',
+    bio = '',
+    voice_path = null,
+    voice_seconds = null,
+    avatar_path = null,
+    last_seen_at = null,
+    -- presence_status に「退会」は無いので、少なくとも空き扱いにならない値にする
+    -- (一覧からは anonymized_at と is_host=false で外れる)
+    presence_status = 'busy',
+    anonymized_at = now()
+  where id = p_user_id;
+
+  -- 掲載を止め、紹介文を消す
+  update public.host_settings set
+    is_host = false,
+    games = '{}',
+    bio = ''
+  where user_id = p_user_id;
+
+  -- 振込先口座は保存義務の対象ではない(金額はpayoutsに残る)
+  delete from public.host_bank_accounts where user_id = p_user_id;
+
+  -- 本人確認書類の参照を外す(実体はstorageから消す)
+  update public.identity_verifications set
+    document_path = null,
+    selfie_path = null,
+    provider_reference = null
+  where user_id = p_user_id;
+
+  delete from storage.objects
+    where name like p_user_id::text || '/%'
+       or owner = p_user_id;
+
+  -- 端末・IPは不正検知用の識別子なので消す
+  delete from public.user_devices where user_id = p_user_id;
+  delete from public.user_ips where user_id = p_user_id;
+
+  -- 通知・通知設定・安心設定は残す理由がない
+  delete from public.notifications where user_id = p_user_id;
+  delete from public.notification_prefs where user_id = p_user_id;
+  delete from public.safety_prefs where user_id = p_user_id;
+
+  -- 募集は取り下げ、自由記述を消す
+  update public.board_posts set
+    status = 'cancelled',
+    note = null,
+    cancelled_at = coalesce(cancelled_at, now()),
+    cancel_reason = coalesce(cancel_reason, '投稿者の退会')
+  where creator_id = p_user_id and status <> 'cancelled';
+
+  -- 削除請求があれば完了にする
+  update public.account_requests set status = 'completed'
+    where user_id = p_user_id and type = 'account_deletion' and status <> 'completed';
+
+  -- ------------------------------------------------------------
+  -- 認証情報(メールアドレス)も消す。
+  -- 本番の auth.users には deleted_at があるので論理削除にし、行そのものは
+  -- 残す(消すと台帳が道連れになるため)。テスト用シムには無いので、
+  -- 列の有無を見てから実行する。
+  -- ------------------------------------------------------------
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'auth' and table_name = 'users' and column_name = 'deleted_at'
+  ) into v_has_deleted_at;
+
+  if v_has_deleted_at then
+    execute format(
+      'update auth.users set email = %L, deleted_at = coalesce(deleted_at, now()) where id = %L',
+      'anonymized+' || p_user_id::text || '@invalid.local', p_user_id);
+  else
+    execute format('update auth.users set email = %L where id = %L',
+      'anonymized+' || p_user_id::text || '@invalid.local', p_user_id);
+  end if;
+
+  insert into public.account_anonymizations
+    (user_id, actor, reason, forfeited_paid, forfeited_bonus)
+    values (p_user_id, auth.uid(), p_reason, coalesce(v_paid, 0), coalesce(v_bonus, 0));
+end;
+$$;
+
+comment on function public.anonymize_user(uuid, text) is
+  '退会処理。個人を識別する情報を消し、金額と日時の記録は残す。'
+  '未処理の予約・換金・報酬残高があるときは実行できない。管理者のみ。';
+
+revoke all on function public.anonymize_user(uuid, text) from public;
+grant execute on function public.anonymize_user(uuid, text) to authenticated;
+
+-- ------------------------------------------------------------
+-- pending_account_deletions: 退会請求の一覧(運営用)
+--   実行できない理由(未処理の取引)も一緒に出す
+-- ------------------------------------------------------------
+create or replace view public.pending_account_deletions
+with (security_invoker = true) as
+select
+  r.user_id,
+  r.created_at as requested_at,
+  p.nickname,
+  (select count(*) from public.bookings b
+    where (b.guest_id = r.user_id or b.host_id = r.user_id)
+      and b.status in ('requested', 'confirmed')) as open_bookings,
+  (select count(*) from public.payouts po
+    where po.user_id = r.user_id and po.status = 'pending') as pending_payouts,
+  coalesce(w.earned_balance, 0) as earned_balance,
+  coalesce(w.balance, 0) + coalesce(w.bonus_balance, 0) as prepaid_balance
+from public.account_requests r
+join public.profiles p on p.id = r.user_id
+left join public.coin_wallets w on w.user_id = r.user_id
+where r.type = 'account_deletion' and r.status <> 'completed'
+order by r.created_at;
+
+comment on view public.pending_account_deletions is
+  '未対応の退会請求。open_bookings/pending_payouts/earned_balance が全て0でないと anonymize_user() は実行できない。';

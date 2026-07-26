@@ -15,7 +15,10 @@ update public.profile_trust_stats set is_verified = true
 insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('f0000000-0000-0000-0000-0000000000a1'::uuid, true, 1000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 1000, trial_discount_percent = 0;
+-- 0044でコインロットは削除保護がかかっているため、明示的に解除して掃除する
+set app.ledger_override = 'on';
 delete from public.coin_lots where user_id = 'f0000000-0000-0000-0000-0000000000b1'::uuid;
+reset app.ledger_override;
 insert into public.coin_lots (user_id, kind, remaining, expires_at) values
   ('f0000000-0000-0000-0000-0000000000b1'::uuid, 'paid', 50000, public.coin_expiry_from(now()));
 update public.coin_wallets set balance = 50000

@@ -23,8 +23,11 @@ set test.uid = '11111111-1111-1111-1111-111111111111';
 select public.create_booking('22222222-2222-2222-2222-222222222222', 60) as booking_id \gset
 
 -- 返金までの間に期限が過ぎた状況を作る
+-- (0044で消費記録は restored_at 以外を変更できないので、明示的に解除する)
+set app.ledger_override = 'on';
 update public.coin_lot_consumptions set expires_at = now() - interval '1 hour'
   where booking_id = :'booking_id';
+reset app.ledger_override;
 
 set test.uid = '22222222-2222-2222-2222-222222222222';
 select public.decline_booking(:'booking_id');

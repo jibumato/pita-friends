@@ -47,13 +47,24 @@
      予約できる先を14日に(`create_booking`を差し替え)
    - `0042_booking_hold.sql` … 申し出・通報があった予約の自動確定を保留する
      (E-12。`auto_complete_bookings`を差し替え。**返還の窓口を開ける前に必須**)
+   - `0043_integrity_checks.sql` … 取引データの日次整合性チェック
+     (残高と履歴を毎日突き合わせ、ズレたら管理者に通知。`docs/data-integrity.md`)
+   - `0044_ledger_immutable.sql` … 取引台帳を追記専用にする
+     (誤操作での変更・削除を拒否。**この適用後、ユーザーの物理削除は失敗するようになる**)
+   - `0045_evidence_refund_percent.sql` … 立証材料ビューの返還率が常に0%になる不具合の修正
+     (0040の取り違え。消費者契約法9条の検討材料が事実と逆になっていた)
+   - `0046_account_anonymize.sql` … 退会を物理削除から匿名化に変更
+     (`anonymize_user()`。**適用するまで退会対応で入金・換金記録が消える**)
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ✅ **リダイレクトURLの登録**(2026-07-26): Authentication → URL Configuration
    - Site URL: `https://pitafure.com` / Redirect URLs: `https://pitafure.com/**`
 4. ☐ **pg_cron の確認**: Database → Extensions で `pg_cron` が有効か確認
    (プレイ完了の72時間自動確定に使用。0015参照)
-5. ☐ (推奨)Database → Backups でバックアップ設定を確認(Pro планなら日次)
+5. ☐ **(必須)Pro プランにして Point-in-Time Recovery を有効化**
+   - 無料プランには保証されたバックアップがありません。**コインを売る前に**
+   - Settings → Billing → Pro / Settings → Add-ons → Point-in-Time Recovery
+   - 手順と考え方: `docs/data-integrity.md`
 6. ☐ (推奨)本人確認画像バケットのストレージポリシーを再確認
    (`docs/manual-verification-review.md`)
 
@@ -121,6 +132,8 @@
 | 随時 | 本人確認の審査(承認/却下) | `docs/manual-verification-review.md` |
 | 随時 | 通報の審査・対応 | `docs/trust-safety-spec.md` |
 | 随時 | 個別相談(返還申告)の判断 | `docs/refund-claim-policy.md` |
+| 随時 | 退会請求への対応(匿名化) | `docs/data-integrity.md` |
+| 日次 | 整合性アラートの確認(通知が来たときのみ) | `docs/data-integrity.md` |
 | 月次 | 換金の締め→総合振込→消し込み | `docs/payouts-bank-operations.md` |
 | 月次 | Stripe入金と`coin_purchases`の突合 | — |
 | 半期 | 前払式残高の確認(3/31・9/30基準日) | `coin-economy-legal-review.md` §4.1 |
@@ -131,3 +144,4 @@
 - ☐ 実機で: 新規登録→本人確認→コイン購入→予約→トーク→完了→レビューが一周する
 - ☐ 規約・プライバシー・特商法・資金決済法表示がアプリ内から開ける(設定画面)
 - ☐ 換金は弁護士OKが出るまで「振込実行しない」運用を関係者が理解している
+- ☐ **Supabase の PITR が有効になっている**(取引データの復旧手段)

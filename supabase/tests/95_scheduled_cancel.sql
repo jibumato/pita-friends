@@ -17,7 +17,10 @@ insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('e0000000-0000-0000-0000-0000000000a1'::uuid, true, 2000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 2000, trial_discount_percent = 0;
 -- 何度流しても同じ状態から始まるようにする(残ったロットは消す)
+-- 0044でコインロットは削除保護がかかっているため、明示的に解除して掃除する
+set app.ledger_override = 'on';
 delete from public.coin_lots where user_id = 'e0000000-0000-0000-0000-0000000000b1'::uuid;
+reset app.ledger_override;
 insert into public.coin_lots (user_id, kind, remaining, expires_at) values
   ('e0000000-0000-0000-0000-0000000000b1'::uuid, 'paid', 90000, public.coin_expiry_from(now()));
 update public.coin_wallets set balance = 90000
