@@ -101,7 +101,16 @@ export default function MyPage({ flow }: { flow: Flow }) {
             </div>
             <span
               onClick={flow.startEditProfile}
-              style={{ fontSize: 11, color: C.lavender, cursor: 'pointer' }}
+              style={{
+                cursor: 'pointer',
+                fontSize: 11,
+                color: C.lavender,
+                background: C.surfaceLavender,
+                border: `1.5px solid ${C.lavender}`,
+                borderRadius: 6,
+                padding: '6px 11px',
+                flex: 'none',
+              }}
             >
               編集
             </span>
