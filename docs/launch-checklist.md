@@ -61,10 +61,10 @@
    - Site URL: `https://pitafure.com` / Redirect URLs: `https://pitafure.com/**`
 4. ☐ **pg_cron の確認**: Database → Extensions で `pg_cron` が有効か確認
    (プレイ完了の72時間自動確定に使用。0015参照)
-5. ☐ **(必須)Pro プランにして Point-in-Time Recovery を有効化**
-   - 無料プランには保証されたバックアップがありません。**コインを売る前に**
-   - Settings → Billing → Pro / Settings → Add-ons → Point-in-Time Recovery
-   - 手順と考え方: `docs/data-integrity.md`
+5. ☐ **(必須)Pro プランにする**($25/月。無料プランには保証されたバックアップが無い)
+   - **コインを売る前に**。Settings → Billing → Pro
+   - PITR($100/月 + Small コンピュート$15/月)は取引量が増えてからで可
+   - 費用の内訳と切り替えの目安: `docs/data-integrity.md`
 6. ☐ (推奨)本人確認画像バケットのストレージポリシーを再確認
    (`docs/manual-verification-review.md`)
 
