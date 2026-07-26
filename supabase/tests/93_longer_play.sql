@@ -1,4 +1,4 @@
--- あそぶ時間の12時間化(0048)の検証。
+-- あそぶ時間の長時間化(0048 / 上限は0049で10時間)の検証。
 --
 -- 上限を上げること自体より、上げたときに壊れる3点が直っているかが本題です。
 --   ① 自動確定が「終了時刻+72時間」になっているか(開始基準だとプレイ中に確定する)
@@ -39,18 +39,18 @@ begin
   if not public.is_valid_booking_duration(90) then raise exception 'FAIL 90分が通らない'; end if;
   if not public.is_valid_booking_duration(240) then raise exception 'FAIL 240分が通らない'; end if;
   if not public.is_valid_booking_duration(300) then raise exception 'FAIL 300分が通らない'; end if;
-  if not public.is_valid_booking_duration(720) then raise exception 'FAIL 720分(12時間)が通らない'; end if;
+  if not public.is_valid_booking_duration(600) then raise exception 'FAIL 600分(10時間)が通らない'; end if;
   -- 弾く
   if public.is_valid_booking_duration(270) then raise exception 'FAIL 4時間超の30分刻みを通した'; end if;
-  if public.is_valid_booking_duration(750) then raise exception 'FAIL 上限超えを通した'; end if;
+  if public.is_valid_booking_duration(660) then raise exception 'FAIL 上限超えを通した'; end if;
   if public.is_valid_booking_duration(0) then raise exception 'FAIL 0分を通した'; end if;
   if public.is_valid_booking_duration(null) then raise exception 'FAIL nullを通した'; end if;
-  raise notice 'OK 4時間までは30分刻み・それ以降は1時間刻み・上限720分';
+  raise notice 'OK 4時間までは30分刻み・それ以降は1時間刻み・上限600分';
 end $$;
 
-\echo '=== 2. 12時間の予約が取れて、料金が正しい ==='
+\echo '=== 2. 10時間の予約が取れて、料金が正しい ==='
 set test.uid = 'a1000000-0000-0000-0000-00000000ab11';
-select public.create_booking('a1000000-0000-0000-0000-00000000ab01'::uuid, 720, 'v3', null) as b12 \gset
+select public.create_booking('a1000000-0000-0000-0000-00000000ab01'::uuid, 600, 'v3', null) as b12 \gset
 set test.b12 = :'b12';
 do $$
 declare v_c int;
@@ -58,9 +58,9 @@ begin
   select coins into v_c from public.bookings
     where guest_id = 'a1000000-0000-0000-0000-00000000ab11'::uuid
     order by created_at desc limit 1;
-  -- 時給2000 × 12時間 = 24000
-  if v_c <> 24000 then raise exception 'FAIL 12時間の料金が合わない: %', v_c; end if;
-  raise notice 'OK 12時間 = %コイン(時給2000)', v_c;
+  -- 時給2000 × 10時間 = 20000
+  if v_c <> 20000 then raise exception 'FAIL 10時間の料金が合わない: %', v_c; end if;
+  raise notice 'OK 10時間 = %コイン(時給2000)', v_c;
 end $$;
 
 \echo '=== 3. 4時間超の30分刻みはサーバでも弾かれる ==='
@@ -73,18 +73,18 @@ exception when others then
   raise notice 'OK 270分は INVALID_DURATION';
 end $$;
 
-\echo '=== 4. ★没収の上限: 12時間予約を開始直前にキャンセル ==='
--- 従来なら50%=12000コイン没収。上限(3時間分=6000)が効いて6000になるはず。
+\echo '=== 4. ★没収の上限: 10時間予約を開始直前にキャンセル ==='
+-- 従来なら50%=10000コイン没収。上限(3時間分=6000)が効いて6000になるはず。
 do $$
 declare v_refund int;
 begin
-  -- 24000コイン / 720分 → 1分あたり33.33コイン。3時間(180分)分 = 6000
+  -- 20000コイン / 600分 → 1分あたり33.33コイン。3時間(180分)分 = 6000
   v_refund := public.booking_refund_coins(
-    24000, 720, 50, now() + interval '10 minutes', now());
-  if v_refund <> 18000 then
-    raise exception 'FAIL 返還額が想定と違う(期待18000 / 実際%)', v_refund;
+    20000, 600, 50, now() + interval '10 minutes', now());
+  if v_refund <> 14000 then
+    raise exception 'FAIL 返還額が想定と違う(期待14000 / 実際%)', v_refund;
   end if;
-  raise notice 'OK 12時間予約の開始直前キャンセル: 没収6000・返還%(従来は没収12000)', v_refund;
+  raise notice 'OK 10時間予約の開始直前キャンセル: 没収6000・返還%(従来は没収10000)', v_refund;
 end $$;
 
 \echo '=== 5. ★4時間以下の予約は挙動が変わらない ==='
@@ -110,22 +110,22 @@ end $$;
 do $$
 declare v_refund int;
 begin
-  -- 12時間予約の開始1時間後にキャンセル(率は0%)
-  -- 没収 = 経過1時間分(2000) + 上限3時間分(6000) = 8000 → 返還16000
+  -- 10時間予約の開始1時間後にキャンセル(率は0%)
+  -- 没収 = 経過1時間分(2000) + 上限3時間分(6000) = 8000 → 返還12000
   v_refund := public.booking_refund_coins(
-    24000, 720, 0, now() - interval '1 hour', now());
-  if v_refund <> 16000 then
-    raise exception 'FAIL 経過分の計算が合わない(期待16000 / 実際%)', v_refund;
+    20000, 600, 0, now() - interval '1 hour', now());
+  if v_refund <> 12000 then
+    raise exception 'FAIL 経過分の計算が合わない(期待12000 / 実際%)', v_refund;
   end if;
   raise notice 'OK 開始1時間後: 経過1時間分+3時間分=8000を没収し、%を返す', v_refund;
 
-  -- 同じ12時間予約を10時間後にキャンセル → 経過分だけで上限を超えるので全額没収
+  -- 同じ10時間予約を9時間後にキャンセル → 経過分だけで予約額に達するので全額没収
   v_refund := public.booking_refund_coins(
-    24000, 720, 0, now() - interval '10 hours', now());
+    20000, 600, 0, now() - interval '9 hours', now());
   if v_refund <> 0 then
     raise exception 'FAIL 終盤のキャンセルで返してしまった: %', v_refund;
   end if;
-  raise notice 'OK 開始10時間後は全額がピタメイトの報酬(経過分だけで予約額に達する)';
+  raise notice 'OK 開始9時間後は全額がピタメイトの報酬(経過分だけで予約額に達する)';
 end $$;
 
 \echo '=== 7. 実際の cancel_booking でも同じ額になる ==='
@@ -146,18 +146,18 @@ begin
     where user_id = 'a1000000-0000-0000-0000-00000000ab11'::uuid;
   select earned_balance into v_host from public.coin_wallets
     where user_id = 'a1000000-0000-0000-0000-00000000ab01'::uuid;
-  if v_after - v_before <> 18000 then
-    raise exception 'FAIL 実際の返還額が違う(期待18000 / 実際%)', v_after - v_before;
+  if v_after - v_before <> 14000 then
+    raise exception 'FAIL 実際の返還額が違う(期待14000 / 実際%)', v_after - v_before;
   end if;
   if v_host <> 6000 then
     raise exception 'FAIL ピタメイトへの確定額が違う(期待6000 / 実際%)', v_host;
   end if;
-  raise notice 'OK 実処理でも 返還18000 / 確定6000 で一致した';
+  raise notice 'OK 実処理でも 返還14000 / 確定6000 で一致した';
 end $$;
 
 \echo '=== 8. ★自動確定は「終了時刻+72時間」を基準にする ==='
 set test.uid = 'a1000000-0000-0000-0000-00000000ab11';
-select public.create_booking('a1000000-0000-0000-0000-00000000ab01'::uuid, 720, 'v3', null) as b2 \gset
+select public.create_booking('a1000000-0000-0000-0000-00000000ab01'::uuid, 600, 'v3', null) as b2 \gset
 set test.b2 = :'b2';
 set test.uid = 'a1000000-0000-0000-0000-00000000ab01';
 select public.approve_booking(:'b2');
@@ -175,8 +175,8 @@ begin
   end if;
   raise notice 'OK 開始+73時間ではまだ確定しない(終了+72時間が基準)';
 
-  -- 終了から73時間(= 開始から 12+73 = 85時間)
-  update public.bookings set scheduled_at = now() - interval '85 hours'
+  -- 終了から73時間(= 開始から 10+73 = 83時間)
+  update public.bookings set scheduled_at = now() - interval '83 hours'
     where id = current_setting('test.b2', true)::uuid;
   v_n := public.auto_complete_bookings();
   select status into v_st from public.bookings
@@ -189,7 +189,7 @@ end $$;
 
 \echo '=== 9. 延長は合計が上限を超えたら拒否される ==='
 set test.uid = 'a1000000-0000-0000-0000-00000000ab11';
-select public.create_booking('a1000000-0000-0000-0000-00000000ab01'::uuid, 660, 'v3', null) as b3 \gset
+select public.create_booking('a1000000-0000-0000-0000-00000000ab01'::uuid, 540, 'v3', null) as b3 \gset
 set test.b3 = :'b3';
 set test.uid = 'a1000000-0000-0000-0000-00000000ab01';
 select public.approve_booking(:'b3');
@@ -197,11 +197,11 @@ set test.uid = 'a1000000-0000-0000-0000-00000000ab11';
 do $$
 declare v_d int;
 begin
-  -- 660 + 60 = 720 はちょうど上限なので通る
+  -- 540 + 60 = 600 はちょうど上限なので通る
   perform public.extend_booking(current_setting('test.b3', true)::uuid, 60);
   select duration_minutes into v_d from public.bookings
     where id = current_setting('test.b3', true)::uuid;
-  if v_d <> 720 then raise exception 'FAIL 上限ちょうどの延長が通らない: %', v_d; end if;
+  if v_d <> 600 then raise exception 'FAIL 上限ちょうどの延長が通らない: %', v_d; end if;
 
   -- さらに30分は上限超え
   begin
@@ -210,7 +210,7 @@ begin
   exception when others then
     if sqlerrm <> 'DURATION_LIMIT_EXCEEDED' then raise; end if;
   end;
-  raise notice 'OK 上限ちょうど(720分)までは延長でき、超えると DURATION_LIMIT_EXCEEDED';
+  raise notice 'OK 上限ちょうど(600分)までは延長でき、超えると DURATION_LIMIT_EXCEEDED';
 end $$;
 
 \echo '=== 10. 画面表示用の見積りが実処理と一致する ==='
@@ -228,7 +228,7 @@ begin
     raise exception 'FAIL 見積りの内訳が合わない: %', v_q;
   end if;
   if (v_q->>'capped')::boolean is not true then
-    raise exception 'FAIL 12時間予約なのに上限が効いていない: %', v_q;
+    raise exception 'FAIL 10時間予約なのに上限が効いていない: %', v_q;
   end if;
   raise notice 'OK 見積り: 返還% / 没収% (率%%%は上限で緩和されている)',
     v_q->>'refund_coins', v_q->>'forfeit_coins', v_q->>'base_percent';

@@ -30,7 +30,8 @@ set test.uid = 'f0000000-0000-0000-0000-0000000000b1';
 do $$
 declare v_id uuid; b public.bookings;
 begin
-  v_id := public.create_booking('f0000000-0000-0000-0000-0000000000a1'::uuid, 90, 'v2', null);
+  v_id := public.create_booking('f0000000-0000-0000-0000-0000000000a1'::uuid, 90, 'v2',
+    date_trunc('hour', now()) + interval '1 day');
   select * into b from public.bookings where id = v_id;
   if b.duration_minutes <> 90 then raise exception 'FAIL 90分になっていない: %', b.duration_minutes; end if;
   -- 時給1000 → 90分は1500コイン
@@ -42,7 +43,8 @@ end $$;
 do $$
 declare v_id uuid;
 begin
-  v_id := public.create_booking('f0000000-0000-0000-0000-0000000000a1'::uuid, 240, 'v2', null);
+  v_id := public.create_booking('f0000000-0000-0000-0000-0000000000a1'::uuid, 240, 'v2',
+    date_trunc('hour', now()) + interval '2 days');
   raise notice 'OK 240分(4時間)も予約できた';
 end $$;
 

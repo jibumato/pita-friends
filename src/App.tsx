@@ -215,7 +215,7 @@ export type Flow = {
   startBooking: (host: BookingHost) => void
   setBookingDuration: (min: BookingDuration) => void
   setBookingWhen: (w: 'now' | 'scheduled') => void
-  setBookingStartAt: (d: Date) => void
+  setBookingStartAt: (d: Date | null) => void
   confirmBooking: () => void
   setGame: (g: string) => void
   setWhen: (w: string) => void
@@ -557,7 +557,17 @@ export default function App() {
             bookingError: '開始時刻が近すぎます。30分以上先の時間を選んでください。',
           }))
         } else if (message.includes('START_TOO_FAR')) {
-          setState((p) => ({ ...p, bookingError: '開始時刻は7日先までで選んでください。' }))
+          setState((p) => ({ ...p, bookingError: '開始時刻は14日先までで選んでください。' }))
+        } else if (message.includes('HOST_SLOT_TAKEN')) {
+          setState((p) => ({
+            ...p,
+            bookingError: 'その時間帯は、このピタメイトの予約がすでに入っています。別の時間を選んでください。',
+          }))
+        } else if (message.includes('GUEST_SLOT_TAKEN')) {
+          setState((p) => ({
+            ...p,
+            bookingError: 'その時間帯には、あなたの予約がすでに入っています。',
+          }))
         } else if (message.includes('HOST_NOT_AVAILABLE')) {
           setState((p) => ({ ...p, bookingError: 'このピタメイトは現在、予約を受け付けていません。' }))
         } else {

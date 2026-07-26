@@ -1516,6 +1516,27 @@ export async function createBookingRemote(
   return data as string
 }
 
+/** 予約で埋まっている時間帯。予約画面で選べない時刻を灰色にするために使う。 */
+export type BusySlot = { startsAt: Date; endsAt: Date; who: 'host' | 'me' }
+
+/**
+ * そのピタメイトと自分の、埋まっている時間帯を取得する(0049)。
+ * どちらも新しい予約を弾く要因なので、まとめて扱う。
+ * 相手が誰か・何コインかは返ってこない。
+ */
+export async function fetchBusySlots(hostUserId: string, days = 14): Promise<BusySlot[]> {
+  const { data, error } = await requireSupabase().rpc('booking_busy_slots', {
+    p_host_id: hostUserId,
+    p_days: days,
+  })
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    startsAt: new Date(String(r.starts_at)),
+    endsAt: new Date(String(r.ends_at)),
+    who: r.who === 'me' ? 'me' : 'host',
+  }))
+}
+
 /** いまキャンセルしたときの見積り。金額はサーバで確定させる。 */
 export type RefundQuote = {
   /** 予約に消費されているコイン(延長分を含む) */

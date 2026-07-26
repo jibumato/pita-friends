@@ -196,7 +196,7 @@ export function discountedCoins(listCoins: number, percent: number): number {
 }
 
 /**
- * 予約できる時間(分)。4時間までは30分刻み、それ以降は1時間刻みで最長12時間。
+ * 予約できる時間(分)。4時間までは30分刻み、それ以降は1時間刻みで最長10時間。
  *
  * 全部を30分刻みにすると720分で24択になり、横スクロールのチップでは選べない。
  * 長時間側は30分の差が意味を持ちにくいので、粗くして16択に収めている。
@@ -206,7 +206,7 @@ export function discountedCoins(listCoins: number, percent: number): number {
  * 選べるのに申込時に INVALID_DURATION で弾かれる。
  */
 export const BOOKING_DURATION_STEP = 30
-export const BOOKING_DURATION_MAX = 720
+export const BOOKING_DURATION_MAX = 600
 /** ここまでは30分刻み。これを超えたら1時間刻み。 */
 export const BOOKING_DURATION_FINE_UNTIL = 240
 export const BOOKING_DURATION_COARSE_STEP = 60
