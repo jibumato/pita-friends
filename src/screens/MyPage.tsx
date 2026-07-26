@@ -294,6 +294,14 @@ export default function MyPage({ flow }: { flow: Flow }) {
               onClick={() => flow.go('hostSettings')}
             />
           )}
+          {/* 成績はホストとして掲載している人にだけ意味があるので、掲載中のみ出す。 */}
+          {flow.hostSettings.isHost && (
+            <ListRow
+              label="ホストの成績"
+              sub="今月の手取り・リピート率・埋まりやすい時間帯"
+              onClick={() => flow.go('hostDashboard')}
+            />
+          )}
           <ListRow
             label="受け取った誘い"
             sub="承認待ちのリクエスト"

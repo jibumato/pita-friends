@@ -76,6 +76,7 @@ import Requests from './screens/Requests'
 import SendFailDialog from './screens/SendFailDialog'
 import Wallet from './screens/Wallet'
 import HostSettingsScreen from './screens/HostSettingsScreen'
+import HostDashboard from './screens/HostDashboard'
 import Booking from './screens/Booking'
 import Ranking from './screens/Ranking'
 import AdminVerifications from './screens/AdminVerifications'
@@ -115,6 +116,7 @@ const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
   'safetyPrefs',
   'wallet',
   'hostSettings',
+  'hostDashboard',
   'legalDoc',
   'boardCreate',
   'personality',
@@ -785,6 +787,7 @@ export default function App() {
         {state.screen === 'requests' && <Requests flow={flow} />}
         {state.screen === 'wallet' && <Wallet flow={flow} />}
         {state.screen === 'hostSettings' && <HostSettingsScreen flow={flow} />}
+        {state.screen === 'hostDashboard' && <HostDashboard flow={flow} />}
         {state.screen === 'booking' && <Booking flow={flow} />}
         {state.screen === 'ranking' && <Ranking flow={flow} />}
         {state.screen === 'adminVerifications' && <AdminVerifications flow={flow} />}
