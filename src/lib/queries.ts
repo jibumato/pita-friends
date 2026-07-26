@@ -1763,3 +1763,79 @@ export async function unblockUser(blockedId: string): Promise<void> {
     .eq('blocked_id', blockedId)
   if (error) throw error
 }
+
+// ============================================================
+// ホスト向けダッシュボード
+// ============================================================
+
+/** ダッシュボードの集計結果(host_dashboard RPCの返り値)。 */
+export type HostDashboard = {
+  monthStart: string
+  ticketCoins: number
+  giftCoins: number
+  grossCoins: number
+  feeCoins: number
+  netCoins: number
+  effectiveRate: number
+  tier: {
+    currentRate: number
+    nextBound: number | null
+    nextRate: number | null
+    remainingCoins: number | null
+  }
+  daily: { day: number; coins: number }[]
+  repeat: {
+    repeatCoins: number
+    totalCoins: number
+    repeatRate: number
+    repeaterGuests: number
+    newGuests: number
+  }
+  response: {
+    requests: number
+    approved: number
+    approvalRate: number
+    medianReplySeconds: number | null
+  }
+  heatmap: { dow: number; hour: number; count: number }[]
+}
+
+/** ホスト向けダッシュボードの集計を取得する。 */
+export async function fetchHostDashboard(): Promise<HostDashboard> {
+  const { data, error } = await requireSupabase().rpc('host_dashboard', {})
+  if (error) throw error
+  const d = (data ?? {}) as Record<string, any>
+  return {
+    monthStart: d.month_start ?? '',
+    ticketCoins: d.ticket_coins ?? 0,
+    giftCoins: d.gift_coins ?? 0,
+    grossCoins: d.gross_coins ?? 0,
+    feeCoins: d.fee_coins ?? 0,
+    netCoins: d.net_coins ?? 0,
+    effectiveRate: Number(d.effective_rate ?? 0),
+    tier: {
+      currentRate: Number(d.tier?.current_rate ?? 0),
+      nextBound: d.tier?.next_bound ?? null,
+      nextRate: d.tier?.next_rate == null ? null : Number(d.tier.next_rate),
+      remainingCoins: d.tier?.remaining_coins ?? null,
+    },
+    daily: Array.isArray(d.daily) ? d.daily.map((x: any) => ({ day: x.day, coins: x.coins })) : [],
+    repeat: {
+      repeatCoins: d.repeat?.repeat_coins ?? 0,
+      totalCoins: d.repeat?.total_coins ?? 0,
+      repeatRate: Number(d.repeat?.repeat_rate ?? 0),
+      repeaterGuests: d.repeat?.repeater_guests ?? 0,
+      newGuests: d.repeat?.new_guests ?? 0,
+    },
+    response: {
+      requests: d.response?.requests ?? 0,
+      approved: d.response?.approved ?? 0,
+      approvalRate: Number(d.response?.approval_rate ?? 0),
+      medianReplySeconds:
+        d.response?.median_reply_seconds == null ? null : Number(d.response.median_reply_seconds),
+    },
+    heatmap: Array.isArray(d.heatmap)
+      ? d.heatmap.map((x: any) => ({ dow: x.dow, hour: x.hour, count: x.count }))
+      : [],
+  }
+}

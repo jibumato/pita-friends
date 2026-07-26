@@ -605,6 +605,14 @@ export type Database = {
         }
         Returns: void
       }
+      host_dashboard: {
+        Args: { p_at?: string }
+        Returns: Record<string, unknown>
+      }
+      extend_booking: {
+        Args: { p_booking_id: string; p_additional_minutes: 30 | 60 }
+        Returns: number
+      }
       record_monitoring_consent: {
         Args: { p_version: string }
         Returns: void
