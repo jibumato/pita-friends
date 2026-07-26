@@ -151,13 +151,6 @@ export default function Profile({ flow }: { flow: Flow }) {
           flexDirection: 'column',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff', fontSize: 13 }}>
-          <span>21:47</span>
-          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-            <div style={{ width: 16, height: 9, borderRadius: 2, background: '#fff' }} />
-            <div style={{ width: 20, height: 9, borderRadius: 3, border: '1.5px solid #fff' }} />
-          </div>
-        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 40px' }}>
           {/* 戻る: 下部ナビが隠れる画面なので、アイコンだけでなくラベル付きの
               十分な当たり判定を持たせて「出口」が一目で分かるようにする。 */}
@@ -297,7 +290,7 @@ export default function Profile({ flow }: { flow: Flow }) {
           {/* あそぶゲーム */}
           {(useReal ? (data?.games.length ?? 0) > 0 : true) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={{ fontSize: 13, color: C.ink }}>▶ あそぶゲーム</span>
+              <span style={{ fontSize: 13, color: C.ink }}>▶ よく遊ぶゲーム</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {(useReal ? (data?.games ?? []).map((n) => ({ name: n, rank: '' })) : MOCK_GAME_TAGS).map((g) => (
                   <span
