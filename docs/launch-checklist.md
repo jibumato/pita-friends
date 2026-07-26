@@ -43,6 +43,8 @@
    - `0040_scheduled_booking.sql` … 予約の開始時刻を指定できるようにし、
      キャンセルを段階制にする(E-10の修正。`create_booking`/`approve_booking`/
      `cancel_booking` を差し替え、返還率を `platform_pricing` に集約)
+   - `0041_longer_bookings.sql` … あそぶ時間を30分刻み・最長4時間に、
+     予約できる先を14日に(`create_booking`を差し替え)
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ✅ **リダイレクトURLの登録**(2026-07-26): Authentication → URL Configuration

@@ -23,7 +23,7 @@ insert into public.coin_lots (user_id, kind, remaining, expires_at) values
 update public.coin_wallets set balance = 90000
   where user_id = 'e0000000-0000-0000-0000-0000000000b1'::uuid;
 
-\echo '=== 1. 受付範囲の外は弾かれる(最短30分先・最長7日先) ==='
+\echo '=== 1. 受付範囲の外は弾かれる(最短30分先・最長14日先) ==='
 set test.uid = 'e0000000-0000-0000-0000-0000000000b1';
 do $$
 begin
@@ -35,8 +35,8 @@ begin
     raise notice 'OK 直前すぎる指定は START_TOO_SOON';
   end;
   begin
-    perform public.create_booking('e0000000-0000-0000-0000-0000000000a1'::uuid, 60, 'v2', now() + interval '10 days');
-    raise exception 'FAIL 7日より先の指定が通ってしまった';
+    perform public.create_booking('e0000000-0000-0000-0000-0000000000a1'::uuid, 60, 'v2', now() + interval '20 days');
+    raise exception 'FAIL 上限より先の指定が通ってしまった';
   exception when others then
     if sqlerrm <> 'START_TOO_FAR' then raise; end if;
     raise notice 'OK 先すぎる指定は START_TOO_FAR';

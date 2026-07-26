@@ -1500,7 +1500,8 @@ export async function setPresenceStatus(status: PresenceStatus): Promise<void> {
  */
 export async function createBookingRemote(
   hostId: string,
-  durationMinutes: 30 | 60 | 120,
+  /** 30分刻み(30〜240)。上限はサーバの platform_pricing.max_duration_minutes。 */
+  durationMinutes: number,
   policyVersion: string,
   /** 希望開始時刻。null なら「今すぐ」(承諾時点が開始時刻)。 */
   scheduledAt: Date | null = null,

@@ -291,7 +291,7 @@ export type Database = {
           id: string
           guest_id: string
           host_id: string
-          duration_minutes: 30 | 60 | 120
+          duration_minutes: number
           coins: number
           paid_coins: number
           bonus_coins: number
@@ -524,7 +524,8 @@ export type Database = {
       create_booking: {
         Args: {
           p_host_id: string
-          p_duration_minutes: 30 | 60 | 120
+          /** 30分刻み。上限は platform_pricing.max_duration_minutes。 */
+          p_duration_minutes: number
           p_policy_version?: string
           /** ISO文字列。null なら「今すぐ」(承諾時点が開始時刻)。 */
           p_scheduled_at?: string | null

@@ -195,12 +195,27 @@ export function discountedCoins(listCoins: number, percent: number): number {
   return Math.max(1, Math.round((listCoins * (100 - percent)) / 100))
 }
 
-/** 予約できる時間(分)と、それに対応するラベル。 */
-export const BOOKING_DURATIONS = [30, 60, 120] as const
-export type BookingDuration = (typeof BOOKING_DURATIONS)[number]
+/**
+ * 予約できる時間(分)。30分刻みで最長4時間。
+ * サーバ側の上限(platform_pricing.max_duration_minutes)と揃えること。
+ * ずれると、画面では選べるのに申込時に INVALID_DURATION で弾かれる。
+ * これより長く遊びたい場合は、プレイ中に延長(第8条の3)で足す。
+ */
+export const BOOKING_DURATION_STEP = 30
+export const BOOKING_DURATION_MAX = 240
+export const BOOKING_DURATIONS = Array.from(
+  { length: BOOKING_DURATION_MAX / BOOKING_DURATION_STEP },
+  (_, i) => (i + 1) * BOOKING_DURATION_STEP,
+)
+export type BookingDuration = number
 
+/** 「1時間30分」のように、時間と分に分けて読ませる。 */
 export function durationLabel(min: BookingDuration): string {
-  return min === 30 ? '30分' : min === 60 ? '1時間' : '2時間'
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  if (h === 0) return `${m}分`
+  if (m === 0) return `${h}時間`
+  return `${h}時間${m}分`
 }
 
 /** 時給コインと分数から、消費コインを計算(30分単位切り上げなし・比例配分)。 */
