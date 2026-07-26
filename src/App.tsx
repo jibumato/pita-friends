@@ -166,6 +166,10 @@ export type Flow = {
   personalityResult: PersonalityResult | null
   bookingHost: BookingHost | null
   bookingDuration: BookingDuration
+  /** 「今すぐ」か「時間を指定」か。 */
+  bookingWhen: 'now' | 'scheduled'
+  /** 指定した開始時刻(bookingWhen==='scheduled' のときだけ使う)。 */
+  bookingStartAt: Date | null
   bookingInsufficient: boolean
   /** 予約確定の失敗理由(残高不足以外)。実データの予約でのみ発生しうる。 */
   bookingError: string | null
@@ -210,6 +214,8 @@ export type Flow = {
   setHostPref: <K extends keyof HostSettings>(key: K, value: HostSettings[K]) => void
   startBooking: (host: BookingHost) => void
   setBookingDuration: (min: BookingDuration) => void
+  setBookingWhen: (w: 'now' | 'scheduled') => void
+  setBookingStartAt: (d: Date) => void
   confirmBooking: () => void
   setGame: (g: string) => void
   setWhen: (w: string) => void
@@ -276,6 +282,8 @@ const INITIAL = {
   personalityResult: null as PersonalityResult | null,
   bookingHost: null as BookingHost | null,
   bookingDuration: 60 as BookingDuration,
+  bookingWhen: 'now' as 'now' | 'scheduled',
+  bookingStartAt: null as Date | null,
   bookingInsufficient: false,
   bookingError: null as string | null,
   userId: null as string | null,
@@ -515,12 +523,22 @@ export default function App() {
     // 実データのピタメイト(Supabase側にuserIdを持つ)は、コイン消費と予約作成を
     // アトミックに行うcreate_booking RPCを呼ぶ。デモのモックピタメイトは
     // これまでどおりローカル計算のみで進める。
+    if (state.bookingWhen === 'scheduled' && !state.bookingStartAt) {
+      setState((p) => ({ ...p, bookingError: '開始時刻を選んでください。' }))
+      return
+    }
+
     if (isBackendConfigured && host.userId && state.userId) {
       setState((p) => ({ ...p, bookingInsufficient: false, bookingError: null }))
       try {
         // 予約はリクエスト(承諾待ち)として作られる。ピタメイトが承諾するまで
         // トークは開かないので、送信完了→承諾待ち画面に遷移する。
-        await createBookingRemote(host.userId, state.bookingDuration, CANCELLATION_POLICY_VERSION)
+        await createBookingRemote(
+          host.userId,
+          state.bookingDuration,
+          CANCELLATION_POLICY_VERSION,
+          state.bookingWhen === 'scheduled' ? state.bookingStartAt : null,
+        )
         const cost = coinsForDuration(host.hourlyRate, state.bookingDuration)
         clearTimer()
         setState((p) => ({
@@ -533,6 +551,13 @@ export default function App() {
         const message = err instanceof Error ? err.message : ''
         if (message.includes('INSUFFICIENT_COINS')) {
           setState((p) => ({ ...p, bookingInsufficient: true }))
+        } else if (message.includes('START_TOO_SOON')) {
+          setState((p) => ({
+            ...p,
+            bookingError: '開始時刻が近すぎます。30分以上先の時間を選んでください。',
+          }))
+        } else if (message.includes('START_TOO_FAR')) {
+          setState((p) => ({ ...p, bookingError: '開始時刻は7日先までで選んでください。' }))
         } else if (message.includes('HOST_NOT_AVAILABLE')) {
           setState((p) => ({ ...p, bookingError: 'このピタメイトは現在、予約を受け付けていません。' }))
         } else {
@@ -561,7 +586,15 @@ export default function App() {
     }))
     // 決済成功後は、誘い送信と同じ自動遷移(返事待ち→マッチ)につなげる
     timer.current = setTimeout(() => setState((p) => ({ ...p, screen: 'match' })), AUTO_ADVANCE_MS)
-  }, [state.bookingHost, state.bookingDuration, state.coinBalance, state.userId, clearTimer])
+  }, [
+    state.bookingHost,
+    state.bookingDuration,
+    state.bookingWhen,
+    state.bookingStartAt,
+    state.coinBalance,
+    state.userId,
+    clearTimer,
+  ])
 
   const goJoin = useCallback(() => {
     clearTimer()
@@ -745,12 +778,23 @@ export default function App() {
         ...p,
         bookingHost: host,
         bookingDuration: 60,
+        bookingWhen: 'now',
+        bookingStartAt: null,
         bookingInsufficient: false,
         bookingError: null,
         screen: 'booking',
       })),
     setBookingDuration: (min) =>
       setState((p) => ({ ...p, bookingDuration: min, bookingInsufficient: false, bookingError: null })),
+    setBookingWhen: (w) =>
+      setState((p) => ({
+        ...p,
+        bookingWhen: w,
+        // 「時間を指定」に切り替えた直後は未選択。確定時に弾く
+        bookingStartAt: w === 'now' ? null : p.bookingStartAt,
+        bookingError: null,
+      })),
+    setBookingStartAt: (d) => setState((p) => ({ ...p, bookingStartAt: d, bookingError: null })),
     confirmBooking,
     go,
     openLogin,

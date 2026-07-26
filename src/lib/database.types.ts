@@ -522,7 +522,13 @@ export type Database = {
     Views: Record<string, never>
     Functions: {
       create_booking: {
-        Args: { p_host_id: string; p_duration_minutes: 30 | 60 | 120; p_policy_version?: string }
+        Args: {
+          p_host_id: string
+          p_duration_minutes: 30 | 60 | 120
+          p_policy_version?: string
+          /** ISO文字列。null なら「今すぐ」(承諾時点が開始時刻)。 */
+          p_scheduled_at?: string | null
+        }
         Returns: string
       }
       approve_booking: {
@@ -621,6 +627,10 @@ export type Database = {
       }
       my_trial_discount: {
         Args: { p_host_id: string }
+        Returns: number
+      }
+      my_booking_refund_percent: {
+        Args: { p_booking_id: string }
         Returns: number
       }
       host_dashboard: {

@@ -7,8 +7,16 @@ import { SubHeader } from '../components/Ui'
 import { Coin, Clock, Shield } from '../components/Icon'
 import { BOOKING_DURATIONS, coinsForDuration, coinsPer30, durationLabel, discountedCoins } from '../flow'
 import { usePress } from '../hooks/usePress'
+import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchMyTrialDiscount } from '../lib/queries'
+import {
+  startTimeOptions,
+  formatStart,
+  formatStartRange,
+  MIN_LEAD_MINUTES,
+  MAX_LEAD_DAYS,
+} from '../content/bookingPolicy'
 
 export default function Booking({ flow }: { flow: Flow }) {
   const host = flow.bookingHost
@@ -17,6 +25,9 @@ export default function Booking({ flow }: { flow: Flow }) {
   // 実際の請求額はサーバ(create_booking)が同じ式で決める。
   const [discount, setDiscount] = useState(0)
   const hostUserId = host?.userId ?? null
+  // 開始時刻の候補は画面を開いた時点で固定する(毎描画で作り直すと、
+  // 選んだ時刻のオブジェクトが候補側と一致しなくなり選択が外れる)
+  const [startOptions] = useState(() => startTimeOptions(new Date()))
 
   useEffect(() => {
     // 直接遷移してきた等、ピタメイト未指定の場合は安全にさがすへ戻す
@@ -91,6 +102,76 @@ export default function Booking({ flow }: { flow: Flow }) {
             <span style={{ fontSize: 10.5, color: C.muted }}>30分 {coinsPer30(host.hourlyRate)} コイン</span>
           </div>
         </div>
+
+        {/* 開始時刻。「今すぐ」と「時間を指定」の2本立て。
+            指定できるようにしたことで、はじめて「開始◯時間前まで」という
+            キャンセル規定が実際に意味を持つようになった(0040)。 */}
+        <span style={{ fontSize: 12, color: C.muted }}>いつあそぶ</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {([
+            { key: 'now' as const, label: '今すぐ' },
+            { key: 'scheduled' as const, label: '時間を指定' },
+          ]).map((m) => {
+            const sel = flow.bookingWhen === m.key
+            return (
+              <span
+                key={m.key}
+                onClick={() => flow.setBookingWhen(m.key)}
+                {...clickable(() => flow.setBookingWhen(m.key), m.label)}
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  color: sel ? C.lime : C.ink,
+                  background: sel ? C.fill : C.white,
+                  border: `1.5px solid ${C.border}`,
+                  padding: '11px 0',
+                  borderRadius: 8,
+                }}
+              >
+                {m.label}
+              </span>
+            )
+          })}
+        </div>
+
+        {flow.bookingWhen === 'scheduled' && (
+          <>
+            <div
+              className="pita-scroll"
+              style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}
+            >
+              {startOptions.map((d) => {
+                const sel = flow.bookingStartAt?.getTime() === d.getTime()
+                return (
+                  <span
+                    key={d.toISOString()}
+                    onClick={() => flow.setBookingStartAt(d)}
+                    {...clickable(() => flow.setBookingStartAt(d), formatStart(d))}
+                    style={{
+                      flex: 'none',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      color: sel ? C.ink : C.body,
+                      background: sel ? C.lime : C.white,
+                      border: `1.5px solid ${C.border}`,
+                      padding: '9px 13px',
+                      borderRadius: 8,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {formatStart(d)}
+                  </span>
+                )
+              })}
+            </div>
+            <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.6, marginTop: -6 }}>
+              {MIN_LEAD_MINUTES}分後〜{MAX_LEAD_DAYS}日先まで選べます。
+              {flow.bookingStartAt && `　選択中: ${formatStartRange(flow.bookingStartAt, flow.bookingDuration)}`}
+            </span>
+          </>
+        )}
 
         {/* 時間選択 */}
         <span style={{ fontSize: 12, color: C.muted }}>あそぶ時間</span>
@@ -238,13 +319,19 @@ export default function Booking({ flow }: { flow: Flow }) {
         >
           <Shield size={14} style={{ flex: 'none', marginTop: 1 }} />
           <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
-            コインは予約確定時に消費されます。
+            コインは申し込んだ時点で確保され、相手が承諾すると予約が成立します。
             <br />
-            ・<b style={{ color: C.ink }}>ピタメイト都合</b>のキャンセル・無断欠席 → コインが<b style={{ color: C.ink }}>全額戻ります</b>
+            ・承諾される<b style={{ color: C.ink }}>前</b>の取り消し → <b style={{ color: C.ink }}>全額戻ります</b>
             <br />
-            ・<b style={{ color: C.ink }}>あなたの都合</b>のキャンセル → 開始1時間前まで全額戻ります
+            ・<b style={{ color: C.ink }}>ピタメイト都合</b>のキャンセル・無断欠席 → <b style={{ color: C.ink }}>全額戻ります</b>
             <br />
-            　（開始1時間を切ってからは戻らず、コインはピタメイトの報酬になります）
+            ・<b style={{ color: C.ink }}>あなたの都合</b>のキャンセル
+            <br />
+            　→ 承諾から5分以内、または開始1時間前までは<b style={{ color: C.ink }}>全額戻ります</b>
+            <br />
+            　→ 開始1時間前を切ってから開始までは<b style={{ color: C.ink }}>半額戻ります</b>
+            <br />
+            　→ 開始後・無断欠席は戻らず、コインは相手の報酬になります
             <br />
             　※戻るのはコインです。日本円での返金はできません。
             <br />
