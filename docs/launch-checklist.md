@@ -31,10 +31,13 @@
 ## B. Supabase 本番設定
 
 1. ◑ **マイグレーション適用**: 0001〜0036は適用済み(2026-07-26)。
-   **`0037_ranking_avatar.sql`が未適用**(ランキングにプロフィール写真が
-   出ない不具合の修正。`host_ranking()`がavatar_pathを返すよう変更)。
-   Supabase SQL Editorで`supabase/migrations/0037_ranking_avatar.sql`を実行してください
+   **以下2つが未適用**。Supabase SQL Editorで番号順に実行してください
    (手順: `docs/apply-migrations.md`)
+   - `0037_ranking_avatar.sql` … ランキングにプロフィール写真が出ない不具合の修正
+     (`host_ranking()`がavatar_pathを返すよう変更)
+   - `0038_host_trial_discount.sql` … ホストが設定する初回お試し割引
+     (`create_booking`/`extend_booking`を差し替える。**適用するまで
+     ホスト設定の割引率は保存できず、予約も割引されない**)
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ✅ **リダイレクトURLの登録**(2026-07-26): Authentication → URL Configuration

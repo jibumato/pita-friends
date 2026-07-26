@@ -7,7 +7,14 @@ import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader, Toggle, Card, ListRow } from '../components/Ui'
 import { Coin, Shield } from '../components/Icon'
-import { GAMES, coinsPer30 } from '../flow'
+import {
+  GAMES,
+  coinsPer30,
+  coinsForDuration,
+  durationLabel,
+  discountedCoins,
+  TRIAL_DISCOUNT_MAX,
+} from '../flow'
 import GameThumb from '../components/GameThumb'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
@@ -334,6 +341,90 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
           >
             ＋
           </span>
+        </div>
+
+        {/* 初回お試し割引。そのホストと初めて遊ぶゲストにだけ効く。
+            値引き後の価格をその場で出さないと、いくら受け取れるのか
+            分からないまま割引率だけ上げてしまうため、必ず併記する。 */}
+        <span style={{ fontSize: 12, color: C.muted }}>初回お試し割引（任意）</span>
+        <div
+          style={{
+            background: C.white,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 8,
+            padding: '13px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 11,
+          }}
+        >
+          <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.7 }}>
+            あなたと<b style={{ color: C.ink }}>初めて</b>遊ぶ人だけが、この割引価格で予約できます。
+            2回目以降は通常価格に戻ります。
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span
+              onClick={() =>
+                flow.setHostPref('trialDiscountPercent', Math.max(0, h.trialDiscountPercent - 5))
+              }
+              style={{ cursor: 'pointer', fontSize: 18, color: C.ink, userSelect: 'none', padding: '0 6px' }}
+            >
+              −
+            </span>
+            <span style={{ flex: 1, textAlign: 'center', fontSize: 16, color: C.ink }}>
+              {h.trialDiscountPercent === 0 ? 'なし' : `${h.trialDiscountPercent}% OFF`}
+            </span>
+            <span
+              onClick={() =>
+                flow.setHostPref(
+                  'trialDiscountPercent',
+                  Math.min(TRIAL_DISCOUNT_MAX, h.trialDiscountPercent + 5),
+                )
+              }
+              style={{ cursor: 'pointer', fontSize: 18, color: C.ink, userSelect: 'none', padding: '0 6px' }}
+            >
+              ＋
+            </span>
+          </div>
+
+          {h.trialDiscountPercent > 0 && (
+            <div
+              style={{
+                background: C.surfaceLavender,
+                border: `1.5px solid ${C.lavender}`,
+                borderRadius: 8,
+                padding: '11px 13px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 7,
+              }}
+            >
+              {([30, 60, 120] as const).map((min) => {
+                const list = coinsForDuration(h.hourlyRate, min)
+                return (
+                  <div
+                    key={min}
+                    style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}
+                  >
+                    <span style={{ fontSize: 11, color: C.muted, flex: 'none' }}>{durationLabel(min)}</span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+                      <span style={{ fontSize: 11.5, color: C.placeholder, textDecoration: 'line-through' }}>
+                        {list.toLocaleString()}
+                      </span>
+                      <span style={{ fontSize: 10, color: C.muted }}>→</span>
+                      <span style={{ fontSize: 15, color: C.lavender }}>
+                        {discountedCoins(list, h.trialDiscountPercent).toLocaleString()}
+                      </span>
+                      <span style={{ fontSize: 10.5, color: C.muted }}>コイン</span>
+                    </div>
+                  </div>
+                )
+              })}
+              <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.7, marginTop: 2 }}>
+                手数料は割引後の金額にかかります（値引きした分だけ手数料も下がります）。
+              </span>
+            </div>
+          )}
         </div>
 
         <span style={{ fontSize: 12, color: C.muted }}>対応ゲーム</span>

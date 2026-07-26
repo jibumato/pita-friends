@@ -30,7 +30,13 @@ export type AccountBundle = {
     discoverable: boolean
     block_low_trust: boolean
   }
-  hostSettings: { is_host: boolean; hourly_rate: number; games: string[]; bio: string }
+  hostSettings: {
+    is_host: boolean
+    hourly_rate: number
+    games: string[]
+    bio: string
+    trial_discount_percent: number
+  }
   wallet: { balance: number }
   trustStats: {
     manner_score: number
@@ -52,7 +58,7 @@ export async function fetchAccountBundle(userId: string): Promise<AccountBundle 
       .select('contact_scope, approval_required, show_online, discoverable, block_low_trust')
       .eq('user_id', userId)
       .single(),
-    sb.from('host_settings').select('is_host, hourly_rate, games, bio').eq('user_id', userId).single(),
+    sb.from('host_settings').select('is_host, hourly_rate, games, bio, trial_discount_percent').eq('user_id', userId).single(),
     sb.from('coin_wallets').select('balance, bonus_balance').eq('user_id', userId).single(),
     sb
       .from('profile_trust_stats')
@@ -104,10 +110,21 @@ export async function updateSafetyPrefsRemote(
 
 export async function updateHostSettingsRemote(
   userId: string,
-  patch: Partial<{ is_host: boolean; hourly_rate: number; games: string[]; bio: string }>,
+  patch: Partial<{ is_host: boolean; hourly_rate: number; games: string[]; bio: string; trial_discount_percent: number }>,
 ): Promise<void> {
   const { error } = await requireSupabase().from('host_settings').update(patch).eq('user_id', userId)
   if (error) throw error
+}
+
+/**
+ * そのホストで自分に適用される初回お試し割引の割引率(%)を取得する。
+ * 対象外(すでにそのホストと遊んだことがある)・未設定なら0。
+ * 表示専用で、実際の請求額は create_booking がサーバ側で決める。
+ */
+export async function fetchMyTrialDiscount(hostId: string): Promise<number> {
+  const { data, error } = await requireSupabase().rpc('my_trial_discount', { p_host_id: hostId })
+  if (error) throw error
+  return Number(data ?? 0)
 }
 
 export type DiscoverableHost = {
@@ -1251,7 +1268,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
       .select('manner_score, review_count, dotakyan_count, confirmed_count, is_verified')
       .eq('user_id', userId)
       .single(),
-    sb.from('host_settings').select('is_host, hourly_rate, games, bio').eq('user_id', userId).single(),
+    sb.from('host_settings').select('is_host, hourly_rate, games, bio, trial_discount_percent').eq('user_id', userId).single(),
     sb
       .from('reviews')
       .select('stars, tags, reviewer_id')

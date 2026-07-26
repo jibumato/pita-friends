@@ -274,11 +274,15 @@ export type Database = {
           hourly_rate: number
           games: string[]
           bio: string
+          trial_discount_percent: number
           updated_at: string
         }
         Insert: Record<string, never>
         Update: Partial<
-          Pick<Database['public']['Tables']['host_settings']['Row'], 'is_host' | 'hourly_rate' | 'games' | 'bio'>
+          Pick<
+            Database['public']['Tables']['host_settings']['Row'],
+            'is_host' | 'hourly_rate' | 'games' | 'bio' | 'trial_discount_percent'
+          >
         >
         Relationships: []
       }
@@ -296,6 +300,10 @@ export type Database = {
           cancel_reason: string | null
           created_at: string
           cancelled_at: string | null
+          /** 割引前の定価(0038)。割引が無い場合は coins と同じ。 */
+          list_coins: number | null
+          /** 適用した初回お試し割引の割引率(%)(0038)。 */
+          discount_percent: number
         }
         Insert: Record<string, never>
         Update: Record<string, never>
@@ -610,6 +618,10 @@ export type Database = {
       cancel_board_post: {
         Args: { p_post_id: string; p_reason?: string | null }
         Returns: void
+      }
+      my_trial_discount: {
+        Args: { p_host_id: string }
+        Returns: number
       }
       host_dashboard: {
         Args: { p_at?: string }
