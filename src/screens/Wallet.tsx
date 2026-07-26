@@ -6,6 +6,7 @@ import StatusBar from '../components/StatusBar'
 import { SubHeader } from '../components/Ui'
 import { Coin, Shield } from '../components/Icon'
 import { COIN_PACKS, packBonusLabel, type CoinPack } from '../flow'
+import { safetyFeeYen } from '../content/pricing'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import {
@@ -89,7 +90,16 @@ function PackCard({
         </div>
         <span style={{ fontSize: 10.5, color: C.muted }}>1コイン ≒ 1円</span>
       </div>
-      <span style={{ fontSize: 15, color: C.ink }}>¥{priceYen.toLocaleString()}</span>
+      {/* 保証料込みの総額を出す。ここでコイン価格だけを見せると、決済画面で
+          初めて総額を知ることになり、申込前の価格表示として不十分になる。 */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+        <span style={{ fontSize: 15, color: C.ink }}>
+          ¥{(priceYen + safetyFeeYen(priceYen)).toLocaleString()}
+        </span>
+        <span style={{ fontSize: 9.5, color: C.muted }}>
+          コイン ¥{priceYen.toLocaleString()} + 保証料 ¥{safetyFeeYen(priceYen).toLocaleString()}
+        </span>
+      </div>
     </div>
   )
 }
