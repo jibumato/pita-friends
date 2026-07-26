@@ -82,7 +82,7 @@
      `docs/legal/lawyer-review-package.md` を渡して**回答済み**(`lawyer-review-answers-2026-07-21.md`)。
      指摘事項はすべて規約・実装に反映済み
    - **残り: ドラフト4点そのものの文言査読(前回ご指定のQ9)を未依頼** →
-     `docs/legal/lawyer-review-round2-request.md` を渡す(Q12〜Q19のQ&A形式・そのまま貼り付け可)
+     `docs/legal/lawyer-review-round2-request.md` を渡す(Q12〜Q23のQ&A形式・そのまま貼り付け可)
    - 送付前の事前検討と、そこで判明した**実装の要修正点**は
      `docs/legal/lawyer-review-answers-round2-draft.md` に記録済み
      (⚠️ 返金コインの有効期限が当初発行日から通算6か月を超えうる件。Q18の回答待ち)

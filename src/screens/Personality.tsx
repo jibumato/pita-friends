@@ -117,7 +117,7 @@ function Intro({
       </div>
 
       <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
-        ※ 楽しむための目安です。ピタフレはゲームを一緒に楽しむ場で、出会い目的の利用は禁止しています。
+        ※ 楽しむための目安です。ピタフレはゲームを一緒に楽しむ場で、目的以外での利用は禁止しています。
       </span>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
