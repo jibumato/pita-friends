@@ -34,6 +34,94 @@ import { REVIEW_TAGS } from '../flow'
 import { clickable } from '../hooks/clickable'
 import { inspectText, guardWarningText, type GuardHit } from '../lib/contentGuard'
 import { recordContentFlag } from '../lib/queries'
+import { parseGiftMessage } from '../lib/giftSticker'
+
+/**
+ * 応援チップをスタンプとして見せる吹き出し。
+ * 画像が読めなかったときは定型文の文字に落ちる(情報を落とさない)。
+ */
+function GiftBubble({
+  side,
+  coins,
+  text,
+  stickerSrc,
+  stickerAlt,
+}: {
+  side: 'left' | 'right'
+  coins: number
+  text: string | null
+  stickerSrc: string | null
+  stickerAlt: string | null
+}) {
+  const left = side === 'left'
+  const [imgOk, setImgOk] = useState(true)
+  // 定型文はスタンプの絵に入っているので、文字としては繰り返さない。
+  // 自由入力を添えていれば、その部分だけを下に出す。
+  const extra = text && stickerAlt && text.startsWith(stickerAlt) ? text.slice(stickerAlt.length).trim() : text
+
+  return (
+    <div style={{ alignSelf: left ? 'flex-start' : 'flex-end', maxWidth: '78%', display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {stickerSrc && imgOk ? (
+        <img
+          src={stickerSrc}
+          alt={stickerAlt ?? '応援スタンプ'}
+          onError={() => setImgOk(false)}
+          style={{
+            width: 148,
+            height: 148,
+            display: 'block',
+            borderRadius: 14,
+            border: `1.5px solid ${C.border}`,
+            boxShadow: `3px 3px 0 ${C.lavender}`,
+            alignSelf: left ? 'flex-start' : 'flex-end',
+            background: '#fff',
+          }}
+        />
+      ) : (
+        <span
+          style={{
+            alignSelf: left ? 'flex-start' : 'flex-end',
+            background: C.white,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 10,
+            padding: '10px 13px',
+            fontSize: 12.5,
+            color: C.ink,
+          }}
+        >
+          {stickerAlt ?? '🎁 ありがとうギフト'}
+        </span>
+      )}
+      <span
+        style={{
+          alignSelf: left ? 'flex-start' : 'flex-end',
+          fontSize: 11,
+          color: C.lavender,
+          fontWeight: 700,
+        }}
+      >
+        🎁 {coins.toLocaleString()}コイン
+      </span>
+      {extra && (
+        <span
+          style={{
+            alignSelf: left ? 'flex-start' : 'flex-end',
+            maxWidth: '100%',
+            background: left ? C.white : C.lime,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: left ? '2px 10px 10px 10px' : '10px 2px 10px 10px',
+            padding: '8px 12px',
+            fontSize: 12.5,
+            lineHeight: 1.6,
+            color: C.ink,
+          }}
+        >
+          {extra}
+        </span>
+      )}
+    </div>
+  )
+}
 
 function Bubble({ side, children }: { side: 'left' | 'right'; children: React.ReactNode }) {
   const left = side === 'left'
@@ -853,11 +941,17 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
             まだメッセージはありません。あいさつしてみましょう
           </span>
         ) : (
-          messages.map((m) => (
-            <Bubble key={m.id} side={m.senderId === myId ? 'right' : 'left'}>
-              {m.body}
-            </Bubble>
-          ))
+          messages.map((m) => {
+            const gift = parseGiftMessage(m.body)
+            const side = m.senderId === myId ? 'right' : 'left'
+            return gift ? (
+              <GiftBubble key={m.id} side={side} {...gift} />
+            ) : (
+              <Bubble key={m.id} side={side}>
+                {m.body}
+              </Bubble>
+            )
+          })
         )}
       </div>
 
