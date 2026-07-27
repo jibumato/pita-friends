@@ -7896,7 +7896,12 @@ $$;
 --    戻さなかった分は没収(ホストの報酬)になるので、restored_at は立てて
 --    しまってよい。予約は取り消しで終端状態になり、二重返還は起きない。
 -- ------------------------------------------------------------
+-- 旧(1引数)と新(3引数)の両方を落としてから作る。新しいほうも落とすのは、
+-- このファイルをもう一度流したときに「同じ引数の関数が既にある」で
+-- 止まらないようにするため(適用済みか分からなくなったとき、番号順に
+-- 流し直せるほうが安全)。
 drop function if exists public._refund_coin_lots_for_booking(uuid);
+drop function if exists public._refund_coin_lots_for_booking(uuid, int, int);
 
 create function public._refund_coin_lots_for_booking(
   p_booking_id uuid,
