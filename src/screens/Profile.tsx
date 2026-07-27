@@ -12,7 +12,7 @@ import { mannerScoreLabel, dotakyanLabel, NEW_MEMBER_LABEL } from '../lib/trustD
 import OnlineBadge from '../components/OnlineBadge'
 import { subscribeOnlineUsers } from '../lib/presence'
 import FavoriteStar from '../components/FavoriteStar'
-import { fetchMyFavorites } from '../lib/queries'
+import { fetchMyFavorites, fetchPlayHistoryWith, type PlayHistoryWith } from '../lib/queries'
 
 /* ---- デモ(モック)用の固定データ ---- */
 const MOCK_STATS = [
@@ -28,6 +28,18 @@ const MOCK_GAME_TAGS = [
   { name: 'Apex', rank: 'ゴールドⅡ' }, { name: 'VALORANT', rank: 'シルバーⅠ' },
   { name: 'マイクラ', rank: '' }, { name: 'あつ森', rank: '' },
 ]
+
+/**
+ * 最後に遊んだ日。「3日前」のような相対表記のほうが、日付そのものより
+ * 「そろそろまた」と思いやすい。1か月を超えたら日付に切り替える。
+ */
+function lastPlayedLabel(at: Date): string {
+  const days = Math.floor((Date.now() - at.getTime()) / 86_400_000)
+  if (days <= 0) return '今日'
+  if (days === 1) return '昨日'
+  if (days < 30) return `${days}日前`
+  return at.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })
+}
 
 function StatTile({ value, label, bg, fg, sub }: { value: string; label: string; bg: string; fg: string; sub: string }) {
   return (
@@ -65,6 +77,8 @@ export default function Profile({ flow }: { flow: Flow }) {
   const [error, setError] = useState<string | null>(null)
   // 空き状況のタイル(0051)。ピタメイトでない相手には枠が無いので空配列になる。
   const [schedule, setSchedule] = useState<{ slotAt: Date; state: SlotState }[]>([])
+  // 自分とこの相手が何回遊んだか(0055)。0回のときは何も出さない。
+  const [history, setHistory] = useState<PlayHistoryWith | null>(null)
 
   useEffect(() => {
     if (!useReal || !targetId || targetId === flow.userId) return
@@ -108,6 +122,18 @@ export default function Profile({ flow }: { flow: Flow }) {
       active = false
     }
   }, [useReal, targetId])
+
+  useEffect(() => {
+    if (!useReal || !targetId || targetId === flow.userId) return
+    let active = true
+    fetchPlayHistoryWith(targetId)
+      .then((h) => active && setHistory(h))
+      // 取れなくてもプロフィール自体は出す。回数は「あれば嬉しい」情報でしかない
+      .catch(() => active && setHistory(null))
+    return () => {
+      active = false
+    }
+  }, [useReal, targetId, flow.userId])
 
   // Realtime Presence でいま接続中かを見る(last_seen_at より確実なので優先)。
   useEffect(() => {
@@ -301,6 +327,33 @@ export default function Profile({ flow }: { flow: Flow }) {
               <StatTile key={s.label} {...s} />
             ))}
           </div>
+
+          {/* 「あなたとは3回目」。上のタイルは通算の回数なので、見ている自分との
+              関係は何も表していない。積み上がっているものが見えると、次も同じ人に
+              頼む理由になる(0055)。0回のときは何も出さない。 */}
+          {history && history.count > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: C.white,
+                border: `1.5px solid ${C.lavender}`,
+                borderRadius: 8,
+                padding: '9px 12px',
+              }}
+            >
+              <span style={{ fontSize: 14 }}>🎮</span>
+              <span style={{ fontSize: 12, color: C.ink }}>
+                あなたとは <b style={{ color: C.lavenderText }}>{history.count}回</b> 遊んでいます
+              </span>
+              {history.lastPlayedAt && (
+                <span style={{ fontSize: 10.5, color: C.muted, marginLeft: 'auto' }}>
+                  最後は{lastPlayedLabel(history.lastPlayedAt)}
+                </span>
+              )}
+            </div>
+          )}
 
           {bio && (
             <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.7, color: C.body }}>{bio}</p>
