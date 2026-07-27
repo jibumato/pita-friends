@@ -26,7 +26,9 @@
    - 現在 `www` は名前解決しない。`www` 付きで来た利用者がエラーになる
    - Cloudflare で `www` の CNAME を追加し、リダイレクトルールで
      apex(`pitafure.com`)へ 301 させるのが一般的
-5. ☐ スマホ実機で「ホーム画面に追加」(PWA)が動くか確認
+5. ✅ スマホ実機で「ホーム画面に追加」(PWA)が動くか確認(2026-07-27)
+   - iPhone実機でオフライン起動時に「Response served by service worker has
+     redirections」で失敗する不具合を発見・修正済み(`public/sw.js`、cache v6)
 
 ## B. Supabase 本番設定
 
