@@ -9,6 +9,7 @@ import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import { isBackendConfigured } from '../lib/supabase'
 import InlineLogin from './InlineLogin'
+import PreRegisterForm from './PreRegisterForm'
 
 const PC_GAMES = ['Apex Legends', 'VALORANT', 'Overwatch 2', 'League of Legends', 'Fortnite', 'Marvel Rivals', 'Minecraft', 'モンハン']
 
@@ -116,6 +117,19 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {['🛡 承認制', '通報・ブロック', '本人確認', 'みまもり'].map((t) => <span key={t} style={chip}>{t}</span>)}
               </div>
+              {/* 公開前の主要導線。SNSからの流入はここで受ける */}
+              <div
+                style={{
+                  background: C.white,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 14,
+                  boxShadow: `4px 4px 0 ${C.lavender}`,
+                  padding: '18px 20px',
+                  maxWidth: 460,
+                }}
+              >
+                <PreRegisterForm source="landing-hero" onOpenPrivacy={() => flow.openLegalDoc('privacy')} />
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
                 <span style={{ fontSize: 11.5, color: C.muted }}>対応ゲーム例（PC中心）</span>
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -218,6 +232,41 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
             </p>
           </div>
           <button className="lp-cta" onClick={start} style={{ ...ctaPrimary, padding: '15px 28px', fontSize: 15 }}>ピタメイトとして始める ▶</button>
+        </div>
+      </section>
+
+      {/* ===== 事前登録(最後まで読んだ人の受け皿) ===== */}
+      <section style={{ ...sectionWrap, background: C.surface }}>
+        <div
+          style={{
+            maxWidth: 620,
+            margin: '0 auto',
+            padding: '0 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+            textAlign: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <h2 style={{ ...h2, textAlign: 'center' }}>公開のお知らせを受け取る</h2>
+          <p style={{ fontSize: 14.5, color: C.body, lineHeight: 1.9, margin: 0 }}>
+            ピタフレはまもなく公開です。準備ができましたらメールでお知らせします。
+          </p>
+          <div
+            style={{
+              width: '100%',
+              background: C.white,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 14,
+              boxShadow: `4px 4px 0 ${C.lavender}`,
+              padding: '20px 22px',
+              textAlign: 'left',
+              boxSizing: 'border-box',
+            }}
+          >
+            <PreRegisterForm source="landing-footer" onOpenPrivacy={() => flow.openLegalDoc('privacy')} hideLabel />
+          </div>
         </div>
       </section>
 

@@ -32,7 +32,7 @@
 ## B. Supabase 本番設定
 
 1. ◑ **マイグレーション適用**: 0001〜0036は適用済み(2026-07-26)。
-   **0037〜0051 の15本が未適用**です。Supabase SQL Editor で
+   **0037〜0052 の16本が未適用**です。Supabase SQL Editor で
    **必ず番号の小さい順に**実行してください(手順: `docs/apply-migrations.md`)。
 
    > **どこまで当てたか分からなくなったら**、`docs/check-migrations.sql` を
@@ -60,6 +60,7 @@
    | `0049_booking_slot_conflict.sql` | 上限10時間・予約時間帯の重複を防ぐ(E-13) | 同じ時間帯に予約が二重に入る |
    | `0050_no_show_auto.sql` | 無断欠席の自動処理(E-14) | 相手が来なくてもゲストが待たされる |
    | `0051_host_availability.sql` | 募集枠と公開スケジュール(E-15) | 「あそべる時間」が出ない |
+   | `0052_pre_registration.sql` | 公開前の事前登録(メールの名簿) | ランディングの事前登録が動かない |
 
    適用後、`0044` の影響で **Supabaseの管理画面からユーザーを削除できなくなります**
    (台帳が道連れになるのを防ぐため)。退会は `anonymize_user()` を使ってください
@@ -168,3 +169,24 @@
 - ☐ 規約・プライバシー・特商法・資金決済法表示がアプリ内から開ける(設定画面)
 - ☐ 換金は弁護士OKが出るまで「振込実行しない」運用を関係者が理解している
 - ☐ **Supabase の PITR が有効になっている**(取引データの復旧手段)
+- ☐ 事前登録者へ公開のお知らせを送った(下記)
+
+### 事前登録者へのお知らせ(公開時に一度だけ)
+
+SNSの事前告知から集めたアドレスは `pre_registrations` に入っています。
+**送信の宛先は必ずBCC**にしてください(To/CCだと登録者同士にアドレスが見えます)。
+
+```sql
+-- 送る宛先を出す(管理者でログインした状態で SQL Editor から)
+select email from public.pre_registrations
+where notified_at is null order by created_at;
+
+-- 送り終えたら印を付ける。二重送信を防ぐため必ず実行する
+update public.pre_registrations set notified_at = now() where notified_at is null;
+
+-- どのSNSが効いたかの内訳
+select coalesce(source, '(不明)') as 流入元, count(*) from public.pre_registrations group by 1 order by 2 desc;
+```
+
+事前登録は**アカウント登録ではありません**。お知らせメールには
+「登録はこちらから」の導線を必ず入れてください。

@@ -29,7 +29,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (48, '0048_longer_play_12h',         'column',  'platform_pricing',            'cancel_forfeit_cap_minutes'),
     (49, '0049_booking_slot_conflict',   'view',    'booking_slots',               'FROM bookings'),
     (50, '0050_no_show_auto',            'column',  'bookings',                    'guest_checked_in_at'),
-    (51, '0051_host_availability',       'table',   'host_availability',           null)
+    (51, '0051_host_availability',       'table',   'host_availability',           null),
+    (52, '0052_pre_registration',        'table',   'pre_registrations',           null)
 ),
 checked as (
   select
@@ -89,7 +90,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (48, '0048_longer_play_12h',         'column',  'platform_pricing',            'cancel_forfeit_cap_minutes'),
     (49, '0049_booking_slot_conflict',   'view',    'booking_slots',               'FROM bookings'),
     (50, '0050_no_show_auto',            'column',  'bookings',                    'guest_checked_in_at'),
-    (51, '0051_host_availability',       'table',   'host_availability',           null)
+    (51, '0051_host_availability',       'table',   'host_availability',           null),
+    (52, '0052_pre_registration',        'table',   'pre_registrations',           null)
 ),
 checked as (
   select e.seq, e.migration,
