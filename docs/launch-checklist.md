@@ -68,6 +68,15 @@
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ✅ **リダイレクトURLの登録**(2026-07-26): Authentication → URL Configuration
    - Site URL: `https://pitafure.com` / Redirect URLs: `https://pitafure.com/**`
+   - パスワード再設定の戻り先は `https://pitafure.com/reset-password`。
+     上の `**` に含まれるので追加登録は不要。SPAなのでこのパスでも index.html が
+     返る(`wrangler.jsonc` の `not_found_handling: single-page-application`)
+3-b. ☐ **パスワード再設定メールの確認**: Authentication → Email Templates →
+   「Reset Password」
+   - 差出人が Supabase の共有ドメインのままだと**迷惑メールに入りやすい**。
+     公開前に Authentication → Emails で独自ドメインのSMTPを設定するのが望ましい
+   - 本文の `{{ .ConfirmationURL }}` はそのまま使う(戻り先はアプリ側が指定する)
+   - リンクの有効期限(既定1時間)は Authentication → Sessions で確認
 4. ☐ **pg_cron の確認**: Database → Extensions で `pg_cron` が有効か確認
    (プレイ完了の72時間自動確定に使用。0015参照)
 5. ☐ **(必須)Pro プランにする**($25/月。無料プランには保証されたバックアップが無い)
