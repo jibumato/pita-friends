@@ -3,7 +3,7 @@ import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import BottomTabs from '../components/BottomTabs'
-import { Bell, Sun, MoonSmall, Moon } from '../components/Icon'
+import { Bell, Sun, MoonSmall, Moon, ChevronDown } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import OnlineBadge from '../components/OnlineBadge'
@@ -695,13 +695,44 @@ function RankingSection({
   )
 }
 
-/** ゲーム一覧: タップでそのゲームに絞ってさがす画面へ。 */
+/**
+ * ゲーム一覧: タップでそのゲームに絞ってさがす画面へ。
+ *
+ * 27件あり、開いたままだとホームの縦が伸びてピタメイトのカードまで
+ * 遠くなる。既定は畳んでおき、見出しの押下で開く。
+ * 件数を見出しに出しておかないと、畳まれていることに気づかれない。
+ */
 function GameGrid({ flow }: { flow: Flow }) {
+  const [open, setOpen] = useState(false)
+  const toggle = () => setOpen((v) => !v)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontSize: 15, color: C.ink }}>🎮 ゲーム・ジャンルからさがす</span>
+      <div
+        onClick={toggle}
+        {...clickable(toggle, `ゲーム・ジャンルからさがす（${GAMES.length}件）を${open ? '閉じる' : '開く'}`)}
+        aria-expanded={open}
+        style={{
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          background: C.white,
+          border: `1.5px solid ${C.border}`,
+          borderRadius: 10,
+          boxShadow: `2px 2px 0 ${C.shadowCol}`,
+          padding: '11px 14px',
+        }}
+      >
+        <span style={{ fontSize: 14, color: C.ink }}>🎮 ゲーム・ジャンルからさがす</span>
+        <span style={{ fontSize: 11, color: C.muted }}>{GAMES.length}件</span>
+        <div style={{ flex: 1 }} />
+        <ChevronDown
+          size={14}
+          color={C.muted}
+          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .18s ease' }}
+        />
       </div>
+      {open && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
         {GAMES.map((g) => (
           <div
@@ -733,6 +764,7 @@ function GameGrid({ flow }: { flow: Flow }) {
           </div>
         ))}
       </div>
+      )}
     </div>
   )
 }
