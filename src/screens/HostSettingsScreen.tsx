@@ -16,6 +16,7 @@ import {
   TRIAL_DISCOUNT_MAX,
 } from '../flow'
 import GameThumb from '../components/GameThumb'
+import AvailabilityEditor from '../components/AvailabilityEditor'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchBankAccount, saveBankAccount, normalizeKanaName, type BankAccount } from '../lib/queries'
@@ -459,6 +460,15 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
             )
           })}
         </div>
+
+        <span style={{ fontSize: 12, color: C.muted }}>募集する時間（任意）</span>
+        {isBackendConfigured ? (
+          <AvailabilityEditor />
+        ) : (
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6 }}>
+            （デモ表示のため、募集枠の保存はできません）
+          </span>
+        )}
 
         {isBackendConfigured && <BankAccountSection />}
 
