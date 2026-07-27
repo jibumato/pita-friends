@@ -11,6 +11,8 @@ import { coinsPer30, screenNames } from '../flow'
 import { mannerScoreLabel, dotakyanLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import OnlineBadge from '../components/OnlineBadge'
 import { subscribeOnlineUsers } from '../lib/presence'
+import FavoriteStar from '../components/FavoriteStar'
+import { fetchMyFavorites } from '../lib/queries'
 
 /* ---- デモ(モック)用の固定データ ---- */
 const MOCK_STATS = [
@@ -54,6 +56,8 @@ export default function Profile({ flow }: { flow: Flow }) {
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
   const targetId = flow.profileUserId
   const useReal = isBackendConfigured && !!targetId
+  // 推し登録の状態。自分自身のページには出さない。
+  const [isFav, setIsFav] = useState<boolean | null>(null)
 
   const [live, setLive] = useState(false)
   const [data, setData] = useState<PublicProfile | null>(null)
@@ -61,6 +65,17 @@ export default function Profile({ flow }: { flow: Flow }) {
   const [error, setError] = useState<string | null>(null)
   // 空き状況のタイル(0051)。ピタメイトでない相手には枠が無いので空配列になる。
   const [schedule, setSchedule] = useState<{ slotAt: Date; state: SlotState }[]>([])
+
+  useEffect(() => {
+    if (!useReal || !targetId || targetId === flow.userId) return
+    let active = true
+    fetchMyFavorites()
+      .then((f) => active && setIsFav(f.some((x) => x.userId === targetId)))
+      .catch(() => active && setIsFav(false))
+    return () => {
+      active = false
+    }
+  }, [useReal, targetId, flow.userId])
 
   useEffect(() => {
     if (!useReal || !targetId) return
@@ -250,6 +265,10 @@ export default function Profile({ flow }: { flow: Flow }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 20, color: C.ink }}>{name}</span>
+                {/* 推し登録。相手には人数だけが伝わり、誰が押したかは伝わらない(0053) */}
+                {targetId && targetId !== flow.userId && isFav !== null && (
+                  <FavoriteStar hostId={targetId} initialOn={isFav} size={28} onChanged={setIsFav} />
+                )}
                 {verified && (
                   <span
                     style={{

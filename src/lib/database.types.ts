@@ -671,6 +671,34 @@ export type Database = {
         Args: { p_host_id: string; p_days?: number }
         Returns: Record<string, unknown>[]
       }
+      /** 0053: 推し登録の追加・解除。 */
+      set_favorite: {
+        Args: { p_host_id: string; p_on: boolean }
+        Returns: void
+      }
+      /** 0053: 自分が推しているピタメイトの一覧。 */
+      my_favorites: {
+        Args: Record<string, never>
+        Returns: {
+          host_id: string
+          nickname: string
+          avatar_initial: string
+          avatar_color: string
+          avatar_path: string | null
+          hourly_rate: number
+          games: string[] | null
+          manner_score: number
+          review_count: number
+          is_verified: boolean
+          is_active: boolean
+          favorited_at: string
+        }[]
+      }
+      /** 0053: 自分を推している人数(誰かは返らない)。 */
+      my_favorite_count: {
+        Args: Record<string, never>
+        Returns: number
+      }
       /** 0052: 未ログインでも見える「掲載中のピタメイト」カード。 */
       public_host_cards: {
         Args: { p_limit?: number }

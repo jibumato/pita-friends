@@ -15,9 +15,12 @@ import SignedOutPrompt from '../components/SignedOutPrompt'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
 import type { PresenceStatus } from '../lib/database.types'
 import { coinsPer30, GAMES } from '../flow'
+import FavoriteStar from '../components/FavoriteStar'
 import {
   fetchDiscoverableHosts,
   fetchPublicHostCards,
+  fetchMyFavorites,
+  type FavoriteHost,
   fetchPendingInviteCount,
   fetchUnreadNotificationCount,
   fetchHostRanking,
@@ -696,6 +699,86 @@ function RankingSection({
 }
 
 /**
+ * 推しの近況: お気に入りに入れたピタメイトを最上部に出す。
+ *
+ * 既に推しがいる人にとって、ホームに来る目的はほぼこれ一つ。
+ * 掲載を休んでいる相手も**消さずに残す**(黙って消えると理由が分からない)。
+ */
+function FavoriteRow({
+  flow,
+  items,
+  onChanged,
+}: {
+  flow: Flow
+  items: FavoriteHost[]
+  onChanged: () => void
+}) {
+  if (items.length === 0) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 14, color: C.ink }}>⭐ 推しのピタメイト</span>
+        <span style={{ fontSize: 10.5, color: C.muted }}>{items.length}人</span>
+      </div>
+      <div className="pita-scroll" style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+        {items.map((h) => (
+          <div
+            key={h.userId}
+            onClick={() => flow.openProfile(h.userId)}
+            {...clickable(() => flow.openProfile(h.userId), `${h.nickname} のプロフィールを見る`)}
+            style={{
+              cursor: 'pointer',
+              flex: 'none',
+              width: 148,
+              background: C.white,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 12,
+              boxShadow: `2px 2px 0 ${C.shadowCol}`,
+              padding: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 7,
+              opacity: h.isActive ? 1 : 0.72,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              {h.avatarUrl ? (
+                <img
+                  src={h.avatarUrl}
+                  alt=""
+                  style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${C.border}`, flex: 'none' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 40, height: 40, flex: 'none', borderRadius: '50%',
+                    background: h.avatarColor, border: `1.5px solid ${C.border}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 16, color: C.ink,
+                  }}
+                >
+                  {h.avatarInitial}
+                </div>
+              )}
+              <div style={{ flex: 1 }} />
+              <FavoriteStar hostId={h.userId} initialOn size={26} onChanged={onChanged} />
+            </div>
+            <span style={{ fontSize: 12.5, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {h.nickname}
+            </span>
+            {h.isActive ? (
+              <span style={{ fontSize: 10.5, color: C.muted }}>30分 {coinsPer30(h.hourlyRate)} コイン</span>
+            ) : (
+              <span style={{ fontSize: 10.5, color: C.avatarOrange }}>いまは募集を休んでいます</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
  * ゲーム一覧: タップでそのゲームに絞ってさがす画面へ。
  *
  * 27件あり、開いたままだとホームの縦が伸びてピタメイトのカードまで
@@ -779,6 +862,8 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
   // 未ログインの訪問者かどうか。デモモードは「ログイン済み扱い」にして、
   // ローカルでの画面確認をこれまでどおり通す。
   const signedIn = !isBackendConfigured || flow.userId !== null
+  // ⭐の付け外しのあと、一覧を取り直すための参照(effect内で作った関数を持つ)
+  const favRef = useRef<(() => void) | null>(null)
   /**
    * 人のカードを押したときの行き先。
    * 未ログインなら「見つける→興味が湧いたら登録」の導線に乗せる。
@@ -792,6 +877,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
     if (userId) flow.openProfile(userId)
     else flow.go('profile')
   }
+  const [favorites, setFavorites] = useState<FavoriteHost[]>([])
   const [recommended, setRecommended] = useState<DiscoverableHost[]>([])
   const [ranking, setRanking] = useState<RankingEntry[]>([])
   const [unreadNotifs, setUnreadNotifs] = useState(0)
@@ -819,6 +905,16 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
         active = false
       }
     }
+
+    // 推しの一覧。ホームに来る目的がこれ一つ、という人がいるので最初に取る。
+    const loadFavorites = () =>
+      fetchMyFavorites()
+        .then((f) => active && setFavorites(f))
+        .catch(() => {
+          /* 取れなくてもホーム自体は表示する */
+        })
+    loadFavorites()
+    favRef.current = loadFavorites
 
     fetchPendingInviteCount()
       .then((n) => active && setPendingCount(n))
@@ -1000,8 +1096,12 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '14px 20px 0',
         }}
       >
-        {/* 最上部: 今あそべる人。「今すぐ誰かと遊びたい」が来訪の主目的なので、
-            ランキング等の回遊導線より先に出す。深夜オフライン時は隠す。 */}
+        {/* 最上部: 推しているピタメイト。既に推しがいる人は、ホームに来る目的が
+            ほぼこれ一つなので、どの回遊導線よりも先に出す。 */}
+        {signedIn && <FavoriteRow flow={flow} items={favorites} onChanged={() => favRef.current?.()} />}
+
+        {/* 次: 今あそべる人。「今すぐ誰かと遊びたい」が来訪の主目的。
+            深夜オフライン時は隠す。 */}
         {!night && <OnlineStrip flow={flow} online={onlineUsers} />}
 
         {/* ランキングへの導線(デスクトップはサイドバー/メニューに常設済みのため、モバイルのみ表示) */}

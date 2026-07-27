@@ -581,6 +581,59 @@ export async function fetchHostRanking(period: RankingPeriod, limit = 30): Promi
   }))
 }
 
+/** 推し(お気に入り)に登録しているピタメイト。 */
+export type FavoriteHost = {
+  userId: string
+  nickname: string
+  avatarInitial: string
+  avatarColor: string
+  avatarUrl: string | null
+  hourlyRate: number
+  games: string[]
+  mannerScore: number
+  reviewCount: number
+  isVerified: boolean
+  /** いま予約を受け付けているか。false は「募集を休んでいる」。 */
+  isActive: boolean
+  favoritedAt: string
+}
+
+/**
+ * 推し登録の追加・解除(0053)。
+ * **誰を推しているかは本人以外に見えない。** 相手には人数だけが伝わる。
+ */
+export async function setFavorite(hostId: string, on: boolean): Promise<void> {
+  const { error } = await requireSupabase().rpc('set_favorite', { p_host_id: hostId, p_on: on })
+  if (error) throw error
+}
+
+/** 自分が推しているピタメイトの一覧。掲載を休んでいる相手も isActive=false で残る。 */
+export async function fetchMyFavorites(): Promise<FavoriteHost[]> {
+  const { data, error } = await requireSupabase().rpc('my_favorites')
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    userId: r.host_id,
+    nickname: r.nickname,
+    avatarInitial: r.avatar_initial,
+    avatarColor: r.avatar_color,
+    avatarUrl: r.avatar_path ? avatarImageUrl(r.avatar_path) : null,
+    hourlyRate: r.hourly_rate,
+    games: r.games ?? [],
+    mannerScore: Number(r.manner_score),
+    reviewCount: r.review_count,
+    isVerified: r.is_verified,
+    isActive: r.is_active,
+    favoritedAt: r.favorited_at,
+  }))
+}
+
+/** 自分を推している人数。誰かは分からない。 */
+export async function fetchMyFavoriteCount(): Promise<number> {
+  const { data, error } = await requireSupabase().rpc('my_favorite_count')
+  if (error) throw error
+  return data ?? 0
+}
+
 /** ギフト(ありがとうチップ)で選べる金額(コイン=円)。上限は1回50,000。 */
 export const GIFT_AMOUNTS = [100, 500, 1000, 5000, 10000, 50000] as const
 
