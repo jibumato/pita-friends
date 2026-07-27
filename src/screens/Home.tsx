@@ -169,15 +169,6 @@ type RecommendCardData = {
 /** デモの在席状態(実データ接続時は profiles.last_seen_at と Realtime から出す)。 */
 const demoAgo = (min: number) => new Date(Date.now() - min * 60_000).toISOString()
 
-/** デモ時のおすすめピタメイト(実データ接続時は fetchDiscoverableHosts から生成)。 */
-const DEMO_RECOMMENDED: RecommendCardData[] = [
-  { key: 'み', userId: null, initial: 'み', color: C.avatarAqua, name: 'みなと', verified: true, chips: ['Apex', '今夜22時〜'], price30: 300, compat: 92, meta: '★4.8・マナー◎' , live: true, presenceStatus: 'ready' },
-  { key: 'の', userId: null, initial: 'の', color: C.avatarPink, name: 'ののか', verified: true, chips: ['VALORANT', '週末'], price30: 250, compat: 89, meta: '★4.9・マナー◎' , live: true },
-  { key: 'カ', userId: null, initial: 'カ', color: C.lime, name: 'かい', verified: false, chips: ['Overwatch', '平日夜'], price30: 200, compat: 85, meta: '★4.7・マナー◎' , lastSeenAt: demoAgo(25) },
-  { key: 'あ', userId: null, initial: 'あ', color: C.avatarOrange, name: 'あおい', verified: true, chips: ['Fortnite', '今夜'], price30: 280, compat: 83, meta: '★4.8・マナー◎' , live: true },
-  { key: 'り', userId: null, initial: 'り', color: '#C9F2C7', name: 'りく', verified: false, chips: ['LoL', '深夜'], price30: 220, compat: 80, meta: '★4.6・マナー◎' , lastSeenAt: demoAgo(90) },
-  { key: 'ゆ', userId: null, initial: 'ゆ', color: C.lavender, name: 'ゆうき', verified: true, chips: ['マイクラ', '平日'], price30: 180, compat: 78, meta: '★4.7・マナー◎' , lastSeenAt: demoAgo(2) },
-]
 
 /** デモ時の人気ユーザー(実データ接続時は掲載ピタメイトをマナー順に表示)。相性%は出さずプレイ実績で見せる。 */
 const DEMO_POPULAR: RecommendCardData[] = [
@@ -190,122 +181,6 @@ const DEMO_POPULAR: RecommendCardData[] = [
   { key: 'p-か', userId: null, initial: 'か', color: C.lime, name: 'かい', verified: false, chips: ['Overwatch 2', 'VALORANT'], price30: 400, compat: null, meta: '★4.7 · 180回プレイ', voiceSeconds: 11 , lastSeenAt: demoAgo(180) },
   { key: 'p-そ', userId: null, initial: 'そ', color: C.avatarOrange, name: 'そら', verified: true, chips: ['Apex'], price30: 200, compat: null, meta: '★4.7 · 170回プレイ', voiceSeconds: 8 , live: true },
 ]
-
-/** おすすめピタメイトのカード(グリッドの1枚)。各カードで押下フィードバックを持たせるため独立コンポーネント。 */
-function RecommendCard({ data, onOpen }: { data: RecommendCardData; onOpen: () => void }) {
-  const press = usePress(`3px 3px 0 ${C.shadowCol}`)
-  return (
-    <div
-      className="pita-press"
-      onClick={onOpen}
-      {...clickable(onOpen, `${data.name} のプロフィールを見る`)}
-      style={{
-        cursor: 'pointer',
-        background: C.white,
-        border: `1.5px solid ${C.border}`,
-        borderRadius: 12,
-        padding: 13,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 9,
-        ...press.style,
-      }}
-    >
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 9,
-            background: data.color,
-            border: `1.5px solid ${C.border}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 18,
-            color: C.ink,
-            flex: 'none',
-            overflow: 'hidden',
-          }}
-        >
-          {data.avatarUrl ? (
-            <img src={data.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            data.initial
-          )}
-        </div>
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ fontSize: 13.5, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {data.name}
-            </span>
-            {data.verified && (
-              <span
-                style={{
-                  fontSize: 8.5,
-                  color: C.ink,
-                  background: C.lime,
-                  border: `1.5px solid ${C.border}`,
-                  padding: '1px 4px',
-                  borderRadius: 4,
-                  flex: 'none',
-                }}
-              >
-                ✓
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 10, color: C.muted }}>{data.meta}</span>
-            <OnlineBadge
-              live={data.live}
-              lastSeenAt={data.lastSeenAt}
-              status={data.presenceStatus}
-              fontSize={9.5}
-            />
-          </div>
-        </div>
-        {data.compat !== null && (
-          <span style={{ fontSize: 14, color: C.lavender, fontWeight: 700, flex: 'none' }}>{data.compat}%</span>
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-        {data.chips.map((t) => (
-          <span
-            key={t}
-            style={{
-              fontSize: 10,
-              color: C.body,
-              background: C.surfaceLavender,
-              border: `1.5px solid ${C.border}`,
-              padding: '2px 8px',
-              borderRadius: 5,
-            }}
-          >
-            {t}
-          </span>
-        ))}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 1 }}>
-        <span style={{ fontSize: 11.5, color: C.ink }}>
-          30分 <b>{data.price30}</b> コイン
-        </span>
-        <span
-          style={{
-            fontSize: 10.5,
-            color: C.ink,
-            background: C.lime,
-            border: `1.5px solid ${C.border}`,
-            padding: '4px 11px',
-            borderRadius: 6,
-          }}
-        >
-          予約 ▶
-        </span>
-      </div>
-    </div>
-  )
-}
 
 /** 人気ユーザーのカード。アイコンを大きく(カードの約6割)し、その場でボイスプロフィールを再生できる。 */
 function PopularUserCard({ data, onOpen }: { data: RecommendCardData; onOpen: () => void }) {
@@ -699,6 +574,152 @@ function RankingSection({
 }
 
 /**
+ * 今日のピックアップ: 1人だけ大きく出す。
+ *
+ * 小さいカードを並べるのは「探す」ための形で、**推しは1人を深く見て生まれる**。
+ * 顔・声・自己紹介まで一度に見えるようにして、その場で推し登録も予約もできる。
+ *
+ * 誰を出すかは日付で決めて1日固定する。表示のたびに変わると、
+ * 「さっきの人をもう一度見たい」ができない。ランダムも同じ理由で使わない。
+ */
+function PickupCard({
+  flow,
+  host,
+  isFav,
+  onFavChanged,
+}: {
+  flow: Flow
+  host: DiscoverableHost
+  isFav: boolean
+  onFavChanged: (on: boolean) => void
+}) {
+  const open = () => flow.openProfile(host.userId)
+  const score = mannerScoreLabel(host.mannerScore, host.reviewCount)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 14, color: C.ink }}>✨ 今日のピタメイト</span>
+      <div
+        onClick={open}
+        {...clickable(open, `${host.nickname} のプロフィールを見る`)}
+        style={{
+          cursor: 'pointer',
+          background: C.white,
+          border: `1.5px solid ${C.border}`,
+          borderRadius: 14,
+          boxShadow: `4px 4px 0 ${C.lavender}`,
+          padding: 16,
+          display: 'flex',
+          gap: 14,
+          alignItems: 'flex-start',
+        }}
+      >
+        {host.avatarUrl ? (
+          <img
+            src={host.avatarUrl}
+            alt=""
+            style={{ width: 88, height: 88, flex: 'none', borderRadius: 14, objectFit: 'cover', border: `1.5px solid ${C.border}` }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 88, height: 88, flex: 'none', borderRadius: 14,
+              background: host.avatarColor, border: `1.5px solid ${C.border}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 36, color: C.ink,
+            }}
+          >
+            {host.avatarInitial}
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ fontSize: 17, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {host.nickname}
+            </span>
+            {host.isVerified && (
+              <span style={{ flex: 'none', fontSize: 9, color: C.ink, background: C.lime, border: `1.5px solid ${C.border}`, padding: '2px 6px', borderRadius: 4 }}>
+                ✓
+              </span>
+            )}
+            <div style={{ flex: 1 }} />
+            <FavoriteStar hostId={host.userId} initialOn={isFav} size={30} onChanged={onFavChanged} />
+          </div>
+          <span style={{ fontSize: 11.5, color: C.muted }}>
+            {score ? `${score}・マナー◎` : NEW_MEMBER_LABEL}
+          </span>
+          {host.bio && (
+            <span style={{ fontSize: 12, color: C.body, lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {host.bio}
+            </span>
+          )}
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {host.games.slice(0, 3).map((g) => (
+              <span key={g} style={{ fontSize: 10, color: C.body, background: C.surface, border: `1.5px solid ${C.border}`, padding: '3px 8px', borderRadius: 4 }}>
+                {g}
+              </span>
+            ))}
+          </div>
+          <span style={{ fontSize: 12.5, color: C.ink }}>30分 {coinsPer30(host.hourlyRate)} コイン</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 新しく入ったピタメイト。
+ *
+ * 実績順に並べると、始めたばかりの人は永遠に埋もれる。1件も予約が来ないまま
+ * 辞めていくと供給が育たないので、レビューの少ない順に別枠で出す。
+ * 「早く見つけた」という感覚は、推す動機そのものでもある。
+ */
+function NewcomerRow({ flow, items, onOpen }: { flow: Flow; items: DiscoverableHost[]; onOpen: (id: string) => void }) {
+  if (items.length === 0) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 14, color: C.ink }}>🌱 新しく入ったピタメイト</span>
+        <div style={{ flex: 1 }} />
+        <span
+          onClick={() => flow.go('search')}
+          {...clickable(() => flow.go('search'), 'もっと見る')}
+          style={{ cursor: 'pointer', fontSize: 10.5, color: C.lavender, fontWeight: 700 }}
+        >
+          もっと見る ›
+        </span>
+      </div>
+      <div className="pita-scroll" style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+        {items.map((h) => (
+          <div
+            key={h.userId}
+            onClick={() => onOpen(h.userId)}
+            {...clickable(() => onOpen(h.userId), `${h.nickname} のプロフィールを見る`)}
+            style={{
+              cursor: 'pointer', flex: 'none', width: 128,
+              background: C.white, border: `1.5px solid ${C.border}`,
+              borderRadius: 12, boxShadow: `2px 2px 0 ${C.shadowCol}`,
+              padding: 10, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center',
+            }}
+          >
+            {h.avatarUrl ? (
+              <img src={h.avatarUrl} alt="" style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${C.border}` }} />
+            ) : (
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: h.avatarColor, border: `1.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, color: C.ink }}>
+                {h.avatarInitial}
+              </div>
+            )}
+            <span style={{ maxWidth: '100%', fontSize: 12, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {h.nickname}
+            </span>
+            <span style={{ fontSize: 10, color: C.muted }}>30分 {coinsPer30(h.hourlyRate)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
  * 推しの近況: お気に入りに入れたピタメイトを最上部に出す。
  *
  * 既に推しがいる人にとって、ホームに来る目的はほぼこれ一つ。
@@ -769,7 +790,9 @@ function FavoriteRow({
             {h.isActive ? (
               <span style={{ fontSize: 10.5, color: C.muted }}>30分 {coinsPer30(h.hourlyRate)} コイン</span>
             ) : (
-              <span style={{ fontSize: 10.5, color: C.avatarOrange }}>いまは募集を休んでいます</span>
+              <span style={{ fontSize: 10.5, color: C.avatarOrange, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                募集を休止中
+              </span>
             )}
           </div>
         ))}
@@ -883,6 +906,21 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
   const [unreadNotifs, setUnreadNotifs] = useState(0)
   /** いまRealtimeで在席が確認できているユーザー。カードのオンライン表示に使う。 */
   const liveIds = new Set(onlineUsers.map((u) => u.userId))
+  const favIds = new Set(favorites.map((f) => f.userId))
+
+  // 今日のピックアップ。日付で決めて1日固定する(表示のたびに変わると
+  // 「さっきの人をもう一度」ができない)。日本時間の日付を基準にする。
+  const pickup = (() => {
+    if (recommended.length === 0) return null
+    const jstDay = Math.floor((Date.now() + 9 * 3600_000) / 86_400_000)
+    return recommended[jstDay % recommended.length]
+  })()
+
+  // 新人: レビューが少ない順。実績順の並びでは埋もれる人を拾う。
+  const newcomers = [...recommended]
+    .filter((h) => h.userId !== pickup?.userId)
+    .sort((a, b) => a.reviewCount - b.reviewCount)
+    .slice(0, 8)
 
   useEffect(() => {
     if (!isBackendConfigured) return
@@ -1100,7 +1138,21 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             ほぼこれ一つなので、どの回遊導線よりも先に出す。 */}
         {signedIn && <FavoriteRow flow={flow} items={favorites} onChanged={() => favRef.current?.()} />}
 
-        {/* 次: 今あそべる人。「今すぐ誰かと遊びたい」が来訪の主目的。
+        {/* 今日のピタメイト: 1人だけ深く見せる。小さいカードを並べるのは
+            「探す」ための形で、推しは1人を深く見て生まれる。 */}
+        {isBackendConfigured && pickup && (
+          <PickupCard
+            flow={flow}
+            host={pickup}
+            isFav={favIds.has(pickup.userId)}
+            onFavChanged={() => favRef.current?.()}
+          />
+        )}
+
+        {/* 新しく入ったピタメイト。実績順では埋もれる人を別枠で拾う。 */}
+        {isBackendConfigured && <NewcomerRow flow={flow} items={newcomers} onOpen={openHost} />}
+
+        {/* その次: 今あそべる人。「今すぐ誰かと遊びたい」が来訪の主目的。
             深夜オフライン時は隠す。 */}
         {!night && <OnlineStrip flow={flow} online={onlineUsers} />}
 
@@ -1189,63 +1241,6 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           <NightHome flow={flow} />
         ) : (
         <>
-        {/* 今夜のおすすめマッチ: 複数ピタメイトをカードグリッドで表示(全幅を自然に埋める) */}
-        {(() => {
-          const cards: RecommendCardData[] = isBackendConfigured
-            ? recommended.map((h) => ({
-                key: h.userId,
-                userId: h.userId,
-                initial: h.avatarInitial,
-                color: h.avatarColor,
-                name: h.nickname,
-                verified: h.isVerified,
-                chips: h.games.slice(0, 2),
-                price30: coinsPer30(h.hourlyRate),
-                compat: null,
-                meta: mannerScoreLabel(h.mannerScore, h.reviewCount)
-                  ? `${mannerScoreLabel(h.mannerScore, h.reviewCount)}・マナー◎`
-                  : NEW_MEMBER_LABEL,
-                avatarUrl: h.avatarUrl,
-                live: liveIds.has(h.userId),
-                lastSeenAt: h.lastSeenAt,
-                presenceStatus: h.presenceStatus,
-              }))
-            : DEMO_RECOMMENDED
-          if (cards.length === 0) return null
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 15, color: C.ink }}>▶ 今夜のおすすめマッチ</span>
-                <span
-                  onClick={() => flow.go('search')}
-                  {...clickable(() => flow.go('search'), 'もっと見る')}
-                  style={{ cursor: 'pointer', fontSize: 10, color: C.lavender, fontWeight: 700 }}
-                >
-                  もっと見る ›
-                </span>
-              </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
-                  gap: 12,
-                }}
-              >
-                {cards.map((c) => (
-                  <RecommendCard
-                    key={c.key}
-                    data={c}
-                    onOpen={() => openHost(c.userId)}
-                  />
-                ))}
-              </div>
-            </div>
-          )
-        })()}
-
-        {/* ゲーム一覧: タップでそのゲームに絞ってさがすへ(モバイル・デスクトップ共通)。 */}
-        <GameGrid flow={flow} />
-
         {/* 人気のユーザー: 掲載ピタメイトをカードで並べて探せる(モバイル・デスクトップ共通)。 */}
         {(() => {
           const popular: RecommendCardData[] = isBackendConfigured
@@ -1317,6 +1312,10 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             body="登録すると、遊びたい時間を指定して予約できます。本人確認とマナースコアがあるので、はじめてでも安心して申し込めます。"
           />
         )}
+
+        {/* ゲーム一覧: タップでそのゲームに絞ってさがすへ。人より後に置く —
+            推しを探しに来た人には、条件で絞る前にまず人を見せる(モバイル・デスクトップ共通)。 */}
+        <GameGrid flow={flow} />
 
         {/* ランキング(デスクトップのみ。モバイルは上部のランキング導線カードから)。
             今週=スコア上位、新人=完了数の少ない順(はじめたばかりの注目ピタメイト)。 */}
