@@ -61,6 +61,9 @@
      (`create_booking`/`extend_booking`/`cancel_booking`/`auto_complete_bookings`を
      差し替える。**自動確定の起点が開始時刻→終了時刻に変わる**。
      キャンセル没収額に「経過分+3時間分」の上限が入る)
+   - `0050_no_show_auto.sql` … 無断欠席を運営の判断なしに自動処理する
+     (「はじめました」の記録・開始+15分の自動保留・24時間無反応で全額返還。
+     `no_show_host` が初めて実際に使われる)
    - `0049_booking_slot_conflict.sql` … 上限を10時間に確定し、**予約時間帯の重複を防ぐ**
      (E-13。`create_booking`/`approve_booking`/`extend_booking`を差し替える。
      適用するまで同じ時間帯に予約が二重に入る)
