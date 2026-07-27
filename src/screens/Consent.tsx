@@ -56,8 +56,8 @@ export default function Consent({ flow }: { flow: Flow }) {
       <StatusBar time="21:43" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 20px 0' }}>
         <div
-          onClick={() => flow.go('welcome')}
-          {...clickable(() => flow.go('welcome'), 'もどる')}
+          onClick={() => flow.go('home')}
+          {...clickable(() => flow.go('home'), 'もどる')}
           style={{ cursor: 'pointer' }}
         >
           <ChevronLeft />

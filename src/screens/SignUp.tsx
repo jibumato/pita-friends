@@ -109,7 +109,7 @@ export default function SignUp({ flow }: { flow: Flow }) {
     <Screen background={C.surface}>
       <StatusBar time="21:43" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 20px 0' }}>
-        <div onClick={() => flow.go('welcome')} style={{ cursor: 'pointer' }}>
+        <div onClick={() => flow.go('home')} style={{ cursor: 'pointer' }}>
           <ChevronLeft />
         </div>
         <span style={{ fontSize: 11, color: C.muted }}>アカウント作成</span>

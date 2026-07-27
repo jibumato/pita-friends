@@ -1,4 +1,11 @@
-/** デスクトップ専用の上部バー(ロゴ/検索導線/コイン残高/通知/アバター/ハンバーガーメニュー)。welcome以外の全画面で共通表示。 */
+/**
+ * デスクトップ専用の上部バー(ロゴ/検索導線/コイン残高/通知/アバター/メニュー)。
+ * 全画面で共通表示。
+ *
+ * 未ログインの訪問者にも出る(紹介用LPを廃止し、ホームに直接着地させるため)。
+ * その場合はコイン・通知・マイページの代わりに**ログインと新規登録**を出す。
+ * ここが唯一の登録導線になるので、消さないこと。
+ */
 import { useEffect, useRef, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
@@ -9,6 +16,8 @@ import { fetchUnreadNotificationCount } from '../lib/queries'
 import DesktopRightRail from './DesktopRightRail'
 
 export default function DesktopTopBar({ flow }: { flow: Flow }) {
+  // デモモード(バックエンド未設定)はローカル確認用なのでログイン済み扱い。
+  const signedIn = !isBackendConfigured || flow.userId !== null
   const [unreadNotifs, setUnreadNotifs] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -28,7 +37,8 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
   }, [flow.screen])
 
   useEffect(() => {
-    if (!isBackendConfigured) return
+    // 未ログインでは通知が存在しない。5秒ごとに失敗し続けるのを避ける。
+    if (!isBackendConfigured || flow.userId === null) return
     let active = true
     const refresh = () =>
       fetchUnreadNotificationCount()
@@ -40,7 +50,7 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
       active = false
       clearInterval(timer)
     }
-  }, [])
+  }, [flow.userId])
 
   return (
     <div
@@ -101,6 +111,7 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
         )}
       </div>
       <div style={{ flex: 1 }} />
+      {signedIn && (
       <div
         onClick={() => flow.go('wallet')}
         {...clickable(() => flow.go('wallet'), `コイン残高 ${flow.coinBalance}`)}
@@ -120,6 +131,7 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
           {flow.coinBalance.toLocaleString()}
         </span>
       </div>
+      )}
       <div ref={menuRef} style={{ position: 'relative', flex: 'none' }}>
         <div
           onClick={() => setMenuOpen((o) => !o)}
@@ -158,6 +170,8 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
           </div>
         )}
       </div>
+      {signedIn ? (
+      <>
       <div
         onClick={() => flow.go('notifications')}
         {...clickable(
@@ -224,6 +238,46 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
       >
         {flow.nickname.charAt(0) || '?'}
       </div>
+      </>
+      ) : (
+        <>
+          <button
+            onClick={flow.openLogin}
+            style={{
+              cursor: 'pointer',
+              flex: 'none',
+              background: C.white,
+              color: C.ink,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 20,
+              padding: '8px 16px',
+              fontSize: 12.5,
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ログイン
+          </button>
+          <button
+            onClick={() => flow.go('signUp')}
+            style={{
+              cursor: 'pointer',
+              flex: 'none',
+              background: C.lime,
+              color: C.ink,
+              border: `1.5px solid ${C.border}`,
+              boxShadow: `2px 2px 0 ${C.border}`,
+              borderRadius: 20,
+              padding: '8px 16px',
+              fontSize: 12.5,
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            新規登録
+          </button>
+        </>
+      )}
     </div>
   )
 }
