@@ -22,10 +22,9 @@
    ※この2つは公開されても安全な値です(service_roleキーは**絶対に**入れない)
 3. ✅ **独自ドメインの取得・接続**: `https://pitafure.com`(2026-07-26)
    - 特商法表記の販売URL・index.html の OGP も差し替え済み
-4. ☐ **`www.pitafure.com` の扱いを決める**
-   - 現在 `www` は名前解決しない。`www` 付きで来た利用者がエラーになる
-   - Cloudflare で `www` の CNAME を追加し、リダイレクトルールで
-     apex(`pitafure.com`)へ 301 させるのが一般的
+4. ✅ **`www.pitafure.com` の扱いを決める**(2026-07-27)
+   - `www` のプロキシ済みDNSレコードを追加し、リダイレクトルール(テンプレート
+     「WWWからルートにリダイレクト」)で apex(`pitafure.com`)へ301。動作確認済み
 5. ✅ スマホ実機で「ホーム画面に追加」(PWA)が動くか確認(2026-07-27)
    - iPhone実機でオフライン起動時に「Response served by service worker has
      redirections」で失敗する不具合を発見・修正済み(`public/sw.js`、cache v6)
