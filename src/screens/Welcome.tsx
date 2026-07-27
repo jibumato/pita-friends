@@ -6,6 +6,7 @@ import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import InlineLogin from '../components/InlineLogin'
 import PreRegisterForm from '../components/PreRegisterForm'
+import { HIDE_SIGNUP } from '../launchPhase'
 
 export default function Welcome({ flow }: { flow: Flow }) {
   const start = usePress(`3px 3px 0 ${C.lavender}`)
@@ -40,20 +41,23 @@ export default function Welcome({ flow }: { flow: Flow }) {
         >
           ログイン
         </span>
-        <span
-          onClick={() => flow.go(isBackendConfigured ? 'signUp' : 'consent')}
-          style={{
-            cursor: 'pointer',
-            fontSize: 12,
-            color: C.ink,
-            background: C.lime,
-            border: `1.5px solid ${C.border}`,
-            borderRadius: 8,
-            padding: '8px 13px',
-          }}
-        >
-          新規登録
-        </span>
+        {/* 公開前は事前登録に一本化する(下のボタンがその役目を負う) */}
+        {!HIDE_SIGNUP && (
+          <span
+            onClick={() => flow.go(isBackendConfigured ? 'signUp' : 'consent')}
+            style={{
+              cursor: 'pointer',
+              fontSize: 12,
+              color: C.ink,
+              background: C.lime,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 8,
+              padding: '8px 13px',
+            }}
+          >
+            新規登録
+          </span>
+        )}
       </div>
 
       {loginOpen ? (
@@ -106,6 +110,21 @@ export default function Welcome({ flow }: { flow: Flow }) {
                 animation: 'floaty 3s ease-in-out infinite',
               }}
             />
+            {/* 公開前に「今夜すぐつながる」だけを出すと、まだ使えないことが伝わらない */}
+            {HIDE_SIGNUP && (
+              <span
+                style={{
+                  fontSize: 11,
+                  color: C.ink,
+                  background: C.lime,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 999,
+                  padding: '5px 13px',
+                }}
+              >
+                近日公開 🔜
+              </span>
+            )}
             <span style={{ fontSize: 12.5, color: C.muted, textAlign: 'center', lineHeight: 1.7 }}>
               ぴったりのゲーム仲間と、
               <br />
@@ -166,7 +185,9 @@ export default function Welcome({ flow }: { flow: Flow }) {
           >
             <div
               className="pita-press"
-              onClick={() => flow.go(isBackendConfigured ? 'signUp' : 'consent')}
+              onClick={() =>
+                HIDE_SIGNUP ? setPreRegOpen(true) : flow.go(isBackendConfigured ? 'signUp' : 'consent')
+              }
               {...start.handlers}
               style={{
                 cursor: 'pointer',
@@ -175,24 +196,26 @@ export default function Welcome({ flow }: { flow: Flow }) {
                 borderRadius: 8,
                 padding: '16px 0',
                 textAlign: 'center',
-                fontSize: 16,
+                fontSize: HIDE_SIGNUP ? 14.5 : 16,
                 ...start.style,
               }}
             >
-              ▶ PRESS START
+              {HIDE_SIGNUP ? '公開のお知らせを受け取る ▶' : '▶ PRESS START'}
             </div>
-            <span
-              onClick={() => setPreRegOpen(true)}
-              style={{
-                cursor: 'pointer',
-                textAlign: 'center',
-                fontSize: 11.5,
-                color: C.lavenderText,
-                textDecoration: 'underline',
-              }}
-            >
-              公開のお知らせを受け取る
-            </span>
+            {!HIDE_SIGNUP && (
+              <span
+                onClick={() => setPreRegOpen(true)}
+                style={{
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  fontSize: 11.5,
+                  color: C.lavenderText,
+                  textDecoration: 'underline',
+                }}
+              >
+                公開のお知らせを受け取る
+              </span>
+            )}
           </div>
         </>
       )}
