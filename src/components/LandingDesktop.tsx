@@ -10,6 +10,7 @@ import { color as C } from '../theme/tokens'
 import { isBackendConfigured } from '../lib/supabase'
 import InlineLogin from './InlineLogin'
 import PreRegisterForm from './PreRegisterForm'
+import { HIDE_SIGNUP, PRE_REGISTER_ANCHOR, scrollToPreRegister } from '../launchPhase'
 
 const PC_GAMES = ['Apex Legends', 'VALORANT', 'Overwatch 2', 'League of Legends', 'Fortnite', 'Marvel Rivals', 'Minecraft', 'モンハン']
 
@@ -88,7 +89,11 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
           <button className="lp-cta" onClick={() => (isBackendConfigured ? flow.openLogin() : flow.go('home'))} style={ctaGhostSm}>
             ログイン
           </button>
-          <button className="lp-cta" onClick={start} style={ctaPrimary}>▶ はじめる</button>
+          {HIDE_SIGNUP ? (
+            <button className="lp-cta" onClick={scrollToPreRegister} style={ctaPrimary}>お知らせを受け取る</button>
+          ) : (
+            <button className="lp-cta" onClick={start} style={ctaPrimary}>▶ はじめる</button>
+          )}
         </div>
       </header>
 
@@ -110,10 +115,13 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
                 PCゲーム中心。ランクを回したい、まったり遊びたい、深夜の“あと一人”がほしい——
                 そんな時間を、<b style={{ color: C.ink }}>安心して</b>見つけられるゲーム仲間マッチングです。
               </p>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <button className="lp-cta" onClick={start} style={{ ...ctaPrimary, padding: '14px 26px', fontSize: 15 }}>▶ はじめる（無料）</button>
-                <button className="lp-cta" onClick={() => (isBackendConfigured ? flow.openLogin() : flow.go('home'))} style={ctaGhost}>ログイン</button>
-              </div>
+              {/* 公開前は事前登録に一本化する(下のカードがCTAを兼ねる) */}
+              {!HIDE_SIGNUP && (
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <button className="lp-cta" onClick={start} style={{ ...ctaPrimary, padding: '14px 26px', fontSize: 15 }}>▶ はじめる（無料）</button>
+                  <button className="lp-cta" onClick={() => (isBackendConfigured ? flow.openLogin() : flow.go('home'))} style={ctaGhost}>ログイン</button>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {['🛡 承認制', '通報・ブロック', '本人確認', 'みまもり'].map((t) => <span key={t} style={chip}>{t}</span>)}
               </div>
@@ -231,12 +239,18 @@ export default function LandingDesktop({ flow }: { flow: Flow }) {
               マナーよく楽しめる人を歓迎します。
             </p>
           </div>
-          <button className="lp-cta" onClick={start} style={{ ...ctaPrimary, padding: '15px 28px', fontSize: 15 }}>ピタメイトとして始める ▶</button>
+          {HIDE_SIGNUP ? (
+            <button className="lp-cta" onClick={scrollToPreRegister} style={{ ...ctaPrimary, padding: '15px 28px', fontSize: 15 }}>
+              公開のお知らせを受け取る ▶
+            </button>
+          ) : (
+            <button className="lp-cta" onClick={start} style={{ ...ctaPrimary, padding: '15px 28px', fontSize: 15 }}>ピタメイトとして始める ▶</button>
+          )}
         </div>
       </section>
 
       {/* ===== 事前登録(最後まで読んだ人の受け皿) ===== */}
-      <section style={{ ...sectionWrap, background: C.surface }}>
+      <section id={PRE_REGISTER_ANCHOR} style={{ ...sectionWrap, background: C.surface }}>
         <div
           style={{
             maxWidth: 620,
