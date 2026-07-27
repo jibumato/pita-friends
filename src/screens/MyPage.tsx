@@ -16,15 +16,18 @@ import { presenceStatusLabel, presenceStatusDot } from '../lib/presenceLabel'
 import type { PresenceStatus } from '../lib/database.types'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { TYPES } from '../content/personality'
+import SignedOutPrompt from '../components/SignedOutPrompt'
 
 export default function MyPage({ flow }: { flow: Flow }) {
   const mobile = useIsMobile()
+  // デモモード(バックエンド未設定)はローカル確認用なのでログイン済み扱い。
+  const signedIn = !isBackendConfigured || flow.userId !== null
   const personalityType = flow.personalityResult ? TYPES[flow.personalityResult.typeId] : null
   const [friendCount, setFriendCount] = useState<number | null>(null)
   const [pendingCount, setPendingCount] = useState<number | null>(null)
 
   useEffect(() => {
-    if (!isBackendConfigured) return
+    if (!isBackendConfigured || flow.userId === null) return
     let active = true
     fetchFriendCount()
       .then((n) => active && setFriendCount(n))
@@ -48,6 +51,36 @@ export default function MyPage({ flow }: { flow: Flow }) {
     { v: String(flow.confirmedCount), l: 'プレイ回数', fg: C.ink },
     { v: isBackendConfigured ? (friendCount === null ? '…' : String(friendCount)) : '12', l: 'フレンド', fg: C.ink },
   ]
+  if (!signedIn) {
+    // ここを出さないと、Appの初期値(あおい/本人確認済み/残高500コイン)が
+    // そのまま表示され、**未ログインの人が誰かのアカウントに入っているように
+    // 見える**。存在しない残高まで出るので、コインを扱う以上ここは必ず塞ぐ。
+    return (
+      <Screen background={C.surface}>
+        <StatusBar time="21:47" />
+        <div
+          className="pita-scroll"
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '12px 20px 0',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+          }}
+        >
+          <span style={{ fontSize: 21, color: C.ink }}>▶ マイページ</span>
+          <SignedOutPrompt
+            flow={flow}
+            title="ログインすると、ここがあなたのページになります"
+            body="お気に入りのピタメイトを予約したり、コインを管理したり、遊んだ記録を残せます。登録は無料です。"
+          />
+        </div>
+        <BottomTabs current={flow.screen} onNavigate={flow.go} />
+      </Screen>
+    )
+  }
+
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:47" />
