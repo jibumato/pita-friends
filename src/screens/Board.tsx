@@ -8,6 +8,7 @@ import { Plus, PlusCircle } from '../components/Icon'
 import { EmptyState } from '../components/States'
 import { boardPosts } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
+import SignedOutPrompt from '../components/SignedOutPrompt'
 import { fetchBoardPosts, joinBoardPost, cancelBoardPost, type BoardPostItem } from '../lib/queries'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { clickable } from '../hooks/clickable'
@@ -256,12 +257,13 @@ function RealPostCard({
 
 export default function Board({ flow }: { flow: Flow }) {
   const mobile = useIsMobile()
+  const signedIn = !isBackendConfigured || flow.userId !== null
   const [filter, setFilter] = useState('すべて')
   const [realPosts, setRealPosts] = useState<BoardPostItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!isBackendConfigured) return
+    if (!isBackendConfigured || flow.userId === null) return
     let active = true
     fetchBoardPosts()
       .then((data) => active && setRealPosts(data))
@@ -294,6 +296,25 @@ export default function Board({ flow }: { flow: Flow }) {
   const demoEmpty = filter === 'まったり'
 
   const empty = isBackendConfigured ? realPosts !== null && filteredReal.length === 0 : demoEmpty
+
+  if (!signedIn) {
+    // 募集の閲覧も参加もログインが要る(0011のRLSは to authenticated)。
+    // 取得失敗のエラー文をそのまま出すのではなく、何をすればよいかを示す。
+    return (
+      <Screen background={C.surface}>
+        <StatusBar time="21:47" />
+        <div style={{ padding: '12px 20px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <span style={{ fontSize: 21, color: C.ink }}>▶ 募集板</span>
+          <SignedOutPrompt
+            flow={flow}
+            title="募集の閲覧・参加にはログインが必要です"
+            body="「今夜Apexを一緒に」のような募集を出したり、参加したりできます。安心のため、参加できるのは本人確認を済ませた方に限っています。"
+          />
+        </div>
+        <BottomTabs current={flow.screen} onNavigate={flow.go} />
+      </Screen>
+    )
+  }
 
   return (
     <Screen background={C.surface}>

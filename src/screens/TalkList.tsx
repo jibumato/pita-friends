@@ -9,6 +9,7 @@ import { Chat } from '../components/Icon'
 import { EmptyState } from '../components/States'
 import { talkThreads } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
+import SignedOutPrompt from '../components/SignedOutPrompt'
 import { fetchChatThreads, type ChatThread } from '../lib/queries'
 
 function timeLabel(iso: string | null): string {
@@ -24,13 +25,14 @@ function timeLabel(iso: string | null): string {
 }
 
 export default function TalkList({ flow }: { flow: Flow }) {
+  const signedIn = !isBackendConfigured || flow.userId !== null
   // デモ: トークが無い状態(状態網羅 B1)も確認できるように
   const [cleared, setCleared] = useState(false)
   const [realThreads, setRealThreads] = useState<ChatThread[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!isBackendConfigured) return
+    if (!isBackendConfigured || flow.userId === null) return
     let active = true
     fetchChatThreads()
       .then((data) => active && setRealThreads(data))
@@ -41,6 +43,23 @@ export default function TalkList({ flow }: { flow: Flow }) {
   }, [])
 
   const threads = isBackendConfigured ? (realThreads ?? []) : cleared ? [] : talkThreads
+
+  if (!signedIn) {
+    return (
+      <Screen background={C.surface}>
+        <StatusBar time="21:47" />
+        <div style={{ padding: '12px 20px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <span style={{ fontSize: 21, color: C.ink }}>▶ トーク</span>
+          <SignedOutPrompt
+            flow={flow}
+            title="トークはログインしてから使えます"
+            body="予約が成立した相手とだけトークルームができます。待ち合わせの相談はここで行います。"
+          />
+        </div>
+        <BottomTabs current={flow.screen} onNavigate={flow.go} />
+      </Screen>
+    )
+  }
 
   return (
     <Screen background={C.surface}>

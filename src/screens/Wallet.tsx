@@ -10,6 +10,7 @@ import { safetyFeeYen, SAFETY_FEE_RATE } from '../content/pricing'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
+import SignedOutPrompt from '../components/SignedOutPrompt'
 import {
   createCheckoutSession,
   fetchCoinPacks,
@@ -254,6 +255,8 @@ function EarningsSection() {
 }
 
 export default function Wallet({ flow }: { flow: Flow }) {
+  // デモモード(バックエンド未設定)はローカル確認用なのでログイン済み扱い。
+  const signedIn = !isBackendConfigured || flow.userId !== null
   const [justBought, setJustBought] = useState<number | null>(null)
   // バックエンド接続時はサーバーのパック定義を使う。未取得のうちはコード側の定義で表示。
   const [packs, setPacks] = useState<CoinPack[]>(COIN_PACKS)
@@ -262,7 +265,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
   const [soonestExpiry, setSoonestExpiry] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!isBackendConfigured) return
+    if (!isBackendConfigured || flow.userId === null) return
     let active = true
     fetchCoinPacks()
       .then((data) => {
@@ -298,6 +301,24 @@ export default function Wallet({ flow }: { flow: Flow }) {
       setError(e instanceof Error ? e.message : '決済ページの準備に失敗しました')
       setRedirecting(false)
     }
+  }
+
+  if (!signedIn) {
+    // 未ログインでは flow.coinBalance が Appの初期値(500)のままなので、
+    // **存在しない残高**が表示されてしまう。マイページと同じ理由でここを塞ぐ。
+    return (
+      <Screen background={C.surface}>
+        <StatusBar time="21:47" />
+        <SubHeader title="コインウォレット" onBack={() => flow.go('home')} />
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 20px 24px' }}>
+          <SignedOutPrompt
+            flow={flow}
+            title="コインはログインしてから購入できます"
+            body="コインはピタメイトの時間を予約するのに使います。購入・残高の確認にはアカウントが必要です。"
+          />
+        </div>
+      </Screen>
+    )
   }
 
   return (

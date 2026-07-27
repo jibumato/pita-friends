@@ -8,7 +8,7 @@ import { Search as SearchIcon } from '../components/Icon'
 import { EmptyState, ErrorState, SkeletonCard } from '../components/States'
 import { searchUsers } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
-import { fetchDiscoverableHosts } from '../lib/queries'
+import { fetchDiscoverableHosts, fetchPublicHostCards } from '../lib/queries'
 import { subscribeOnlineUsers } from '../lib/presence'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { clickable } from '../hooks/clickable'
@@ -81,7 +81,11 @@ export default function Search({ flow }: { flow: Flow }) {
     }
     let active = true
     setPhase('loading')
-    fetchDiscoverableHosts(flow.userId)
+    // 未ログインの訪問者にも掲載中のピタメイトを見せる(0052の公開の口)。
+    // ここが空だと「さがす」が機能せず、見つけてから登録する導線が成立しない。
+    const load =
+      flow.userId === null ? fetchPublicHostCards(60) : fetchDiscoverableHosts(flow.userId)
+    load
       .then((hosts) => {
         if (!active) return
         const cards = hosts.map<DisplayCard>((h) => ({

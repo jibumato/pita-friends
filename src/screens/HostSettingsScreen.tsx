@@ -19,6 +19,7 @@ import GameThumb from '../components/GameThumb'
 import AvailabilityEditor from '../components/AvailabilityEditor'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
+import SignedOutPrompt from '../components/SignedOutPrompt'
 import { fetchBankAccount, saveBankAccount, normalizeKanaName, type BankAccount } from '../lib/queries'
 
 const EMPTY_ACCOUNT: BankAccount = {
@@ -250,6 +251,25 @@ function BankAccountSection() {
 export default function HostSettingsScreen({ flow }: { flow: Flow }) {
   const h = flow.hostSettings
   const save = usePress(`3px 3px 0 ${C.lavender}`)
+  const signedIn = !isBackendConfigured || flow.userId !== null
+
+  if (!signedIn) {
+    // 未ログインで開くと、既定値(400コイン/時・Apex)の設定フォームが出て
+    // 保存だけができない状態になる。先に登録してもらう。
+    return (
+      <Screen background={C.surface}>
+        <StatusBar time="21:47" />
+        <SubHeader title="ピタメイト設定" onBack={() => flow.go('home')} />
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 20px 24px' }}>
+          <SignedOutPrompt
+            flow={flow}
+            title="ピタメイトになるには登録が必要です"
+            body="遊ぶ時間を30分単位で提供して、報酬コインを受け取れます。まずアカウントを作り、本人確認を済ませてください。"
+          />
+        </div>
+      </Screen>
+    )
+  }
 
   return (
     <Screen background={C.surface}>
