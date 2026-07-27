@@ -17,6 +17,18 @@ import { requireSupabase } from './supabase'
  */
 export const PASSWORD_MIN_LENGTH = 8
 
+/**
+ * パスワードの最大バイト数。Supabase Auth は bcrypt を使っており、
+ * 72バイトを超える部分は無視される(実質的な上限)。**文字数ではなくバイト数**
+ * であることに注意 — 日本語のような3バイト文字は約24文字で上限に達する。
+ */
+export const PASSWORD_MAX_BYTES = 72
+
+/** UTF-8でのバイト数を数える。日本語などのマルチバイト文字を正しく数えるため。 */
+export function byteLength(s: string): number {
+  return new TextEncoder().encode(s).length
+}
+
 export type SignUpResult = {
   user: User
   /** プロジェクト設定でメール確認が必須な場合、サインアップ直後はnull(未ログイン状態)。 */
@@ -125,6 +137,9 @@ export function authErrorMessage(e: unknown): string {
   }
   if (/Password should be at least/i.test(raw)) {
     return 'パスワードは6文字以上で設定してください。'
+  }
+  if (/Password.*(too long|at most|should be at most|exceed)/i.test(raw)) {
+    return 'パスワードが長すぎます。短くしてください。'
   }
   if (/For security purposes|rate limit|too many requests/i.test(raw)) {
     return '短い間隔で繰り返し送信されています。しばらく待ってから再度お試しください。'

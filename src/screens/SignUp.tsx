@@ -5,7 +5,7 @@ import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { ChevronLeft } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
-import { signUpWithEmail, authErrorMessage, PASSWORD_MIN_LENGTH } from '../lib/auth'
+import { signUpWithEmail, authErrorMessage, byteLength, PASSWORD_MAX_BYTES, PASSWORD_MIN_LENGTH } from '../lib/auth'
 
 const inputStyle = {
   background: C.white,
@@ -33,10 +33,12 @@ export default function SignUp({ flow }: { flow: Flow }) {
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
 
   const tooShort = password.length > 0 && password.length < PASSWORD_MIN_LENGTH
+  const tooLong = byteLength(password) > PASSWORD_MAX_BYTES
   const mismatch = confirm.length > 0 && password !== confirm
   const canSubmit =
     /.+@.+\..+/.test(email) &&
     password.length >= PASSWORD_MIN_LENGTH &&
+    !tooLong &&
     password === confirm &&
     !loading
 
@@ -163,6 +165,11 @@ export default function SignUp({ flow }: { flow: Flow }) {
             {tooShort && (
               <span style={{ fontSize: 10.5, color: C.avatarOrange }}>
                 あと{PASSWORD_MIN_LENGTH - password.length}文字必要です
+              </span>
+            )}
+            {tooLong && (
+              <span style={{ fontSize: 10.5, color: C.avatarOrange }}>
+                パスワードが長すぎます。短くしてください。
               </span>
             )}
           </div>
