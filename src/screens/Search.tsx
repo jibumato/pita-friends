@@ -8,7 +8,8 @@ import { Search as SearchIcon } from '../components/Icon'
 import { EmptyState, ErrorState, SkeletonCard } from '../components/States'
 import { searchUsers } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
-import { fetchDiscoverableHosts, fetchPublicHostCards } from '../lib/queries'
+import SignedOutPrompt from '../components/SignedOutPrompt'
+import { fetchDiscoverableHosts } from '../lib/queries'
 import { subscribeOnlineUsers } from '../lib/presence'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { clickable } from '../hooks/clickable'
@@ -56,6 +57,7 @@ function fromMock(u: (typeof searchUsers)[number]): DisplayCard {
 
 export default function Search({ flow }: { flow: Flow }) {
   const mobile = useIsMobile()
+  const signedIn = !isBackendConfigured || flow.userId !== null
   const [phase, setPhase] = useState<Phase>('loading')
   // 検索語・絞り込みチップはFlow(App)側の共通状態。デスクトップではトップバー/サイドバーからも操作する。
   const selected = flow.searchFilters
@@ -74,6 +76,9 @@ export default function Search({ flow }: { flow: Flow }) {
   // 初回マウント: バックエンド接続時は実際のピタメイト一覧を取得、
   // 未接続(デモモード)時はこれまでどおり一定時間後にモック結果を表示する。
   useEffect(() => {
+    // 未ログインでは取得しない。認証が要るクエリを投げても失敗し、
+    // 「接続できませんでした(NET-503)」の画面になるだけ。
+    if (isBackendConfigured && flow.userId === null) return
     if (!isBackendConfigured) {
       if (phase !== 'loading') return
       const t = setTimeout(() => setPhase('results'), 850)
@@ -81,11 +86,7 @@ export default function Search({ flow }: { flow: Flow }) {
     }
     let active = true
     setPhase('loading')
-    // 未ログインの訪問者にも掲載中のピタメイトを見せる(0052の公開の口)。
-    // ここが空だと「さがす」が機能せず、見つけてから登録する導線が成立しない。
-    const load =
-      flow.userId === null ? fetchPublicHostCards(60) : fetchDiscoverableHosts(flow.userId)
-    load
+    fetchDiscoverableHosts(flow.userId)
       .then((hosts) => {
         if (!active) return
         const cards = hosts.map<DisplayCard>((h) => ({
@@ -141,6 +142,25 @@ export default function Search({ flow }: { flow: Flow }) {
         return true
       })
     : allCards
+
+  if (!signedIn) {
+    // ピタメイトの検索はログインしてから。未ログインで叩くと認証エラーになり、
+    // 「接続できませんでした」の画面が出てしまう(通信の問題だと誤解させる)。
+    return (
+      <Screen background={C.surface}>
+        <StatusBar time="21:47" />
+        <div style={{ padding: '12px 20px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <span style={{ fontSize: 21, color: C.ink }}>▶ さがす</span>
+          <SignedOutPrompt
+            flow={flow}
+            title="ピタメイトをさがすには登録が必要です"
+            body="ゲーム・時間帯・プレイスタイルで絞り込んで、ぴったりの相手を探せます。登録は無料で、すぐに使えます。"
+          />
+        </div>
+        <BottomTabs current={flow.screen} onNavigate={flow.go} />
+      </Screen>
+    )
+  }
 
   return (
     <Screen background={C.surface}>
