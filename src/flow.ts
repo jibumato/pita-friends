@@ -171,6 +171,8 @@ export type HostSettings = {
   bio: string
   /** 初回お試し割引の割引率(%)。0でキャンペーンなし。 */
   trialDiscountPercent: number
+  /** 常連への先行予約(0057)。開始までこの時間数より先の枠は常連だけが取れる。0で無効。 */
+  regularsFirstHours: number
 }
 
 export const defaultHostSettings: HostSettings = {
@@ -179,7 +181,15 @@ export const defaultHostSettings: HostSettings = {
   games: ['Apex'],
   bio: '',
   trialDiscountPercent: 0,
+  regularsFirstHours: 0,
 }
+
+/**
+ * 常連への先行予約で選べる時間数(0057)。
+ * 上限72時間はサーバ側の制約と揃えること。これ以上長くすると、常連がいない
+ * ピタメイトの枠がほとんど誰にも見えず、新規が入る余地が無くなる。
+ */
+export const REGULARS_FIRST_CHOICES = [0, 24, 48, 72] as const
 
 /** 初回お試し割引で設定できる割引率(%)。100%(無料)は認めない。 */
 export const TRIAL_DISCOUNT_MAX = 90

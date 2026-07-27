@@ -308,6 +308,7 @@ const HOST_SETTING_COLUMN: Record<keyof HostSettings, string> = {
   games: 'games',
   bio: 'bio',
   trialDiscountPercent: 'trial_discount_percent',
+  regularsFirstHours: 'regulars_first_hours',
 }
 
 export default function App() {
@@ -345,6 +346,7 @@ export default function App() {
           games: bundle.hostSettings.games,
           bio: bundle.hostSettings.bio,
           trialDiscountPercent: bundle.hostSettings.trial_discount_percent ?? 0,
+          regularsFirstHours: bundle.hostSettings.regulars_first_hours ?? 0,
         },
         coinBalance: bundle.wallet.balance,
         mannerScore: bundle.trustStats.manner_score,
@@ -582,6 +584,12 @@ export default function App() {
           setState((p) => ({
             ...p,
             bookingError: 'そのピタメイトは、その時間帯は募集していません。プロフィールの「あそべる時間」を確認してください。',
+          }))
+        } else if (message.includes('REGULARS_FIRST')) {
+          setState((p) => ({
+            ...p,
+            bookingError:
+              'その枠は、いまは常連の人だけが予約できます。開始が近づくと誰でも予約できるようになるので、時間をおいてもう一度お試しください。',
           }))
         } else if (message.includes('HOST_SLOT_TAKEN')) {
           setState((p) => ({

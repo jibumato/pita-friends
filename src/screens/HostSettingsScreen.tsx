@@ -14,6 +14,7 @@ import {
   durationLabel,
   discountedCoins,
   TRIAL_DISCOUNT_MAX,
+  REGULARS_FIRST_CHOICES,
 } from '../flow'
 import GameThumb from '../components/GameThumb'
 import AvailabilityEditor from '../components/AvailabilityEditor'
@@ -489,6 +490,60 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
             （デモ表示のため、募集枠の保存はできません）
           </span>
         )}
+
+        {/* 常連への先行予約(0057)。値引きではないので取り分は減らない。
+            減るのは「常連に取られる前に他人に取られる」取りこぼしだけ。 */}
+        <span style={{ fontSize: 12, color: C.muted }}>常連への先行予約（任意）</span>
+        <div
+          style={{
+            background: C.white,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 8,
+            padding: '13px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 11,
+          }}
+        >
+          <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.7 }}>
+            先の枠を、<b style={{ color: C.ink }}>一緒に遊んだことのある人</b>だけが予約できる状態にします。
+            開始が近づくと誰でも予約できるようになるので、枠が埋まらないまま流れることはありません。
+          </span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {REGULARS_FIRST_CHOICES.map((v) => (
+              <span
+                key={v}
+                onClick={() => flow.setHostPref('regularsFirstHours', v)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') flow.setHostPref('regularsFirstHours', v)
+                }}
+                style={{
+                  cursor: 'pointer',
+                  flex: 1,
+                  textAlign: 'center',
+                  fontSize: 11.5,
+                  padding: '9px 0',
+                  borderRadius: 6,
+                  border: `1.5px solid ${C.border}`,
+                  color: h.regularsFirstHours === v ? C.lime : C.ink,
+                  background: h.regularsFirstHours === v ? C.fill : C.white,
+                }}
+              >
+                {v === 0 ? 'なし' : `${v}時間`}
+              </span>
+            ))}
+          </div>
+          {h.regularsFirstHours > 0 && (
+            <span style={{ fontSize: 10.5, color: C.body, lineHeight: 1.7 }}>
+              開始まで<b>{h.regularsFirstHours}時間</b>より先の枠は常連のみ。
+              たとえば金曜22時の枠は、
+              {h.regularsFirstHours === 24 ? '木曜22時' : h.regularsFirstHours === 48 ? '水曜22時' : '火曜22時'}
+              から誰でも予約できます。
+            </span>
+          )}
+        </div>
 
         {isBackendConfigured && <BankAccountSection />}
 

@@ -287,6 +287,8 @@ export type Database = {
           bio: string
           trial_discount_percent: number
           updated_at: string
+          /** 0057: 常連への先行予約。開始までこの時間数より先の枠は常連だけが取れる。0で無効。 */
+          regulars_first_hours: number
           /** 0056: ピタメイトの「ひとこと」(近況)。60字まで。 */
           status_text: string | null
           status_updated_at: string | null
@@ -295,7 +297,12 @@ export type Database = {
         Update: Partial<
           Pick<
             Database['public']['Tables']['host_settings']['Row'],
-            'is_host' | 'hourly_rate' | 'games' | 'bio' | 'trial_discount_percent'
+            | 'is_host'
+            | 'hourly_rate'
+            | 'games'
+            | 'bio'
+            | 'trial_discount_percent'
+            | 'regulars_first_hours'
           >
         >
         Relationships: []

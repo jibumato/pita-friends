@@ -9,11 +9,14 @@ import { clickable } from '../hooks/clickable'
  * 1画面に収まらず「一望できる」という目的が達成できません。
  * 横は7日ぶんで、狭い画面では横スクロールします。
  */
-export type SlotState = 'past' | 'closed' | 'booked' | 'open'
+export type SlotState = 'past' | 'closed' | 'booked' | 'regulars' | 'open'
 
 /** 表示に使う色と説明。閲覧側と編集側で同じ語彙を使う。 */
 const LOOK: Record<SlotState, { bg: string; label: string }> = {
   open: { bg: C.lime, label: '募集中' },
+  // 「募集なし」と同じ見た目にしないこと。常連になれば取れることが伝わらないと、
+  // ただ枠が少ないピタメイトに見えてしまう(0057)。
+  regulars: { bg: C.lavender, label: '常連のみ' },
   booked: { bg: C.avatarPink, label: '予約済み' },
   closed: { bg: C.surface, label: '募集なし' },
   past: { bg: '#EFEFF4', label: '過去' },
@@ -25,7 +28,7 @@ function hourRange(states: Map<string, SlotState>, days: Date[]): number[] {
   for (const d of days) {
     for (let h = 0; h < 24; h++) {
       const s = states.get(key(d, h))
-      if (s === 'open' || s === 'booked') used.add(h)
+      if (s === 'open' || s === 'booked' || s === 'regulars') used.add(h)
     }
   }
   // 何も設定されていないときは、生活時間帯(10〜26時)を目安に出す
@@ -160,7 +163,7 @@ export default function ScheduleGrid({ days, states, onToggle, legend = true }: 
 
       {legend && (
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {(['open', 'booked', 'closed'] as SlotState[]).map((s) => (
+          {(['open', 'regulars', 'booked', 'closed'] as SlotState[]).map((s) => (
             <span key={s} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.muted }}>
               <span
                 style={{
