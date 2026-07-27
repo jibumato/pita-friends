@@ -1,13 +1,42 @@
+import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen, { DotPattern } from '../components/Screen'
 import Confetti from '../components/Confetti'
 import PitaButton from '../components/PitaButton'
 import { ArrowRight } from '../components/Icon'
+import SupportSheet from '../components/SupportSheet'
+import { isBackendConfigured } from '../lib/supabase'
+import { fetchThreadPartner } from '../lib/queries'
 
 export default function Result({ flow }: { flow: Flow }) {
   // ★4.90 を起点に、選択星数で微増(最大5.00)
   const newScore = Math.min(5, 4.9 + (flow.reviewStars - 5) * 0.02 + 0.02).toFixed(2)
+
+  // 応援(ありがとうチップ)。評価を送り終えた直後、気持ちが高いこの場面で一度だけ出す。
+  // **閉じたら二度と出さない。** 毎回せがむ形にすると、金銭を促す圧に見える。
+  const promiseId = isBackendConfigured ? flow.activeThreadId : null
+  const [partnerName, setPartnerName] = useState<string | null>(null)
+  const [supportOpen, setSupportOpen] = useState(false)
+  const [supported, setSupported] = useState<number | null>(null)
+  const [dismissed, setDismissed] = useState(false)
+
+  useEffect(() => {
+    if (!promiseId) return
+    let active = true
+    fetchThreadPartner(promiseId)
+      .then((p) => {
+        if (!active || !p) return
+        setPartnerName(p.name)
+        setSupportOpen(true)
+      })
+      .catch(() => {
+        /* 相手が取れなければ応援は出さない。RESULT自体は表示する */
+      })
+    return () => {
+      active = false
+    }
+  }, [promiseId])
   return (
     <Screen background={C.fill} style={{ animation: 'scrIn .3s ease both' }}>
       <DotPattern />
@@ -98,6 +127,20 @@ export default function Result({ flow }: { flow: Flow }) {
           padding: '0 24px 40px',
         }}
       >
+        {supported !== null && (
+          <span style={{ fontSize: 12, color: C.lime, textAlign: 'center' }}>
+            ✓ {supported.toLocaleString()}コインを贈りました
+          </span>
+        )}
+        {/* 一度閉じた人にも、押したくなったときの入口だけは残す */}
+        {promiseId && partnerName && supported === null && dismissed && (
+          <span
+            onClick={() => setSupportOpen(true)}
+            style={{ cursor: 'pointer', textAlign: 'center', fontSize: 12, color: C.lavenderText, textDecoration: 'underline' }}
+          >
+            {partnerName}さんを応援する
+          </span>
+        )}
         <PitaButton label="ホームにもどる ▶" variant="confirm" full onClick={() => flow.go('home')} />
         <span
           onClick={flow.restart}
@@ -106,6 +149,20 @@ export default function Result({ flow }: { flow: Flow }) {
           最初から見る
         </span>
       </div>
+      {supportOpen && promiseId && partnerName && (
+        <SupportSheet
+          promiseId={promiseId}
+          partnerName={partnerName}
+          onClose={() => {
+            setSupportOpen(false)
+            setDismissed(true)
+          }}
+          onSent={(coins) => {
+            setSupported(coins)
+            setSupportOpen(false)
+          }}
+        />
+      )}
     </Screen>
   )
 }
