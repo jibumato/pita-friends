@@ -7,6 +7,16 @@
 import type { Session, User } from '@supabase/supabase-js'
 import { requireSupabase } from './supabase'
 
+/**
+ * パスワードの最小文字数。**アカウント作成と再設定で同じ値を使うこと。**
+ * 画面ごとに別々の数字を書くと、片方だけ直したときに食い違う。
+ *
+ * Supabase 側の既定は6文字だが、コインと換金を扱うので8文字にしている。
+ * 既存の6〜7文字のパスワードでログインすること自体は妨げない
+ * (長さの検査はこの画面の入力時にだけ行う)。
+ */
+export const PASSWORD_MIN_LENGTH = 8
+
 export type SignUpResult = {
   user: User
   /** プロジェクト設定でメール確認が必須な場合、サインアップ直後はnull(未ログイン状態)。 */

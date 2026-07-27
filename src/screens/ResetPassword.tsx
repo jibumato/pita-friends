@@ -3,7 +3,7 @@ import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import { usePress } from '../hooks/usePress'
-import { updatePassword, signOut, authErrorMessage } from '../lib/auth'
+import { updatePassword, signOut, authErrorMessage, PASSWORD_MIN_LENGTH } from '../lib/auth'
 
 const inputStyle = {
   background: C.white,
@@ -19,7 +19,7 @@ const inputStyle = {
   boxSizing: 'border-box' as const,
 }
 
-const MIN_LENGTH = 8
+const MIN_LENGTH = PASSWORD_MIN_LENGTH
 
 /**
  * パスワード再設定のリンクから戻ってきたときに出す画面。
