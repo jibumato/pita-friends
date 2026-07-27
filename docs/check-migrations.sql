@@ -34,7 +34,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (53, '0053_favorites',              'table',   'favorites',                   null),
     (54, '0054_favorite_slot_notify',   'column',  'host_settings',               'slots_notified_at'),
     (55, '0055_play_history_with',      'funcsrc', 'my_play_history_with',        'last_played_at'),
-    (56, '0056_host_status',            'column',  'host_settings',               'status_text')
+    (56, '0056_host_status',            'column',  'host_settings',               'status_text'),
+    (57, '0057_regulars_first',         'column',  'host_settings',               'regulars_first_hours')
 ),
 checked as (
   select
@@ -99,7 +100,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (53, '0053_favorites',              'table',   'favorites',                   null),
     (54, '0054_favorite_slot_notify',   'column',  'host_settings',               'slots_notified_at'),
     (55, '0055_play_history_with',      'funcsrc', 'my_play_history_with',        'last_played_at'),
-    (56, '0056_host_status',            'column',  'host_settings',               'status_text')
+    (56, '0056_host_status',            'column',  'host_settings',               'status_text'),
+    (57, '0057_regulars_first',         'column',  'host_settings',               'regulars_first_hours')
 ),
 checked as (
   select e.seq, e.migration,

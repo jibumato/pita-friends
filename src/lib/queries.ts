@@ -36,6 +36,7 @@ export type AccountBundle = {
     games: string[]
     bio: string
     trial_discount_percent: number
+    regulars_first_hours: number
   }
   wallet: { balance: number }
   trustStats: {
@@ -58,7 +59,7 @@ export async function fetchAccountBundle(userId: string): Promise<AccountBundle 
       .select('contact_scope, approval_required, show_online, discoverable, block_low_trust')
       .eq('user_id', userId)
       .single(),
-    sb.from('host_settings').select('is_host, hourly_rate, games, bio, trial_discount_percent').eq('user_id', userId).single(),
+    sb.from('host_settings').select('is_host, hourly_rate, games, bio, trial_discount_percent, regulars_first_hours').eq('user_id', userId).single(),
     sb.from('coin_wallets').select('balance, bonus_balance').eq('user_id', userId).single(),
     sb
       .from('profile_trust_stats')

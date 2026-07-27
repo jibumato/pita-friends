@@ -98,4 +98,4 @@ reset app.ledger_override;
 delete from public.profiles where id::text like 'e6000000-%';
 delete from auth.users where id::text like 'e6000000-%';
 
-\echo '=== 86_play_history_with: 全項目OK ==='
+\echo '=== 83_play_history_with: 全項目OK ==='
