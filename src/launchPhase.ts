@@ -17,7 +17,7 @@
  */
 import { isBackendConfigured } from './lib/supabase'
 
-export const IS_PRE_LAUNCH = true
+export const IS_PRE_LAUNCH = false
 
 /**
  * 登録導線を実際に隠すか。
