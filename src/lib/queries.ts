@@ -634,6 +634,25 @@ export async function fetchMyFavoriteCount(): Promise<number> {
   return data ?? 0
 }
 
+/** 自分とこの相手が一緒に遊んだ実績(0055)。 */
+export type PlayHistoryWith = { count: number; lastPlayedAt: Date | null }
+
+/**
+ * 「あなたとは3回目」を出すための回数。
+ * 自分が当事者の予約しか数えないので、他人同士の関係は分からない。
+ */
+export async function fetchPlayHistoryWith(otherUserId: string): Promise<PlayHistoryWith> {
+  const { data, error } = await requireSupabase().rpc('my_play_history_with', {
+    p_other: otherUserId,
+  })
+  if (error) throw error
+  const q = (data ?? {}) as { count?: number; last_played_at?: string | null }
+  return {
+    count: Number(q.count ?? 0),
+    lastPlayedAt: q.last_played_at ? new Date(q.last_played_at) : null,
+  }
+}
+
 /** ギフト(ありがとうチップ)で選べる金額(コイン=円)。上限は1回50,000。 */
 export const GIFT_AMOUNTS = [100, 500, 1000, 5000, 10000, 50000] as const
 

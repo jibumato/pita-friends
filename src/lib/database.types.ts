@@ -701,6 +701,11 @@ export type Database = {
         Args: Record<string, never>
         Returns: number
       }
+      /** 0055: 自分とこの相手が一緒に遊んだ回数。{ count, last_played_at }。 */
+      my_play_history_with: {
+        Args: { p_other: string }
+        Returns: { count: number; last_played_at: string | null }
+      }
       /** 0052: 未ログインでも見える「掲載中のピタメイト」カード。 */
       public_host_cards: {
         Args: { p_limit?: number }

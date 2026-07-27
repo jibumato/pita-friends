@@ -6,6 +6,7 @@ import Confetti from '../components/Confetti'
 import PitaButton from '../components/PitaButton'
 import { ArrowRight } from '../components/Icon'
 import SupportSheet from '../components/SupportSheet'
+import NextSlots from '../components/NextSlots'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchThreadPartner } from '../lib/queries'
 
@@ -17,6 +18,7 @@ export default function Result({ flow }: { flow: Flow }) {
   // **閉じたら二度と出さない。** 毎回せがむ形にすると、金銭を促す圧に見える。
   const promiseId = isBackendConfigured ? flow.activeThreadId : null
   const [partnerName, setPartnerName] = useState<string | null>(null)
+  const [partnerId, setPartnerId] = useState<string | null>(null)
   const [supportOpen, setSupportOpen] = useState(false)
   const [supported, setSupported] = useState<number | null>(null)
   const [dismissed, setDismissed] = useState(false)
@@ -28,6 +30,7 @@ export default function Result({ flow }: { flow: Flow }) {
       .then((p) => {
         if (!active || !p) return
         setPartnerName(p.name)
+        setPartnerId(p.userId)
         setSupportOpen(true)
       })
       .catch(() => {
@@ -115,8 +118,13 @@ export default function Result({ flow }: { flow: Flow }) {
         <span style={{ fontSize: 11, color: C.muted, textAlign: 'center', lineHeight: 1.6 }}>
           信頼はアプリの中でだけ積み上がります。
           <br />
-          また みなと さんと遊べます。
+          また {partnerName ?? 'みなと'} さんと遊べます。
         </span>
+        {/* また遊びたい気持ちがいちばん強いのはこの瞬間。探し直させずに、
+            相手のあいている枠をそのまま押せるようにしておく。 */}
+        {partnerId && partnerName && (
+          <NextSlots flow={flow} hostUserId={partnerId} hostName={partnerName} />
+        )}
       </div>
       <div
         style={{
