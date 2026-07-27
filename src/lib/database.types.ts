@@ -69,6 +69,8 @@ export type NotificationType =
   | 'board_cancelled'
   | 'integrity_alert'
   | 'booking_no_show'
+  /** 0054: 推しているピタメイトが募集枠を開けた */
+  | 'host_slots_opened'
 export type AccountRequestType = 'data_export' | 'account_deletion'
 export type AccountRequestStatus = 'pending' | 'processing' | 'completed'
 

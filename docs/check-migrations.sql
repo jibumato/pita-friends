@@ -31,7 +31,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (50, '0050_no_show_auto',            'column',  'bookings',                    'guest_checked_in_at'),
     (51, '0051_host_availability',       'table',   'host_availability',           null),
     (52, '0052_public_host_listing',    'funcsrc', 'public_host_cards',           'discoverable'),
-    (53, '0053_favorites',              'table',   'favorites',                   null)
+    (53, '0053_favorites',              'table',   'favorites',                   null),
+    (54, '0054_favorite_slot_notify',   'column',  'host_settings',               'slots_notified_at')
 ),
 checked as (
   select
@@ -93,7 +94,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (50, '0050_no_show_auto',            'column',  'bookings',                    'guest_checked_in_at'),
     (51, '0051_host_availability',       'table',   'host_availability',           null),
     (52, '0052_public_host_listing',    'funcsrc', 'public_host_cards',           'discoverable'),
-    (53, '0053_favorites',              'table',   'favorites',                   null)
+    (53, '0053_favorites',              'table',   'favorites',                   null),
+    (54, '0054_favorite_slot_notify',   'column',  'host_settings',               'slots_notified_at')
 ),
 checked as (
   select e.seq, e.migration,

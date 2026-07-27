@@ -34,6 +34,7 @@ const ICON_BY_TYPE: Record<NotificationType, { icon: string; tint: string }> = {
   // 運営向け(0043)。利用者の一覧には基本出ないが、型として必要
   integrity_alert: { icon: '🧮', tint: C.avatarOrange },
   booking_no_show: { icon: '⏳', tint: C.avatarOrange },
+  host_slots_opened: { icon: '⭐', tint: C.lime },
 }
 
 function timeLabel(iso: string): string {
@@ -125,6 +126,10 @@ export default function Notifications({ flow }: { flow: Flow }) {
         return
       case 'gift_received':
         if (n.relatedId) flow.openThread(n.relatedId)
+        return
+      // 推しが枠を開けた。本人のページへ送り、そこで空き枠を見て予約してもらう。
+      case 'host_slots_opened':
+        if (n.relatedId) flow.openProfile(n.relatedId)
         return
     }
   }
