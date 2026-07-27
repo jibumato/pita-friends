@@ -14,6 +14,9 @@ import {
   fetchMessages,
   fetchMyRefundQuote,
   type RefundQuote,
+  fetchCheckinState,
+  checkInBooking,
+  type CheckinState,
   fetchPaidBalance,
   fetchThreadPartner,
   hasReviewedPromise,
@@ -229,6 +232,10 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   const [cancelling, setCancelling] = useState(false)
   /** いまキャンセルしたら何%戻るか(サーバ判定)。確認を開いた時点で取り直す。 */
   const [refundQuote, setRefundQuote] = useState<RefundQuote | null>(null)
+  // プレイ開始の申告(0050)。押しても何も確定しないが、相手が現れなければ
+  // サーバが自動でコインの確定を止める。
+  const [checkin, setCheckin] = useState<CheckinState | null>(null)
+  const [checkingIn, setCheckingIn] = useState(false)
   const [reviewed, setReviewed] = useState<boolean | null>(null)
   const [stars, setStars] = useState(5)
   const [tags, setTags] = useState<string[]>([])
@@ -273,6 +280,41 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [messages])
+
+  // 開始の申告の状況を取る。メッセージを送ると自動でチェックイン扱いになる
+  // (0050)ので、messages が動いたら取り直す。
+  const bookingId = booking?.id ?? null
+  const bookingStatus = booking?.status ?? null
+  useEffect(() => {
+    if (!isBackendConfigured || !bookingId || bookingStatus !== 'confirmed') {
+      setCheckin(null)
+      return
+    }
+    let active = true
+    fetchCheckinState(bookingId)
+      .then((s) => {
+        if (active) setCheckin(s)
+      })
+      .catch(() => {
+        if (active) setCheckin(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [bookingId, bookingStatus, messages.length])
+
+  async function handleCheckIn() {
+    if (!bookingId || checkingIn) return
+    setCheckingIn(true)
+    try {
+      await checkInBooking(bookingId)
+      setCheckin(await fetchCheckinState(bookingId))
+    } catch {
+      // 押せなかっただけなので、静かに戻す(次の描画で状態を取り直す)
+    } finally {
+      setCheckingIn(false)
+    }
+  }
 
   async function doSend() {
     const body = draft.trim()
@@ -478,6 +520,43 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
           <span style={{ fontSize: 12, color: '#fff' }}>
             {booking.coins}コインの予約中です。プレイが終わったら、ゲストが「プレイ完了」を確定するとピタメイトに報酬が届きます。
           </span>
+
+          {/* プレイ開始の申告(0050)。
+              押しても何も確定しない。ゲストが押したうえで相手が現れなければ、
+              サーバが開始+猶予でコインの確定を自動で止める。相手が来ないのに
+              8時間待つ、という状態をなくすためのもの。 */}
+          {checkin?.started && !checkin.myCheckedIn && (
+            <div
+              onClick={handleCheckIn}
+              {...clickable(handleCheckIn, 'はじめました')}
+              style={{
+                cursor: checkingIn ? 'not-allowed' : 'pointer',
+                opacity: checkingIn ? 0.6 : 1,
+                textAlign: 'center',
+                fontSize: 12.5,
+                color: C.ink,
+                background: C.white,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 6,
+                padding: '9px 0',
+              }}
+            >
+              {checkingIn ? '記録中…' : '▶ はじめました'}
+            </div>
+          )}
+          {checkin?.started && checkin.myCheckedIn && !checkin.partnerCheckedIn && !checkin.heldForNoShow && (
+            <span style={{ fontSize: 10.5, color: '#E3DCFF' }}>
+              相手の開始がまだ確認できていません。開始から{checkin.graceMinutes}分たっても
+              確認できない場合は、コインの確定を自動で止めます。
+            </span>
+          )}
+          {checkin?.heldForNoShow && (
+            <span style={{ fontSize: 10.5, color: '#E3DCFF' }}>
+              {checkin.iAmGuest
+                ? '相手の参加が確認できないため、コインの確定を止めています。相手が参加すれば自動で戻ります。このまま反応がなければ、コインは全額お返しします。'
+                : 'まだ開始が確認できていません。「はじめました」を押すか、メッセージを送ってください。このまま反応がないと、無断欠席としてコインがゲストへ返還されます。'}
+            </span>
+          )}
           {isGuestOfBooking ? (
             <div
               onClick={handleComplete}

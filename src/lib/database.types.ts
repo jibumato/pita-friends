@@ -67,6 +67,8 @@ export type NotificationType =
   | 'gift_received'
   | 'booking_extended'
   | 'board_cancelled'
+  | 'integrity_alert'
+  | 'booking_no_show'
 export type AccountRequestType = 'data_export' | 'account_deletion'
 export type AccountRequestStatus = 'pending' | 'processing' | 'completed'
 
@@ -643,6 +645,15 @@ export type Database = {
       booking_busy_slots: {
         Args: { p_host_id: string; p_days?: number }
         Returns: Record<string, unknown>[]
+      }
+      /** 0050: プレイ開始の申告 */
+      check_in_booking: {
+        Args: { p_booking_id: string }
+        Returns: void
+      }
+      my_booking_checkin_state: {
+        Args: { p_booking_id: string }
+        Returns: Record<string, unknown>
       }
       host_dashboard: {
         Args: { p_at?: string }

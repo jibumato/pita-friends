@@ -31,6 +31,9 @@ const ICON_BY_TYPE: Record<NotificationType, { icon: string; tint: string }> = {
   gift_received: { icon: '🎁', tint: C.avatarPink },
   booking_extended: { icon: '⏱️', tint: C.lavender },
   board_cancelled: { icon: '🚫', tint: C.avatarOrange },
+  // 運営向け(0043)。利用者の一覧には基本出ないが、型として必要
+  integrity_alert: { icon: '🧮', tint: C.avatarOrange },
+  booking_no_show: { icon: '⏳', tint: C.avatarOrange },
 }
 
 function timeLabel(iso: string): string {

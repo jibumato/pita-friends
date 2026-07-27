@@ -1516,6 +1516,46 @@ export async function createBookingRemote(
   return data as string
 }
 
+/** プレイ開始の申告(チェックイン)の状況。無断欠席の自動処理(0050)で使う。 */
+export type CheckinState = {
+  /** 開始時刻を過ぎているか */
+  started: boolean
+  iAmGuest: boolean
+  myCheckedIn: boolean
+  partnerCheckedIn: boolean
+  /** 相手の不参加でコインの確定が止まっている状態か */
+  heldForNoShow: boolean
+  graceMinutes: number
+}
+
+export async function fetchCheckinState(bookingId: string): Promise<CheckinState> {
+  const { data, error } = await requireSupabase().rpc('my_booking_checkin_state', {
+    p_booking_id: bookingId,
+  })
+  if (error) throw error
+  const q = (data ?? {}) as Record<string, unknown>
+  return {
+    started: Boolean(q.started),
+    iAmGuest: Boolean(q.i_am_guest),
+    myCheckedIn: Boolean(q.my_checked_in),
+    partnerCheckedIn: Boolean(q.partner_checked_in),
+    heldForNoShow: Boolean(q.held_for_no_show),
+    graceMinutes: Number(q.grace_minutes ?? 15),
+  }
+}
+
+/**
+ * 「はじめました」。押しても何も確定しない(お金は動かない)。
+ * ゲストが押したうえで相手が現れなければ、開始+猶予でサーバが自動的に
+ * コインの確定を止める。ピタメイトが押せば止まっていたものが自動で解ける。
+ */
+export async function checkInBooking(bookingId: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('check_in_booking', {
+    p_booking_id: bookingId,
+  })
+  if (error) throw error
+}
+
 /** 予約で埋まっている時間帯。予約画面で選べない時刻を灰色にするために使う。 */
 export type BusySlot = { startsAt: Date; endsAt: Date; who: 'host' | 'me' }
 
