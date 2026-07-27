@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import { inspectText, guardWarningText } from '../lib/contentGuard'
-import { recordContentFlag } from '../lib/queries'
+import { recordContentFlag, fetchMyHostStatus, setHostStatus } from '../lib/queries'
 import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader, Toggle, Card, ListRow } from '../components/Ui'
@@ -492,7 +492,16 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
 
         {isBackendConfigured && <BankAccountSection />}
 
-        <span style={{ fontSize: 12, color: C.muted }}>ひとことメッセージ</span>
+        {/* 近況(短く・書き換える)と 自己紹介(長く・そのまま)は別のもの。
+            同じ「ひとこと」という名前だと、どちらを書き換えればいいか分からない。 */}
+        {isBackendConfigured && (
+          <>
+            <span style={{ fontSize: 12, color: C.muted }}>いまのひとこと</span>
+            <StatusField />
+          </>
+        )}
+
+        <span style={{ fontSize: 12, color: C.muted }}>自己紹介</span>
         <BioField flow={flow} />
 
         <div
@@ -543,8 +552,121 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
   )
 }
 
+/** ひとことの上限。サーバ側(set_host_status)の60字と揃えること。 */
+const STATUS_MAX = 60
+
 /**
- * ひとことメッセージ(プロフィール文)の入力欄。
+ * 「いまのひとこと」(近況)の入力欄(0056)。
+ *
+ * 自己紹介と違って、書き換えられてこそ意味がある欄。だから
+ *   ・短くする(60字)。長いと書き直す気にならない
+ *   ・保存を明示的にする。時刻が入るので、入力のたびに押したことに
+ *     したくない(「1分前に更新」が打鍵のたびに動くのは嘘に近い)
+ *   ・14日で自動的に見えなくなることを、書く前に伝えておく
+ */
+function StatusField() {
+  const [text, setText] = useState('')
+  const [savedText, setSavedText] = useState('')
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const hits = inspectText(text).hits
+  const save = usePress(`2px 2px 0 ${C.lavender}`)
+
+  useEffect(() => {
+    let active = true
+    fetchMyHostStatus()
+      .then((s) => {
+        if (!active) return
+        setText(s.text)
+        setSavedText(s.text)
+        setUpdatedAt(s.updatedAt)
+      })
+      .catch(() => active && setError('ひとことを読み込めませんでした'))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const onSave = () => {
+    setSaving(true)
+    setError(null)
+    for (const h of hits) void recordContentFlag(h.category, 'profile', h.matched, true)
+    setHostStatus(text)
+      .then((at) => {
+        setUpdatedAt(at)
+        setSavedText(text.trim())
+      })
+      .catch(() => setError('保存に失敗しました。時間をおいて再度お試しください。'))
+      .finally(() => setSaving(false))
+  }
+
+  const dirty = text.trim() !== savedText
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value.slice(0, STATUS_MAX))}
+        maxLength={STATUS_MAX}
+        placeholder="今夜21時から遊べます！"
+        style={{
+          background: C.white,
+          border: `1.5px solid ${hits.length > 0 ? C.avatarPink : C.border}`,
+          borderRadius: 8,
+          padding: '12px 14px',
+          fontSize: 12.5,
+          color: C.ink,
+          fontFamily: 'inherit',
+          outline: 'none',
+        }}
+      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 10.5, color: C.muted }}>
+          {text.length}/{STATUS_MAX}
+        </span>
+        {updatedAt && !dirty && (
+          <span style={{ fontSize: 10.5, color: C.muted }}>✓ 保存済み</span>
+        )}
+        <div style={{ flex: 1 }} />
+        <div
+          onClick={dirty && !saving ? onSave : undefined}
+          role="button"
+          tabIndex={dirty && !saving ? 0 : -1}
+          onKeyDown={(e) => {
+            if (dirty && !saving && (e.key === 'Enter' || e.key === ' ')) onSave()
+          }}
+          style={{
+            cursor: dirty && !saving ? 'pointer' : 'default',
+            opacity: dirty && !saving ? 1 : 0.45,
+            background: C.lime,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 8,
+            padding: '7px 14px',
+            fontSize: 11.5,
+            color: C.ink,
+            ...(dirty && !saving ? save.style : {}),
+          }}
+        >
+          {saving ? '保存中…' : text.trim() === '' ? '消す' : '更新する'}
+        </div>
+      </div>
+      {hits.length > 0 && (
+        <span style={{ fontSize: 10.5, color: C.avatarPink, lineHeight: 1.6 }}>
+          {guardWarningText(hits)}
+        </span>
+      )}
+      {error && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{error}</span>}
+      <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
+        ホームやプロフィールに出ます。14日を過ぎると自動で見えなくなります
+        （消えるのは表示だけで、書き直せばまた出ます）。
+      </span>
+    </div>
+  )
+}
+
+/**
+ * 自己紹介(プロフィール文)の入力欄。
  * 「みまもり」の一次検知に当たる内容を書いている間は注意を表示する。
  * 入力のたびに保存される作りのため、記録(record_content_flag)は
  * 入力を終えた時(blur)に一度だけ行う。投稿はブロックしない(§4.2)。

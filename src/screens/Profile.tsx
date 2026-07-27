@@ -12,6 +12,7 @@ import { mannerScoreLabel, dotakyanLabel, NEW_MEMBER_LABEL } from '../lib/trustD
 import OnlineBadge from '../components/OnlineBadge'
 import { subscribeOnlineUsers } from '../lib/presence'
 import FavoriteStar from '../components/FavoriteStar'
+import HostStatus from '../components/HostStatus'
 import { fetchMyFavorites, fetchPlayHistoryWith, type PlayHistoryWith } from '../lib/queries'
 
 /* ---- デモ(モック)用の固定データ ---- */
@@ -355,11 +356,8 @@ export default function Profile({ flow }: { flow: Flow }) {
             </div>
           )}
 
-          {bio && (
-            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.7, color: C.body }}>{bio}</p>
-          )}
-
-          {/* ボイスプロフィール */}
+          {/* ボイスプロフィール。声はこのサービスでいちばん人となりが伝わる材料なので、
+              自己紹介やゲーム一覧より前に置く(下のほうにあると、ほとんど聞かれない)。 */}
           {useReal && data?.voiceUrl && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -375,6 +373,12 @@ export default function Profile({ flow }: { flow: Flow }) {
               </div>
               <audio src={data.voiceUrl} controls style={{ width: '100%', height: 38 }} />
             </div>
+          )}
+
+          {useReal && <HostStatus text={data?.statusText ?? null} at={data?.statusUpdatedAt ?? null} />}
+
+          {bio && (
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.7, color: C.body }}>{bio}</p>
           )}
 
           {/* あそぶゲーム */}

@@ -148,6 +148,9 @@ export type DiscoverableHost = {
   lastSeenAt: string | null
   /** 本人が選んだ状態(ready/online/busy)。 */
   presenceStatus: PresenceStatus
+  /** ひとこと(0056)。14日を過ぎたものはサーバ側で null になる。 */
+  statusText: string | null
+  statusUpdatedAt: string | null
 }
 
 /**
@@ -183,6 +186,8 @@ export async function fetchPublicHostCards(limit = 24): Promise<DiscoverableHost
     avatarUrl: r.avatar_path ? avatarImageUrl(r.avatar_path) : null,
     lastSeenAt: null,
     presenceStatus: 'online' as PresenceStatus,
+    statusText: r.status_text,
+    statusUpdatedAt: r.status_updated_at,
   }))
 }
 
@@ -190,7 +195,7 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
   const sb = requireSupabase()
   const { data: hosts, error: hostsError } = await sb
     .from('host_settings')
-    .select('user_id, hourly_rate, games, bio')
+    .select('user_id, hourly_rate, games, bio, status_text, status_updated_at')
     .eq('is_host', true)
   if (hostsError) throw hostsError
   if (!hosts) return []
@@ -229,8 +234,26 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
         avatarUrl: profile.avatar_path ? avatarImageUrl(profile.avatar_path) : null,
         lastSeenAt: profile.last_seen_at ?? null,
         presenceStatus: profile.presence_status ?? 'online',
+        // 古いひとことは出さない。判定はサーバの fresh_host_status と同じ14日
+        ...freshStatus(h.status_text, h.status_updated_at),
       }
     })
+}
+
+/**
+ * ひとことを出してよいかの判定(0056)。
+ * **`fresh_host_status()` の14日と必ず揃えること。** ここだけ直すと、
+ * 未ログインのカードには出ないのにログイン後は出る、という食い違いになる。
+ */
+const STATUS_FRESH_DAYS = 14
+function freshStatus(
+  text: string | null,
+  at: string | null,
+): { statusText: string | null; statusUpdatedAt: string | null } {
+  if (!text || !at) return { statusText: null, statusUpdatedAt: null }
+  const age = Date.now() - new Date(at).getTime()
+  if (age > STATUS_FRESH_DAYS * 86_400_000) return { statusText: null, statusUpdatedAt: null }
+  return { statusText: text, statusUpdatedAt: at }
 }
 
 /* ============================================================
@@ -596,6 +619,9 @@ export type FavoriteHost = {
   /** いま予約を受け付けているか。false は「募集を休んでいる」。 */
   isActive: boolean
   favoritedAt: string
+  /** ひとこと(0056)。14日を過ぎたものはサーバ側で null になる。 */
+  statusText: string | null
+  statusUpdatedAt: string | null
 }
 
 /**
@@ -624,6 +650,8 @@ export async function fetchMyFavorites(): Promise<FavoriteHost[]> {
     isVerified: r.is_verified,
     isActive: r.is_active,
     favoritedAt: r.favorited_at,
+    statusText: r.status_text,
+    statusUpdatedAt: r.status_updated_at,
   }))
 }
 
@@ -632,6 +660,36 @@ export async function fetchMyFavoriteCount(): Promise<number> {
   const { data, error } = await requireSupabase().rpc('my_favorite_count')
   if (error) throw error
   return data ?? 0
+}
+
+/**
+ * 自分の「ひとこと」を読む(0056)。
+ * 起動時の一括取得(fetchAccountBundle)には載せていない。あれは localStorage に
+ * 持ち回るので、時刻つきで古くなる値を混ぜると、消したはずのひとことが
+ * 手元だけ残り続ける。
+ */
+export async function fetchMyHostStatus(): Promise<{ text: string; updatedAt: string | null }> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const uid = auth.user?.id
+  if (!uid) return { text: '', updatedAt: null }
+  const { data, error } = await sb
+    .from('host_settings')
+    .select('status_text, status_updated_at')
+    .eq('user_id', uid)
+    .maybeSingle()
+  if (error) throw error
+  return { text: data?.status_text ?? '', updatedAt: data?.status_updated_at ?? null }
+}
+
+/**
+ * 自分の「ひとこと」を書き換える(0056)。空文字を渡すと消える。
+ * 返るのは更新時刻(消したときは null)。
+ */
+export async function setHostStatus(text: string): Promise<string | null> {
+  const { data, error } = await requireSupabase().rpc('set_host_status', { p_text: text })
+  if (error) throw error
+  return data ?? null
 }
 
 /** 自分とこの相手が一緒に遊んだ実績(0055)。 */
@@ -1370,6 +1428,9 @@ export type PublicProfile = {
   lastSeenAt: string | null
   presenceStatus: PresenceStatus
   latestReview: { stars: number; tags: string[]; reviewerName: string } | null
+  /** ひとこと(0056)。14日を過ぎたものは null。 */
+  statusText: string | null
+  statusUpdatedAt: string | null
 }
 
 /** 他ユーザーの公開プロフィールを取得する(さがす/ホーム等から個別に表示)。 */
@@ -1382,7 +1443,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
       .select('manner_score, review_count, dotakyan_count, confirmed_count, is_verified')
       .eq('user_id', userId)
       .single(),
-    sb.from('host_settings').select('is_host, hourly_rate, games, bio, trial_discount_percent').eq('user_id', userId).single(),
+    sb.from('host_settings').select('is_host, hourly_rate, games, bio, trial_discount_percent, status_text, status_updated_at').eq('user_id', userId).single(),
     sb
       .from('reviews')
       .select('stars, tags, reviewer_id')
@@ -1430,6 +1491,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     voiceSeconds: profileRes.data.voice_seconds ?? null,
     lastSeenAt: profileRes.data.last_seen_at ?? null,
     presenceStatus: profileRes.data.presence_status ?? 'online',
+    ...freshStatus(host?.status_text ?? null, host?.status_updated_at ?? null),
     latestReview,
   }
 }
