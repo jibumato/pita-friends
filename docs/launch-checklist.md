@@ -31,45 +31,35 @@
 ## B. Supabase 本番設定
 
 1. ◑ **マイグレーション適用**: 0001〜0036は適用済み(2026-07-26)。
-   **以下2つが未適用**。Supabase SQL Editorで番号順に実行してください
-   (手順: `docs/apply-migrations.md`)
-   - `0037_ranking_avatar.sql` … ランキングにプロフィール写真が出ない不具合の修正
-     (`host_ranking()`がavatar_pathを返すよう変更)
-   - `0038_host_trial_discount.sql` … ホストが設定する初回お試し割引
-     (`create_booking`/`extend_booking`を差し替える。**適用するまで
-     ホスト設定の割引率は保存できず、予約も割引されない**)
-   - `0039_extension_full_price.sql` … 初回お試し割引を「最初に予約した分」
-     だけに限定し、延長分は通常価格にする(`extend_booking`を差し替え)
-   - `0040_scheduled_booking.sql` … 予約の開始時刻を指定できるようにし、
-     キャンセルを段階制にする(E-10の修正。`create_booking`/`approve_booking`/
-     `cancel_booking` を差し替え、返還率を `platform_pricing` に集約)
-   - `0041_longer_bookings.sql` … あそぶ時間を30分刻み・最長4時間に、
-     予約できる先を14日に(`create_booking`を差し替え)
-   - `0042_booking_hold.sql` … 申し出・通報があった予約の自動確定を保留する
-     (E-12。`auto_complete_bookings`を差し替え。**返還の窓口を開ける前に必須**)
-   - `0043_integrity_checks.sql` … 取引データの日次整合性チェック
-     (残高と履歴を毎日突き合わせ、ズレたら管理者に通知。`docs/data-integrity.md`)
-   - `0044_ledger_immutable.sql` … 取引台帳を追記専用にする
-     (誤操作での変更・削除を拒否。**この適用後、ユーザーの物理削除は失敗するようになる**)
-   - `0045_evidence_refund_percent.sql` … 立証材料ビューの返還率が常に0%になる不具合の修正
-     (0040の取り違え。消費者契約法9条の検討材料が事実と逆になっていた)
-   - `0046_account_anonymize.sql` … 退会を物理削除から匿名化に変更
-     (`anonymize_user()`。**適用するまで退会対応で入金・換金記録が消える**)
-   - `0047_ledger_export_heartbeat.sql` … R2への外部バックアップの鮮度チェック
-     (`workers/ledger-export` とセット。止まったら管理者に通知)
-   - `0048_longer_play_12h.sql` … あそぶ時間を長時間対応に
-     (`create_booking`/`extend_booking`/`cancel_booking`/`auto_complete_bookings`を
-     差し替える。**自動確定の起点が開始時刻→終了時刻に変わる**。
-     キャンセル没収額に「経過分+3時間分」の上限が入る)
-   - `0051_host_availability.sql` … ピタメイトの募集枠と公開スケジュール
-     (曜日×時のタイル。**枠を設定したピタメイトは、その外は予約できなくなる**。
-     1枠も設定していない人は従来どおり)
-   - `0050_no_show_auto.sql` … 無断欠席を運営の判断なしに自動処理する
-     (「はじめました」の記録・開始+15分の自動保留・24時間無反応で全額返還。
-     `no_show_host` が初めて実際に使われる)
-   - `0049_booking_slot_conflict.sql` … 上限を10時間に確定し、**予約時間帯の重複を防ぐ**
-     (E-13。`create_booking`/`approve_booking`/`extend_booking`を差し替える。
-     適用するまで同じ時間帯に予約が二重に入る)
+   **0037〜0051 の15本が未適用**です。Supabase SQL Editor で
+   **必ず番号の小さい順に**実行してください(手順: `docs/apply-migrations.md`)。
+
+   > ⚠️ **順番を飛ばさないでください。** `0038` `0040` `0041` `0048` `0049` `0051` は
+   > いずれも `create_booking` を差し替えます。逆順に当てると、後から当てた
+   > 古いほうが新しい修正を打ち消します。
+
+   | # | 内容 | 適用しないと |
+   |---|---|---|
+   | `0037_ranking_avatar.sql` | ランキングにプロフィール写真が出ない不具合の修正 | ランキングが頭文字のままになる |
+   | `0038_host_trial_discount.sql` | 初回お試し割引(ピタメイトが設定) | 割引率が保存できず、予約も割引されない |
+   | `0039_extension_full_price.sql` | 割引を最初の予約分だけに限定(延長は通常価格) | 延長にも割引がかかる |
+   | `0040_scheduled_booking.sql` | 開始時刻の指定・段階制キャンセル(E-10) | 承諾の瞬間から全額没収のまま |
+   | `0041_longer_bookings.sql` | 30分刻み・予約できる先を14日に | 3択のまま |
+   | `0042_booking_hold.sql` | 申し出・通報での自動確定の保留(E-12) | **返還の窓口を開けられない** |
+   | `0043_integrity_checks.sql` | 取引データの日次整合性チェック | ズレに気づけない |
+   | `0044_ledger_immutable.sql` | 取引台帳を追記専用に | 誤操作で台帳が消える |
+   | `0045_evidence_refund_percent.sql` | 立証材料ビューの返還率が常に0%になる不具合の修正 | 弁護士に事実と逆の資料を出すことになる |
+   | `0046_account_anonymize.sql` | 退会を物理削除から匿名化に | **退会対応で入金・換金記録が消える** |
+   | `0047_ledger_export_heartbeat.sql` | R2バックアップの鮮度チェック | Workerの書き戻しが失敗する |
+   | `0048_longer_play_12h.sql` | 長時間対応・自動確定を終了時刻起点に・没収額の上限 | プレイ中に自動確定しうる |
+   | `0049_booking_slot_conflict.sql` | 上限10時間・予約時間帯の重複を防ぐ(E-13) | 同じ時間帯に予約が二重に入る |
+   | `0050_no_show_auto.sql` | 無断欠席の自動処理(E-14) | 相手が来なくてもゲストが待たされる |
+   | `0051_host_availability.sql` | 募集枠と公開スケジュール(E-15) | 「あそべる時間」が出ない |
+
+   適用後、`0044` の影響で **Supabaseの管理画面からユーザーを削除できなくなります**
+   (台帳が道連れになるのを防ぐため)。退会は `anonymize_user()` を使ってください
+   (`docs/data-integrity.md`)。
+
 2. ☐ **メール確認を再有効化**: Authentication → Providers → Email →
    「Confirm email」を**ON**に戻す(テスト用にOFFにしていた場合)
 3. ✅ **リダイレクトURLの登録**(2026-07-26): Authentication → URL Configuration
