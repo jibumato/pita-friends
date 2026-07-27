@@ -16,6 +16,8 @@ import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
 import type { PresenceStatus } from '../lib/database.types'
 import { coinsPer30, GAMES } from '../flow'
 import FavoriteStar from '../components/FavoriteStar'
+import HostStatus from '../components/HostStatus'
+import VoiceChip from '../components/VoiceChip'
 import {
   fetchDiscoverableHosts,
   fetchPublicHostCards,
@@ -644,9 +646,13 @@ function PickupCard({
             <div style={{ flex: 1 }} />
             <FavoriteStar hostId={host.userId} initialOn={isFav} size={30} onChanged={onFavChanged} />
           </div>
-          <span style={{ fontSize: 11.5, color: C.muted }}>
-            {score ? `${score}・マナー◎` : NEW_MEMBER_LABEL}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11.5, color: C.muted }}>
+              {score ? `${score}・マナー◎` : NEW_MEMBER_LABEL}
+            </span>
+            <VoiceChip url={host.voiceUrl} seconds={host.voiceSeconds} variant="quiet" />
+          </div>
+          <HostStatus text={host.statusText} at={host.statusUpdatedAt} />
           {host.bio && (
             <span style={{ fontSize: 12, color: C.body, lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
               {host.bio}
@@ -787,6 +793,7 @@ function FavoriteRow({
             <span style={{ fontSize: 12.5, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {h.nickname}
             </span>
+            <HostStatus text={h.statusText} at={h.statusUpdatedAt} compact />
             {h.isActive ? (
               <span style={{ fontSize: 10.5, color: C.muted }}>30分 {coinsPer30(h.hourlyRate)} コイン</span>
             ) : (

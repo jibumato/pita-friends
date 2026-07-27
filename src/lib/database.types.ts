@@ -287,6 +287,9 @@ export type Database = {
           bio: string
           trial_discount_percent: number
           updated_at: string
+          /** 0056: ピタメイトの「ひとこと」(近況)。60字まで。 */
+          status_text: string | null
+          status_updated_at: string | null
         }
         Insert: Record<string, never>
         Update: Partial<
@@ -694,12 +697,20 @@ export type Database = {
           is_verified: boolean
           is_active: boolean
           favorited_at: string
+          /** 0056: 14日以内のひとことだけが入る(古いものは null)。 */
+          status_text: string | null
+          status_updated_at: string | null
         }[]
       }
       /** 0053: 自分を推している人数(誰かは返らない)。 */
       my_favorite_count: {
         Args: Record<string, never>
         Returns: number
+      }
+      /** 0056: 自分の「ひとこと」を書き換える。空文字で消える。 */
+      set_host_status: {
+        Args: { p_text: string }
+        Returns: string | null
       }
       /** 0055: 自分とこの相手が一緒に遊んだ回数。{ count, last_played_at }。 */
       my_play_history_with: {
@@ -721,6 +732,9 @@ export type Database = {
           manner_score: number
           review_count: number
           is_verified: boolean
+          /** 0056: 14日以内のひとことだけが入る(古いものは null)。 */
+          status_text: string | null
+          status_updated_at: string | null
         }[]
       }
       host_open_now: {
