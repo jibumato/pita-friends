@@ -11,6 +11,7 @@ import GameThumb from '../components/GameThumb'
 import { mannerScoreLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { isBackendConfigured } from '../lib/supabase'
+import SignedOutPrompt from '../components/SignedOutPrompt'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
 import type { PresenceStatus } from '../lib/database.types'
 import { coinsPer30, GAMES } from '../flow'
@@ -1171,6 +1172,19 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             </div>
           )
         })()}
+
+        {/* 未ログインの訪問者への登録導線。**人の顔を見せた直後**に1つだけ置く。
+            ゲームジャンルの手前で出しても、まだ誰も見ていないので動機が無い。
+            カードを押した人は openHost() が登録へ送るので、ここは
+            「見たけれど押さなかった人」を拾う役目。 */}
+        {!signedIn && (
+          <SignedOutPrompt
+            flow={flow}
+            compact
+            title="気になるピタメイトは見つかりましたか？"
+            body="登録すると、遊びたい時間を指定して予約できます。本人確認とマナースコアがあるので、はじめてでも安心して申し込めます。"
+          />
+        )}
 
         {/* ランキング(デスクトップのみ。モバイルは上部のランキング導線カードから)。
             今週=スコア上位、新人=完了数の少ない順(はじめたばかりの注目ピタメイト)。 */}
