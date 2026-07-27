@@ -26,7 +26,7 @@ import DesktopFooter from './components/DesktopFooter'
 import { useIsMobile } from './hooks/useMediaQuery'
 import { loadPrefs, savePrefs } from './persist'
 import { isBackendConfigured } from './lib/supabase'
-import { getSession, signOut as supabaseSignOut } from './lib/auth'
+import { getSession, signOut as supabaseSignOut, onPasswordRecovery } from './lib/auth'
 import { trackMyPresence } from './lib/presence'
 import {
   fetchAccountBundle,
@@ -46,6 +46,7 @@ import {
 
 import Welcome from './screens/Welcome'
 import SignUp from './screens/SignUp'
+import ResetPassword from './screens/ResetPassword'
 import Consent from './screens/Consent'
 import Verify from './screens/Verify'
 import Setup from './screens/Setup'
@@ -372,12 +373,23 @@ export default function App() {
     const checkoutParam = params.get('checkout')
     // Stripe Connect オンボーディングからの戻り(?connect=return/refresh)を検出
     const connectParam = params.get('connect')
-    if (checkoutParam || connectParam) {
-      // URLからパラメータを消す(リロードで二重処理されないように)
-      window.history.replaceState({}, '', window.location.pathname)
+    // パスワード再設定メールのリンクからの戻り(/reset-password)を検出。
+    // このときSupabaseはURLのハッシュから「復旧セッション」を復元するので、
+    // 何もしないと**ログイン済みとしてホームに入り、パスワードを変えないまま
+    // 終わる**。ここで拾って再設定画面に固定する。
+    const recovery = window.location.pathname === '/reset-password'
+    if (checkoutParam || connectParam || recovery) {
+      // URLを掃除する(リロードで二重処理されないように)
+      window.history.replaceState({}, '', recovery ? '/' : window.location.pathname)
     }
     getSession()
       .then(async (session) => {
+        if (active && recovery) {
+          // 再設定画面はログイン前提の画面を出さないので hydrate しない。
+          // セッションが無い(リンク切れ)場合も、この画面で案内する。
+          setState((p) => ({ ...p, screen: 'resetPassword' }))
+          return
+        }
         if (active && session) {
           await hydrateAccount(session.user.id)
           if (!active) return
@@ -409,6 +421,15 @@ export default function App() {
       active = false
     }
   }, [hydrateAccount])
+
+  // パスワード再設定のリンクを開いた瞬間に飛ぶイベント。パスの判定(上)で
+  // ほぼ拾えるが、ハッシュの処理が先に走ったときの取りこぼしを防ぐ保険。
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    return onPasswordRecovery(() => {
+      setState((p) => ({ ...p, screen: 'resetPassword' }))
+    })
+  }, [])
 
   // 「いま遊べる」オンライン表示: 安心設定でオンライン状態の公開をオンに
   // している間だけ、自分の在席をRealtime Presenceでブロードキャストする。
@@ -850,6 +871,7 @@ export default function App() {
           <>
         {state.screen === 'welcome' && <Welcome flow={flow} />}
         {state.screen === 'signUp' && <SignUp flow={flow} />}
+        {state.screen === 'resetPassword' && <ResetPassword flow={flow} />}
         {state.screen === 'consent' && <Consent flow={flow} />}
         {state.screen === 'verify' && <Verify flow={flow} />}
         {state.screen === 'setup' && <Setup flow={flow} />}

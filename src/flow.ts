@@ -5,6 +5,7 @@ export type ScreenKey =
   // --- コアフロー(信頼ループ) ---
   | 'welcome'
   | 'signUp'
+  | 'resetPassword'
   | 'consent'
   | 'verify'
   | 'setup'
@@ -44,6 +45,7 @@ export type ScreenKey =
 export const screenNames: Record<ScreenKey, string> = {
   welcome: 'ようこそ',
   signUp: 'アカウント作成',
+  resetPassword: 'パスワードの再設定',
   consent: 'みまもりへの同意',
   verify: '本人確認',
   setup: 'プロフィール作成',
@@ -251,6 +253,7 @@ export function coinsPer30(hourlyRate: number): number {
 export const stepOf: Record<ScreenKey, number> = {
   welcome: 0,
   signUp: 0,
+  resetPassword: 0,
   consent: 0,
   verify: 0,
   setup: 0,

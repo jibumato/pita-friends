@@ -26,6 +26,45 @@ export async function signInWithEmail(email: string, password: string): Promise<
   return data.user
 }
 
+/**
+ * パスワード再設定のメールを送る。
+ *
+ * 戻り先は `/reset-password`。クエリではなくパスにしているのは、Supabase の
+ * リダイレクト許可リスト(`https://pitafure.com/**`)がパスのワイルドカードで
+ * 書かれているため。SPAなので、この URL でも index.html が返る
+ * (wrangler.jsonc の not_found_handling: single-page-application)。
+ *
+ * **アカウントの有無は呼び出し側に伝わりません。** 未登録のアドレスでも
+ * エラーになりません(Supabaseの仕様)。画面側も「登録があれば送りました」と
+ * 出して、アドレスの存在を漏らさないこと。
+ */
+export async function sendPasswordReset(email: string): Promise<void> {
+  const { error } = await requireSupabase().auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  })
+  if (error) throw error
+}
+
+/**
+ * 新しいパスワードを設定する。メールのリンクから来た「復旧セッション」の
+ * 状態で呼ぶ。
+ *
+ * 設定後に**他の端末のセッションを切ります**。パスワードを忘れる状況には
+ * 「乗っ取られたので変えたい」も含まれるため、変えたのに相手のセッションが
+ * 生き続けるのは危険です(コインと換金を扱うので特に)。
+ */
+export async function updatePassword(newPassword: string): Promise<void> {
+  const sb = requireSupabase()
+  const { error } = await sb.auth.updateUser({ password: newPassword })
+  if (error) throw error
+  // 自分の端末は残し、他は落とす。失敗しても本人の再設定は完了しているので握る。
+  try {
+    await sb.auth.signOut({ scope: 'others' })
+  } catch {
+    /* 他端末の失効に失敗しても、パスワードの変更自体は成立している */
+  }
+}
+
 export async function signOut(): Promise<void> {
   const { error } = await requireSupabase().auth.signOut()
   if (error) throw error
@@ -45,6 +84,23 @@ export function onAuthStateChange(callback: (session: Session | null) => void): 
   return () => subscription.unsubscribe()
 }
 
+/**
+ * パスワード再設定のリンクから戻ってきたことを検知する。
+ *
+ * 戻り先のパスだけでも判定できるが、こちらは保険。リンクを開いた直後は
+ * URLのハッシュからセッションが復元され、その際に PASSWORD_RECOVERY が
+ * 飛ぶ。これを拾わないと、**復旧セッションのまま普通にログイン済みとして
+ * ホームに入ってしまい、パスワードを変えないまま終わる**。
+ */
+export function onPasswordRecovery(callback: () => void): () => void {
+  const {
+    data: { subscription },
+  } = requireSupabase().auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') callback()
+  })
+  return () => subscription.unsubscribe()
+}
+
 /** 認証まわりのエラーを、画面に出してよい日本語メッセージに変換する。 */
 export function authErrorMessage(e: unknown): string {
   const raw = e instanceof Error ? e.message : ''
@@ -59,6 +115,15 @@ export function authErrorMessage(e: unknown): string {
   }
   if (/Password should be at least/i.test(raw)) {
     return 'パスワードは6文字以上で設定してください。'
+  }
+  if (/For security purposes|rate limit|too many requests/i.test(raw)) {
+    return '短い間隔で繰り返し送信されています。しばらく待ってから再度お試しください。'
+  }
+  if (/should be different from the old password/i.test(raw)) {
+    return '以前と同じパスワードは設定できません。別のパスワードにしてください。'
+  }
+  if (/Auth session missing|session_not_found|invalid claim/i.test(raw)) {
+    return 'リンクの有効期限が切れています。もう一度メールを送ってください。'
   }
   return raw || '予期しないエラーが発生しました。時間をおいて再度お試しください。'
 }
