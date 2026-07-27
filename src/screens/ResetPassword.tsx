@@ -3,7 +3,14 @@ import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
 import { usePress } from '../hooks/usePress'
-import { updatePassword, signOut, authErrorMessage, PASSWORD_MIN_LENGTH } from '../lib/auth'
+import {
+  updatePassword,
+  signOut,
+  authErrorMessage,
+  byteLength,
+  PASSWORD_MAX_BYTES,
+  PASSWORD_MIN_LENGTH,
+} from '../lib/auth'
 
 const inputStyle = {
   background: C.white,
@@ -37,8 +44,9 @@ export default function ResetPassword({ flow }: { flow: Flow }) {
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
 
   const tooShort = password.length > 0 && password.length < MIN_LENGTH
+  const tooLong = byteLength(password) > PASSWORD_MAX_BYTES
   const mismatch = confirm.length > 0 && password !== confirm
-  const canSubmit = password.length >= MIN_LENGTH && password === confirm && !loading
+  const canSubmit = password.length >= MIN_LENGTH && !tooLong && password === confirm && !loading
 
   async function handleSubmit() {
     if (!canSubmit) return
