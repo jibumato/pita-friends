@@ -18,7 +18,7 @@ import type { LegalDocKey } from './content/legalDocs'
 import { CANCELLATION_POLICY_VERSION } from './content/bookingPolicy'
 import type { PersonalityResult } from './content/personality'
 import PhoneFrame from './components/PhoneFrame'
-import LandingDesktop from './components/LandingDesktop'
+import LoginOverlay from './components/LoginOverlay'
 import DesktopTopBar from './components/DesktopTopBar'
 import DesktopSidebar from './components/DesktopSidebar'
 import DesktopHero from './components/DesktopHero'
@@ -44,7 +44,6 @@ import {
   setPresenceStatus as setPresenceStatusRemote,
 } from './lib/queries'
 
-import Welcome from './screens/Welcome'
 import SignUp from './screens/SignUp'
 import ResetPassword from './screens/ResetPassword'
 import Consent from './screens/Consent'
@@ -254,7 +253,7 @@ export type Flow = {
 }
 
 const INITIAL = {
-  screen: 'welcome' as ScreenKey,
+  screen: 'home' as ScreenKey,
   welcomeLoginOpen: false,
   game: 'Apex',
   when: '今夜 22:00〜',
@@ -514,13 +513,13 @@ export default function App() {
     [clearTimer],
   )
 
-  // 専用のログイン画面は廃止し、ようこそ画面(メインページ)にインラインのログイン
-  // フォームを出す方式にした。go()は毎回welcomeLoginOpenをfalseへ戻すため、
-  // 画面遷移とフォームの表示を同時に行う専用関数が必要になる。
+  // 専用のログイン画面は持たず、いまの画面にかぶせて出す。
+  // 以前はようこそ画面に固定していたが、その画面自体を廃止したため
+  // **画面を移動させず**にフォームだけを開く。見ていたピタメイトの
+  // ページから離れずにログインできる。
   const openLogin = useCallback(() => {
-    clearTimer()
-    setState((p) => ({ ...p, screen: 'welcome', welcomeLoginOpen: true }))
-  }, [clearTimer])
+    setState((p) => ({ ...p, welcomeLoginOpen: true }))
+  }, [])
 
   const closeLogin = useCallback(() => {
     setState((p) => ({ ...p, welcomeLoginOpen: false }))
@@ -869,7 +868,6 @@ export default function App() {
           </div>
         ) : (
           <>
-        {state.screen === 'welcome' && <Welcome flow={flow} />}
         {state.screen === 'signUp' && <SignUp flow={flow} />}
         {state.screen === 'resetPassword' && <ResetPassword flow={flow} />}
         {state.screen === 'consent' && <Consent flow={flow} />}
@@ -908,6 +906,7 @@ export default function App() {
         {state.screen === 'personality' && <Personality flow={flow} />}
         {flow.reportTarget && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
+        <LoginOverlay flow={flow} />
           </>
         )}
       </PhoneFrame>
@@ -917,10 +916,8 @@ export default function App() {
     return <div style={{ display: 'flex', flexDirection: 'column' }}>{deviceEl}</div>
   }
 
-  // デスクトップ: ようこそ画面はGameRoom型のLP。入ったらアプリ本体(トップバー+サイドナビ+中央パネル)。
-  if (state.screen === 'welcome') {
-    return <LandingDesktop flow={flow} />
-  }
+  // 紹介用のLP(ようこそ画面)は廃止した。リンクから来た人がまずピタメイトを
+  // 見られるよう、未ログインでもアプリ本体のホームに着地させる。
   // ヒーローはホームの上部にのみ表示(さがすは検索結果に集中させる)。
   // コイン残高/ランキング/安心して遊べるは右レールではなくトップバーのハンバーガーメニューから開く。
   const showHero = state.screen === 'home'

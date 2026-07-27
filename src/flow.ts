@@ -3,7 +3,6 @@ import { avatarColors } from './theme/tokens'
 
 export type ScreenKey =
   // --- コアフロー(信頼ループ) ---
-  | 'welcome'
   | 'signUp'
   | 'resetPassword'
   | 'consent'
@@ -43,7 +42,6 @@ export type ScreenKey =
   | 'personality'
 
 export const screenNames: Record<ScreenKey, string> = {
-  welcome: 'ようこそ',
   signUp: 'アカウント作成',
   resetPassword: 'パスワードの再設定',
   consent: 'みまもりへの同意',
@@ -251,7 +249,6 @@ export function coinsPer30(hourlyRate: number): number {
  * 周辺画面(タブシェル)は信頼ループ外なので -1(レール非表示)。
  */
 export const stepOf: Record<ScreenKey, number> = {
-  welcome: 0,
   signUp: 0,
   resetPassword: 0,
   consent: 0,

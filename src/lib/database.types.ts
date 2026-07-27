@@ -671,6 +671,23 @@ export type Database = {
         Args: { p_host_id: string; p_days?: number }
         Returns: Record<string, unknown>[]
       }
+      /** 0052: 未ログインでも見える「掲載中のピタメイト」カード。 */
+      public_host_cards: {
+        Args: { p_limit?: number }
+        Returns: {
+          host_id: string
+          nickname: string
+          avatar_initial: string
+          avatar_color: string
+          avatar_path: string | null
+          hourly_rate: number
+          games: string[] | null
+          bio: string | null
+          manner_score: number
+          review_count: number
+          is_verified: boolean
+        }[]
+      }
       host_open_now: {
         Args: { p_host_id: string }
         Returns: boolean

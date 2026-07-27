@@ -155,6 +155,37 @@ export type DiscoverableHost = {
  * 手書きDatabase型にRelationshipsメタデータが無く型解決できないため、
  * host_settings / profiles / profile_trust_stats を個別に取得しJS側で結合する。
  */
+/**
+ * 未ログインの訪問者に見せる「掲載中のピタメイト」。
+ *
+ * ログイン後の `fetchDiscoverableHosts` と違い、テーブルを直接読まずに
+ * `public_host_cards()`(0052)を呼ぶ。RLSを緩めずに済ませるため。
+ *
+ * **オンライン状態とボイスは返らない。** 未ログインの相手に「いま誰が居るか」を
+ * 教える必要が無く、付きまといの材料になるため意図的に外している(0052の注記)。
+ */
+export async function fetchPublicHostCards(limit = 24): Promise<DiscoverableHost[]> {
+  const { data, error } = await requireSupabase().rpc('public_host_cards', { p_limit: limit })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    userId: r.host_id,
+    nickname: r.nickname,
+    avatarInitial: r.avatar_initial,
+    avatarColor: r.avatar_color,
+    hourlyRate: r.hourly_rate,
+    games: r.games ?? [],
+    bio: r.bio ?? '',
+    mannerScore: Number(r.manner_score),
+    reviewCount: r.review_count,
+    isVerified: r.is_verified,
+    voiceUrl: null,
+    voiceSeconds: null,
+    avatarUrl: r.avatar_path ? avatarImageUrl(r.avatar_path) : null,
+    lastSeenAt: null,
+    presenceStatus: 'online' as PresenceStatus,
+  }))
+}
+
 export async function fetchDiscoverableHosts(excludeUserId: string | null): Promise<DiscoverableHost[]> {
   const sb = requireSupabase()
   const { data: hosts, error: hostsError } = await sb

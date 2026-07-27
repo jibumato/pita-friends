@@ -16,6 +16,7 @@ import type { PresenceStatus } from '../lib/database.types'
 import { coinsPer30, GAMES } from '../flow'
 import {
   fetchDiscoverableHosts,
+  fetchPublicHostCards,
   fetchPendingInviteCount,
   fetchUnreadNotificationCount,
   fetchHostRanking,
@@ -742,6 +743,22 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
 
   const [pendingCount, setPendingCount] = useState<number | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
+  // 未ログインの訪問者かどうか。デモモードは「ログイン済み扱い」にして、
+  // ローカルでの画面確認をこれまでどおり通す。
+  const signedIn = !isBackendConfigured || flow.userId !== null
+  /**
+   * 人のカードを押したときの行き先。
+   * 未ログインなら「見つける→興味が湧いたら登録」の導線に乗せる。
+   * プロフィール画面はログイン前提のデータを読むので、開いても空になる。
+   */
+  const openHost = (userId: string | null) => {
+    if (!signedIn) {
+      flow.go('signUp')
+      return
+    }
+    if (userId) flow.openProfile(userId)
+    else flow.go('profile')
+  }
   const [recommended, setRecommended] = useState<DiscoverableHost[]>([])
   const [ranking, setRanking] = useState<RankingEntry[]>([])
   const [unreadNotifs, setUnreadNotifs] = useState(0)
@@ -751,6 +768,25 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
   useEffect(() => {
     if (!isBackendConfigured) return
     let active = true
+
+    // 未ログインの訪問者。ピタメイトの一覧だけを公開の口(0052)から取る。
+    // 誘い・通知・在席はログインしないと意味が無いので呼ばない。
+    if (!signedIn) {
+      fetchPublicHostCards(24)
+        .then((hosts) => active && setRecommended(hosts.slice(0, 8)))
+        .catch(() => {
+          /* 取れなくてもホーム自体は表示する */
+        })
+      fetchHostRanking('weekly', 20)
+        .then((rows) => active && setRanking(rows))
+        .catch(() => {
+          /* 同上 */
+        })
+      return () => {
+        active = false
+      }
+    }
+
     fetchPendingInviteCount()
       .then((n) => active && setPendingCount(n))
       .catch(() => active && setPendingCount(0))
@@ -829,6 +865,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           >
             {flow.theme === 'dark' ? <Sun /> : <MoonSmall />}
           </div>
+          {signedIn ? (
           <div
             onClick={() => flow.go('notifications')}
             {...clickable(
@@ -875,6 +912,47 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
               </span>
             )}
           </div>
+          ) : (
+            /* 未ログインの訪問者。ここが唯一の登録導線になるので消さないこと。 */
+            <>
+              <button
+                onClick={flow.openLogin}
+                style={{
+                  cursor: 'pointer',
+                  background: C.white,
+                  color: C.ink,
+                  border: `1.5px solid ${C.border}`,
+                  boxShadow: `2px 2px 0 ${C.shadowCol}`,
+                  borderRadius: 8,
+                  padding: '0 12px',
+                  height: 38,
+                  fontSize: 12,
+                  fontFamily: 'inherit',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                ログイン
+              </button>
+              <button
+                onClick={() => flow.go('signUp')}
+                style={{
+                  cursor: 'pointer',
+                  background: C.lime,
+                  color: C.ink,
+                  border: `1.5px solid ${C.border}`,
+                  boxShadow: `2px 2px 0 ${C.border}`,
+                  borderRadius: 8,
+                  padding: '0 12px',
+                  height: 38,
+                  fontSize: 12,
+                  fontFamily: 'inherit',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                新規登録
+              </button>
+            </>
+          )}
         </div>
       </div>
       )}
@@ -1024,7 +1102,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   <RecommendCard
                     key={c.key}
                     data={c}
-                    onOpen={() => (c.userId ? flow.openProfile(c.userId) : flow.go('profile'))}
+                    onOpen={() => openHost(c.userId)}
                   />
                 ))}
               </div>
@@ -1086,7 +1164,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                   <PopularUserCard
                     key={c.key}
                     data={c}
-                    onOpen={() => (c.userId ? flow.openProfile(c.userId) : flow.go('profile'))}
+                    onOpen={() => openHost(c.userId)}
                   />
                 ))}
               </div>

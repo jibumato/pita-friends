@@ -57,7 +57,7 @@ export default function ResetPassword({ flow }: { flow: Flow }) {
       // 復旧セッションのまま入るのではなく、新しいパスワードで入り直してもらう。
       // 「変えたパスワードで入れる」ことを本人が確かめられる。
       await signOut()
-      flow.go('welcome')
+      flow.go('home')
       flow.openLogin()
     } catch (e) {
       setError(authErrorMessage(e))
@@ -73,7 +73,7 @@ export default function ResetPassword({ flow }: { flow: Flow }) {
     } catch {
       /* 失敗しても、ようこそ画面に戻れれば申請し直せる */
     }
-    flow.go('welcome')
+    flow.go('home')
   }
 
   return (
