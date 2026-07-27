@@ -1,13 +1,18 @@
+import { useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen, { DotPattern } from '../components/Screen'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import InlineLogin from '../components/InlineLogin'
+import PreRegisterForm from '../components/PreRegisterForm'
 
 export default function Welcome({ flow }: { flow: Flow }) {
   const start = usePress(`3px 3px 0 ${C.lavender}`)
   const loginOpen = flow.welcomeLoginOpen
+  // この画面は overflow:hidden の固定レイアウトなので、フォームを本文に足すと
+  // 小さい端末でPRESS STARTが切れる。ログインと同じくかぶせて出す。
+  const [preRegOpen, setPreRegOpen] = useState(false)
 
   return (
     <Screen background={C.fill} style={{ animation: 'scrIn .34s ease both' }}>
@@ -176,8 +181,62 @@ export default function Welcome({ flow }: { flow: Flow }) {
             >
               ▶ PRESS START
             </div>
+            <span
+              onClick={() => setPreRegOpen(true)}
+              style={{
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontSize: 11.5,
+                color: C.lavenderText,
+                textDecoration: 'underline',
+              }}
+            >
+              公開のお知らせを受け取る
+            </span>
           </div>
         </>
+      )}
+
+      {preRegOpen && (
+        <div
+          onClick={() => setPreRegOpen(false)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 40,
+            background: 'rgba(20,14,40,.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 22,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 320,
+              background: C.white,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 16,
+              boxShadow: `5px 5px 0 ${C.lavender}`,
+              padding: '22px 20px',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+            }}
+          >
+            <span style={{ fontSize: 15, color: C.ink }}>公開のお知らせ</span>
+            <PreRegisterForm source="welcome-mobile" onOpenPrivacy={() => flow.openLegalDoc('privacy')} hideLabel />
+            <span
+              onClick={() => setPreRegOpen(false)}
+              style={{ cursor: 'pointer', textAlign: 'center', fontSize: 12, color: C.muted }}
+            >
+              閉じる
+            </span>
+          </div>
+        </div>
       )}
     </Screen>
   )

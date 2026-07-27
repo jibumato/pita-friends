@@ -671,6 +671,10 @@ export type Database = {
         Args: { p_host_id: string; p_days?: number }
         Returns: Record<string, unknown>[]
       }
+      pre_register: {
+        Args: { p_email: string; p_source?: string }
+        Returns: void
+      }
       host_open_now: {
         Args: { p_host_id: string }
         Returns: boolean
