@@ -5,7 +5,7 @@ import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { ChevronLeft } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
-import { signUpWithEmail, authErrorMessage } from '../lib/auth'
+import { signUpWithEmail, authErrorMessage, PASSWORD_MIN_LENGTH } from '../lib/auth'
 
 const inputStyle = {
   background: C.white,
@@ -24,12 +24,21 @@ const inputStyle = {
 export default function SignUp({ flow }: { flow: Flow }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  // 確認用。打ち間違えたまま登録すると、次のログインで入れなくなり、
+  // メールの再設定まで行かないと復帰できない。ここで気づけるようにする。
+  const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [needsConfirmation, setNeedsConfirmation] = useState(false)
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
 
-  const canSubmit = /.+@.+\..+/.test(email) && password.length >= 6 && !loading
+  const tooShort = password.length > 0 && password.length < PASSWORD_MIN_LENGTH
+  const mismatch = confirm.length > 0 && password !== confirm
+  const canSubmit =
+    /.+@.+\..+/.test(email) &&
+    password.length >= PASSWORD_MIN_LENGTH &&
+    password === confirm &&
+    !loading
 
   async function handleSubmit() {
     if (!canSubmit) return
@@ -142,15 +151,37 @@ export default function SignUp({ flow }: { flow: Flow }) {
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 12, color: C.muted }}>パスワード</span>
+            <span style={{ fontSize: 12, color: C.muted }}>パスワード（{PASSWORD_MIN_LENGTH}文字以上）</span>
             <input
               type="password"
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="6文字以上"
+              placeholder={`${PASSWORD_MIN_LENGTH}文字以上`}
               style={inputStyle}
             />
+            {tooShort && (
+              <span style={{ fontSize: 10.5, color: C.avatarOrange }}>
+                あと{PASSWORD_MIN_LENGTH - password.length}文字必要です
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 12, color: C.muted }}>確認のためもう一度</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="もう一度入力"
+              style={inputStyle}
+            />
+            {mismatch && (
+              <span style={{ fontSize: 10.5, color: C.avatarOrange }}>一致していません</span>
+            )}
+            {!mismatch && confirm.length > 0 && password.length >= PASSWORD_MIN_LENGTH && (
+              <span style={{ fontSize: 10.5, color: C.muted }}>✓ 一致しています</span>
+            )}
           </div>
 
           {error && (
