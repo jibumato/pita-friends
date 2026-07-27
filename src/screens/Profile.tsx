@@ -5,7 +5,8 @@ import Screen from '../components/Screen'
 import { ChevronLeft, DotsHorizontal, Heart } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
-import { fetchPublicProfile, type PublicProfile } from '../lib/queries'
+import { fetchPublicProfile, fetchHostSchedule, type PublicProfile } from '../lib/queries'
+import ScheduleGrid, { buildScheduleView, type SlotState } from '../components/ScheduleGrid'
 import { coinsPer30, screenNames } from '../flow'
 import { mannerScoreLabel, dotakyanLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import OnlineBadge from '../components/OnlineBadge'
@@ -58,6 +59,8 @@ export default function Profile({ flow }: { flow: Flow }) {
   const [data, setData] = useState<PublicProfile | null>(null)
   const [loading, setLoading] = useState(useReal)
   const [error, setError] = useState<string | null>(null)
+  // 空き状況のタイル(0051)。ピタメイトでない相手には枠が無いので空配列になる。
+  const [schedule, setSchedule] = useState<{ slotAt: Date; state: SlotState }[]>([])
 
   useEffect(() => {
     if (!useReal || !targetId) return
@@ -71,6 +74,21 @@ export default function Profile({ flow }: { flow: Flow }) {
       })
       .catch((e) => active && setError(e instanceof Error ? e.message : '取得に失敗しました'))
       .finally(() => active && setLoading(false))
+    return () => {
+      active = false
+    }
+  }, [useReal, targetId])
+
+  useEffect(() => {
+    if (!useReal || !targetId) return
+    let active = true
+    fetchHostSchedule(targetId, 7)
+      .then((rows) => {
+        if (!active) return
+        // 1枠も募集していない相手では、タイルを出しても意味がないので隠す
+        setSchedule(rows.some((r) => r.state === 'open' || r.state === 'booked') ? rows : [])
+      })
+      .catch(() => active && setSchedule([]))
     return () => {
       active = false
     }
@@ -311,8 +329,17 @@ export default function Profile({ flow }: { flow: Flow }) {
             </div>
           )}
 
-          {/* あそべる時間(データ未保持のためデモのみ) */}
-          {!useReal && (
+          {/* あそべる時間。1マス=1時間で、募集中・予約済み・募集なしが一目で分かる。
+              曜日だけの表示だと「今週の何時が空いているか」が分からないので、
+              日付 × 時間のタイルにしている(0051)。 */}
+          {useReal ? (
+            schedule.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 13, color: C.ink }}>▶ あそべる時間</span>
+                <ScheduleGrid {...buildScheduleView(schedule)} />
+              </div>
+            )
+          ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <span style={{ fontSize: 13, color: C.ink }}>▶ あそべる時間</span>
               <div style={{ display: 'flex', gap: 5 }}>

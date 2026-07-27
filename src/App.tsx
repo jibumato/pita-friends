@@ -558,6 +558,11 @@ export default function App() {
           }))
         } else if (message.includes('START_TOO_FAR')) {
           setState((p) => ({ ...p, bookingError: '開始時刻は14日先までで選んでください。' }))
+        } else if (message.includes('HOST_NOT_OPEN')) {
+          setState((p) => ({
+            ...p,
+            bookingError: 'そのピタメイトは、その時間帯は募集していません。プロフィールの「あそべる時間」を確認してください。',
+          }))
         } else if (message.includes('HOST_SLOT_TAKEN')) {
           setState((p) => ({
             ...p,

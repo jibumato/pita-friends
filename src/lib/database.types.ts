@@ -75,6 +75,13 @@ export type AccountRequestStatus = 'pending' | 'processing' | 'completed'
 export type Database = {
   public: {
     Tables: {
+      /** 0051: ピタメイトの募集枠(曜日×時・日本時間・毎週くり返し) */
+      host_availability: {
+        Row: { user_id: string; weekday: number; hour: number }
+        Insert: { user_id: string; weekday: number; hour: number }
+        Update: { user_id?: string; weekday?: number; hour?: number }
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string
@@ -654,6 +661,19 @@ export type Database = {
       my_booking_checkin_state: {
         Args: { p_booking_id: string }
         Returns: Record<string, unknown>
+      }
+      /** 0051: 募集枠と公開スケジュール */
+      set_host_availability: {
+        Args: { p_slots: { weekday: number; hour: number }[] }
+        Returns: number
+      }
+      host_schedule: {
+        Args: { p_host_id: string; p_days?: number }
+        Returns: Record<string, unknown>[]
+      }
+      host_open_now: {
+        Args: { p_host_id: string }
+        Returns: boolean
       }
       host_dashboard: {
         Args: { p_at?: string }

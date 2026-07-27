@@ -1516,6 +1516,53 @@ export async function createBookingRemote(
   return data as string
 }
 
+/** 空き状況の1マス(1時間)。0051。 */
+export type ScheduleSlot = { slotAt: Date; state: 'past' | 'closed' | 'booked' | 'open' }
+
+/**
+ * ピタメイトの空き状況を1時間ごとに取得する(誰でも見られる)。
+ * 予約の中身(相手が誰か等)は返ってこない。
+ */
+export async function fetchHostSchedule(hostUserId: string, days = 7): Promise<ScheduleSlot[]> {
+  const { data, error } = await requireSupabase().rpc('host_schedule', {
+    p_host_id: hostUserId,
+    p_days: days,
+  })
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    slotAt: new Date(String(r.slot_at)),
+    state: (r.state as ScheduleSlot['state']) ?? 'closed',
+  }))
+}
+
+/** 募集枠(曜日0=日〜6=土 × 時0〜23)。日本時間で解釈される。 */
+export type AvailabilitySlot = { weekday: number; hour: number }
+
+export async function fetchMyAvailability(): Promise<AvailabilitySlot[]> {
+  const sb = requireSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const uid = auth.user?.id
+  if (!uid) return []
+  const { data, error } = await sb
+    .from('host_availability')
+    .select('weekday, hour')
+    .eq('user_id', uid)
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    weekday: Number(r.weekday),
+    hour: Number(r.hour),
+  }))
+}
+
+/** 自分の募集枠をまとめて置き換える。 */
+export async function saveMyAvailability(slots: AvailabilitySlot[]): Promise<number> {
+  const { data, error } = await requireSupabase().rpc('set_host_availability', {
+    p_slots: slots,
+  })
+  if (error) throw error
+  return Number(data ?? 0)
+}
+
 /** プレイ開始の申告(チェックイン)の状況。無断欠席の自動処理(0050)で使う。 */
 export type CheckinState = {
   /** 開始時刻を過ぎているか */
