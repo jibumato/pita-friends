@@ -6,8 +6,19 @@
  * Viteはアセット名をハッシュ化するため、事前プリキャッシュではなく取得時キャッシュにしている。
  */
 // ロゴ等の静的アセットを差し替えたらここを上げる(キャッシュ優先のため古い版が残り続ける)
-const CACHE = 'pita-friends-v5'
+const CACHE = 'pita-friends-v6'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.ico', '/icon-192.png', '/icon-512.png']
+
+/**
+ * Safariは「redirectedフラグが立ったレスポンス」をナビゲーションのSW応答として拒否する
+ * ("Response served by service worker has redirections")。ルートへのアクセスは
+ * Cloudflare側の内部リダイレクトを経由することがあり、その結果を素通し・キャッシュすると
+ * オフライン起動時にこのエラーになる。redirectedなら中身だけ取り出して包み直す。
+ */
+function dropRedirected(res) {
+  if (!res || !res.redirected) return res
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers: res.headers })
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -39,11 +50,16 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const clone = res.clone()
-          caches.open(CACHE).then((c) => c.put('/index.html', clone))
-          return res
+          const clean = dropRedirected(res)
+          caches.open(CACHE).then((c) => c.put('/index.html', clean.clone()))
+          return clean
         })
-        .catch(() => caches.match('/index.html').then((r) => r || caches.match('/'))),
+        .catch(() =>
+          caches
+            .match('/index.html')
+            .then((r) => r || caches.match('/'))
+            .then((r) => dropRedirected(r)),
+        ),
     )
     return
   }
