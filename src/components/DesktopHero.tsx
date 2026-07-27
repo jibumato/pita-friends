@@ -2,8 +2,15 @@
  *  コピー・演出はスクリーンショットでのユーザー art-direction を経て確定した内容をそのまま実装。 */
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
+import { isBackendConfigured } from '../lib/supabase'
 
 export default function DesktopHero({ flow }: { flow: Flow }) {
+  // 未ログインの訪問者にはヒーローを登録の入口にする。
+  // ログイン済みの人に「無料ではじめる」を出しても意味が無いので、
+  // その場合は従来どおり「さがす」へ送る。
+  const signedIn = !isBackendConfigured || flow.userId !== null
+  const label = signedIn ? '▶ フレンドをさがす' : '▶ 無料ではじめる'
+  const go = () => flow.go(signedIn ? 'search' : 'signUp')
   return (
     <div
       style={{
@@ -91,11 +98,11 @@ export default function DesktopHero({ flow }: { flow: Flow }) {
           最短30分から一緒にゲームや通話を楽しもう♪
         </p>
         <span
-          onClick={() => flow.go('search')}
+          onClick={go}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') flow.go('search')
+            if (e.key === 'Enter' || e.key === ' ') go()
           }}
           style={{
             cursor: 'pointer',
@@ -113,7 +120,7 @@ export default function DesktopHero({ flow }: { flow: Flow }) {
             animation: 'heroPulse 2.2s ease-in-out infinite',
           }}
         >
-          ▶ フレンドをさがす
+          {label}
         </span>
       </div>
     </div>
