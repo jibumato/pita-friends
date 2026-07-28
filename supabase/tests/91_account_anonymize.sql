@@ -36,9 +36,11 @@ insert into public.user_devices (user_id, device_id) values
 -- 入金 → 予約 → 完了 まで走らせて、記録を作る
 select public.credit_coins_for_purchase(
   'b0000000-0000-0000-0000-0000000000a2'::uuid, 'pack_5000',
-  5000, 500, 5000, 'sess_anon_1', 'pi_anon_1');
+  12000, 500, 12000, 'sess_anon_1', 'pi_anon_1');
 set test.uid = 'b0000000-0000-0000-0000-0000000000a2';
-select public.create_booking('b0000000-0000-0000-0000-0000000000a1'::uuid, 60, 'v2', null) as bk \gset
+-- 300分(=10,000コイン)にしているのは、0063で最低換金額が5,000コインに
+-- なったため。時給は上限2,000なので、時間で稼ぐしかない。
+select public.create_booking('b0000000-0000-0000-0000-0000000000a1'::uuid, 300, 'v2', null) as bk \gset
 set test.uid = 'b0000000-0000-0000-0000-0000000000a1';
 select public.approve_booking(:'bk');
 
@@ -73,7 +75,9 @@ end $$;
 
 \echo '=== 3. 換金申請が処理待ちのうちは退会させない ==='
 set test.uid = 'b0000000-0000-0000-0000-0000000000a1';
-select public.request_bank_payout(1000);
+-- 0063で最低額が5,000コインになった。ここは最低額の検証ではないので、
+-- 稼げる規模にしたうえで最低額ちょうどを申請する(検証は 76_payout_terms)。
+select public.request_bank_payout(5000);
 set test.uid = 'b0000000-0000-0000-0000-0000000000a9';
 do $$
 begin
