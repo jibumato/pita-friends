@@ -757,10 +757,13 @@ export type Database = {
         Args: { p_host_id: string }
         Returns: number
       }
-      /** 0058: 一覧向けにまとめて取る。 */
-      host_repeat_guest_counts: {
+      /**
+       * 0060: 一覧向けの「来た人数・戻った人数・丸めたリピート率」。
+       * repeat_score は母数が小さいと 0.25 へ寄る(始めたばかりの人を沈めない)。
+       */
+      host_repeat_stats: {
         Args: { p_host_ids: string[] }
-        Returns: { host_id: string; repeat_guests: number }[]
+        Returns: { host_id: string; guests: number; repeat_guests: number; repeat_score: number }[]
       }
       host_open_now: {
         Args: { p_host_id: string }
