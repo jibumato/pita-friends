@@ -86,21 +86,21 @@ begin
   end if;
 end $$;
 
-\echo '=== 5. まとめて取っても同じ数になる ==='
+\echo '=== 5. まとめて取っても同じ数になる(0060で host_repeat_stats に統合) ==='
 do $$
 declare v_a int; v_b int;
 begin
-  select repeat_guests into v_a from public.host_repeat_guest_counts(
+  select repeat_guests into v_a from public.host_repeat_stats(
     array['b9000000-0000-0000-0000-000000000009'::uuid, 'b9000000-0000-0000-0000-00000000000e'::uuid])
   where host_id = 'b9000000-0000-0000-0000-000000000009'::uuid;
-  select repeat_guests into v_b from public.host_repeat_guest_counts(
+  select repeat_guests into v_b from public.host_repeat_stats(
     array['b9000000-0000-0000-0000-000000000009'::uuid, 'b9000000-0000-0000-0000-00000000000e'::uuid])
   where host_id = 'b9000000-0000-0000-0000-00000000000e'::uuid;
   if v_a <> 2 or v_b <> 1 then
     raise exception 'FAIL: まとめ取得の数が違う(% / %)', v_a, v_b;
   end if;
   -- 実績が無いIDを混ぜても行が落ちず0で返ること(一覧の並びが崩れないように)
-  if (select repeat_guests from public.host_repeat_guest_counts(
+  if (select repeat_guests from public.host_repeat_stats(
         array['b9000000-0000-0000-0000-000000000003'::uuid])
       where host_id = 'b9000000-0000-0000-0000-000000000003'::uuid) <> 0 then
     raise exception 'FAIL: 実績が無いIDの行が0で返らない';
@@ -124,7 +124,7 @@ begin
   select string_agg(p.proname, ', ' order by p.proname) into v
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname like '%repeat%';
-  if v is distinct from 'host_repeat_guest_counts, host_repeat_guests' then
+  if v is distinct from 'host_repeat_guests, host_repeat_stats' then
     raise exception 'FAIL: 想定外のリピート関数がある: %', coalesce(v, '(なし)');
   end if;
   if exists (

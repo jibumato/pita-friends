@@ -217,11 +217,13 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]))
   const statsMap = new Map((stats ?? []).map((s) => [s.user_id, s]))
 
-  // リピーター数(0058)はまとめて1往復で取る。取れなくても一覧は出す
+  // リピートの実績(0058/0060)はまとめて1往復で取る。取れなくても一覧は出す
   // (「また呼ばれている」は選ぶ助けであって、無いと困る情報ではない)。
-  const repeatMap = new Map<string, number>()
-  const { data: repeats } = await sb.rpc('host_repeat_guest_counts', { p_host_ids: userIds })
-  for (const r of repeats ?? []) repeatMap.set(r.host_id, r.repeat_guests)
+  const repeatMap = new Map<string, { count: number; score: number }>()
+  const { data: repeats } = await sb.rpc('host_repeat_stats', { p_host_ids: userIds })
+  for (const r of repeats ?? []) {
+    repeatMap.set(r.host_id, { count: r.repeat_guests, score: Number(r.repeat_score) })
+  }
 
   return hosts
     .filter((h) => profileMap.has(h.user_id))
@@ -246,8 +248,20 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
         presenceStatus: profile.presence_status ?? 'online',
         // 古いひとことは出さない。判定はサーバの fresh_host_status と同じ14日
         ...freshStatus(h.status_text, h.status_updated_at),
-        repeatGuests: repeatMap.get(h.user_id) ?? 0,
+        repeatGuests: repeatMap.get(h.user_id)?.count ?? 0,
       }
+    })
+    // 「また呼ばれているか」順。未ログインの掲載カード(public_host_cards)と
+    // **同じ式・同じ並び**にすること。違うと、登録した瞬間に一覧が入れ替わって
+    // 「さっき見た人がいない」になる。
+    // repeat_score が取れなかったときは既定値(0.25)として扱い、順位を壊さない。
+    .sort((a, b) => {
+      const sa = repeatMap.get(a.userId)?.score ?? 0.25
+      const sb2 = repeatMap.get(b.userId)?.score ?? 0.25
+      if (sa !== sb2) return sb2 - sa
+      if (a.mannerScore !== b.mannerScore) return b.mannerScore - a.mannerScore
+      if (a.reviewCount !== b.reviewCount) return b.reviewCount - a.reviewCount
+      return a.userId.localeCompare(b.userId)
     })
 }
 
