@@ -80,10 +80,13 @@ begin
   perform public.create_booking('f0000000-0000-0000-0000-0000000000a1'::uuid, 60, 'v2', now() + interval '8 days');
   raise notice 'OK 8日先が予約できた(旧7日上限では弾かれていた)';
   begin
-    perform public.create_booking('f0000000-0000-0000-0000-0000000000a1'::uuid, 60, 'v2', now() + interval '15 days');
-    raise exception 'FAIL 15日先が通ってしまった';
+    -- 上限は platform_pricing から読む(0061で14→35に延ばした)。数字を直に
+    -- 書くと、上限を変えるたびにここが落ちて「壊れた」ように見える。
+    perform public.create_booking('f0000000-0000-0000-0000-0000000000a1'::uuid, 60, 'v2',
+      now() + make_interval(days => (select max_lead_days + 1 from public.platform_pricing where id = 1)));
+    raise exception 'FAIL 上限より先が通ってしまった';
   exception when others then
     if sqlerrm <> 'START_TOO_FAR' then raise; end if;
-    raise notice 'OK 15日先は START_TOO_FAR';
+    raise notice 'OK 上限より先は START_TOO_FAR';
   end;
 end $$;

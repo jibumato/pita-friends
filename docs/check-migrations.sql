@@ -38,7 +38,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (57, '0057_regulars_first',         'column',  'host_settings',               'regulars_first_hours'),
     (58, '0058_repeat_proof',           'funcsrc', 'public_host_cards',           'repeat_guests'),
     (59, '0059_last_play_shape',        'funcsrc', 'my_play_history_with',        'last_duration_minutes'),
-    (60, '0060_discovery_repeat_rank',  'funcsrc', 'public_host_cards',           'repeat_score')
+    (60, '0060_discovery_repeat_rank',  'funcsrc', 'public_host_cards',           'repeat_score'),
+    (61, '0061_booking_series',         'funcsrc', 'create_booking_series',       'INVALID_SERIES_COUNT')
 ),
 checked as (
   select
@@ -107,7 +108,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (57, '0057_regulars_first',         'column',  'host_settings',               'regulars_first_hours'),
     (58, '0058_repeat_proof',           'funcsrc', 'public_host_cards',           'repeat_guests'),
     (59, '0059_last_play_shape',        'funcsrc', 'my_play_history_with',        'last_duration_minutes'),
-    (60, '0060_discovery_repeat_rank',  'funcsrc', 'public_host_cards',           'repeat_score')
+    (60, '0060_discovery_repeat_rank',  'funcsrc', 'public_host_cards',           'repeat_score'),
+    (61, '0061_booking_series',         'funcsrc', 'create_booking_series',       'INVALID_SERIES_COUNT')
 ),
 checked as (
   select e.seq, e.migration,

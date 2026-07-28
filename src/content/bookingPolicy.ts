@@ -23,7 +23,8 @@ export const CANCELLATION_POLICY_VERSION = '2026-07-27'
  * ずれると、画面では選べるのに申込時に START_TOO_SOON で弾かれる。
  */
 export const MIN_LEAD_MINUTES = 30
-export const MAX_LEAD_DAYS = 14
+/** 0061でまとめ予約(4回分=28日先)が入るよう14→35に延ばした。 */
+export const MAX_LEAD_DAYS = 35
 
 /**
  * 開始時刻の候補を30分刻みで作る。
