@@ -230,7 +230,7 @@ function EarningsSection() {
             <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
               換金事務手数料(振込手数料を含む) {PAYOUT_FEE_COINS}コイン/回
               {coins >= PAYOUT_MIN_COINS && ` — 振込額 ¥${(coins - PAYOUT_FEE_COINS).toLocaleString()}`}
-              。<b>毎週金曜締め・翌週水曜払い</b>でご登録の口座にお振込みします。
+              。<b>毎週日曜締め・翌週金曜払い</b>でご登録の口座にお振込みします。
             </span>
           </>
         ) : null}
