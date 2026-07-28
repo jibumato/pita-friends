@@ -725,6 +725,16 @@ export type Database = {
         }
         Returns: string[]
       }
+      /** 0062: この相手との自動確定を24〜71時間に短くする。nullまたは72で既定に戻す。 */
+      set_fast_release: {
+        Args: { p_host_id: string; p_hours: number | null }
+        Returns: undefined
+      }
+      /** 0062: いまの設定と、設定できる状態か。 */
+      my_fast_release: {
+        Args: { p_host_id: string }
+        Returns: { hours: number | null; eligible: boolean }
+      }
       /** 0056: 自分の「ひとこと」を書き換える。空文字で消える。 */
       set_host_status: {
         Args: { p_text: string }
