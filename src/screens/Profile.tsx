@@ -15,6 +15,7 @@ import FavoriteStar from '../components/FavoriteStar'
 import HostStatus from '../components/HostStatus'
 import RepeatBadge, { playMilestone } from '../components/RepeatBadge'
 import RebookSame from '../components/RebookSame'
+import FastReleaseToggle from '../components/FastReleaseToggle'
 import { fetchMyFavorites, fetchPlayHistoryWith, type PlayHistoryWith } from '../lib/queries'
 
 /* ---- デモ(モック)用の固定データ ---- */
@@ -397,6 +398,12 @@ export default function Profile({ flow }: { flow: Flow }) {
               }}
               schedule={schedule}
             />
+          )}
+
+          {/* 「この人とはすぐ確定でいい」(0062)。ゲストが自分で選ぶもので、
+              3回以上遊んだ相手にしか出ない(部品側で判定している)。 */}
+          {useReal && targetId && targetId !== flow.userId && data?.isHost && (
+            <FastReleaseToggle hostId={targetId} hostName={data.nickname} />
           )}
 
           {/* ボイスプロフィール。声はこのサービスでいちばん人となりが伝わる材料なので、

@@ -717,6 +717,34 @@ export async function setHostStatus(text: string): Promise<string | null> {
   return data ?? null
 }
 
+/** 「この相手とは早く確定してよい」の設定(0062)。 */
+export type FastRelease = {
+  /** 設定している時間数。null は既定(72時間)のまま。 */
+  hours: number | null
+  /** 設定できる状態か(3回以上遊んだ相手かどうか)。 */
+  eligible: boolean
+}
+
+export async function fetchFastRelease(hostId: string): Promise<FastRelease> {
+  const { data, error } = await requireSupabase().rpc('my_fast_release', { p_host_id: hostId })
+  if (error) throw error
+  const q = (data ?? {}) as { hours?: number | null; eligible?: boolean }
+  return { hours: q.hours ?? null, eligible: Boolean(q.eligible) }
+}
+
+/**
+ * 自動確定を早める設定(0062)。null を渡すと既定(72時間)に戻る。
+ * **ゲスト本人しか変えられない。** 72時間はゲストが申し出を出すための窓でもあり、
+ * 運営やピタメイトの側から短くしてよいものではない。
+ */
+export async function setFastRelease(hostId: string, hours: number | null): Promise<void> {
+  const { error } = await requireSupabase().rpc('set_fast_release', {
+    p_host_id: hostId,
+    p_hours: hours,
+  })
+  if (error) throw error
+}
+
 /** 自分とこの相手が一緒に遊んだ実績(0055)。 */
 export type PlayHistoryWith = {
   count: number
