@@ -14,6 +14,7 @@ import { subscribeOnlineUsers } from '../lib/presence'
 import FavoriteStar from '../components/FavoriteStar'
 import HostStatus from '../components/HostStatus'
 import RepeatBadge, { playMilestone } from '../components/RepeatBadge'
+import RebookSame from '../components/RebookSame'
 import { fetchMyFavorites, fetchPlayHistoryWith, type PlayHistoryWith } from '../lib/queries'
 
 /* ---- デモ(モック)用の固定データ ---- */
@@ -379,6 +380,23 @@ export default function Profile({ flow }: { flow: Flow }) {
                 </span>
               )}
             </div>
+          )}
+
+          {/* 続けて遊ぶ相手が決まっているのに、毎回ゼロから選び直させない(0059)。
+              前回と同じ曜日・時刻が実際に空いているときだけ出す。 */}
+          {useReal && history && data?.isHost && (
+            <RebookSame
+              flow={flow}
+              history={history}
+              host={{
+                userId: data.userId,
+                nickname: data.nickname,
+                avatarInitial: data.avatarInitial,
+                avatarColor: data.avatarColor,
+                hourlyRate: data.hourlyRate,
+              }}
+              schedule={schedule}
+            />
           )}
 
           {/* ボイスプロフィール。声はこのサービスでいちばん人となりが伝わる材料なので、

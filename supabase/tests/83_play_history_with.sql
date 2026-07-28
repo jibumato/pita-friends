@@ -82,7 +82,32 @@ begin
   end if;
 end $$;
 
-\echo '=== 5. 未ログインでは引けない ==='
+\echo '=== 5. 前回の条件(長さ・開始時刻)が返る(0059) ==='
+-- 「前回と同じで予約」を出すための材料。いちばん新しい完了予約のもの。
+do $$
+declare v jsonb;
+begin
+  -- 直近は「3. 向きを問わない」で入れた1日前・60分の予約
+  v := public.my_play_history_with('e6000000-0000-0000-0000-000000000009'::uuid);
+  if (v->>'last_duration_minutes')::int <> 60 then
+    raise exception 'FAIL: 前回の長さが返らない: %', v->>'last_duration_minutes';
+  end if;
+  if (v->>'last_scheduled_at')::timestamptz < now() - interval '2 days' then
+    raise exception 'FAIL: 前回の開始時刻が古いほうを指している: %', v->>'last_scheduled_at';
+  end if;
+end $$;
+
+\echo '=== 6. 遊んでいない相手には前回の条件も返らない ==='
+do $$
+declare v jsonb;
+begin
+  v := public.my_play_history_with('e6000000-0000-0000-0000-00000000000c'::uuid);
+  if v->>'last_duration_minutes' is not null or v->>'last_scheduled_at' is not null then
+    raise exception 'FAIL: 遊んでいないのに前回の条件が入っている';
+  end if;
+end $$;
+
+\echo '=== 7. 未ログインでは引けない ==='
 do $$
 begin
   if has_function_privilege('anon', 'public.my_play_history_with(uuid)', 'execute') then

@@ -704,7 +704,13 @@ export async function setHostStatus(text: string): Promise<string | null> {
 }
 
 /** 自分とこの相手が一緒に遊んだ実績(0055)。 */
-export type PlayHistoryWith = { count: number; lastPlayedAt: Date | null }
+export type PlayHistoryWith = {
+  count: number
+  lastPlayedAt: Date | null
+  /** 前回の長さ(分)と開始時刻(0059)。「前回と同じで予約」に使う。 */
+  lastDurationMinutes: number | null
+  lastScheduledAt: Date | null
+}
 
 /**
  * 「あなたとは3回目」を出すための回数。
@@ -715,10 +721,17 @@ export async function fetchPlayHistoryWith(otherUserId: string): Promise<PlayHis
     p_other: otherUserId,
   })
   if (error) throw error
-  const q = (data ?? {}) as { count?: number; last_played_at?: string | null }
+  const q = (data ?? {}) as {
+    count?: number
+    last_played_at?: string | null
+    last_duration_minutes?: number | null
+    last_scheduled_at?: string | null
+  }
   return {
     count: Number(q.count ?? 0),
     lastPlayedAt: q.last_played_at ? new Date(q.last_played_at) : null,
+    lastDurationMinutes: q.last_duration_minutes ?? null,
+    lastScheduledAt: q.last_scheduled_at ? new Date(q.last_scheduled_at) : null,
   }
 }
 
@@ -1696,8 +1709,15 @@ export async function createBookingRemote(
   return data as string
 }
 
-/** 空き状況の1マス(1時間)。0051。 */
-export type ScheduleSlot = { slotAt: Date; state: 'past' | 'closed' | 'booked' | 'open' }
+/**
+ * 空き状況の1マス(1時間)。0051。
+ * regulars は「常連への先行予約の期間中」(0057)。
+ * **ScheduleGrid の SlotState と同じ並びに保つこと。**
+ */
+export type ScheduleSlot = {
+  slotAt: Date
+  state: 'past' | 'closed' | 'booked' | 'regulars' | 'open'
+}
 
 /**
  * ピタメイトの空き状況を1時間ごとに取得する(誰でも見られる)。
