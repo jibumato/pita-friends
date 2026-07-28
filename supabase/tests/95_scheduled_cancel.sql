@@ -38,7 +38,10 @@ begin
     raise notice 'OK 直前すぎる指定は START_TOO_SOON';
   end;
   begin
-    perform public.create_booking('e0000000-0000-0000-0000-0000000000a1'::uuid, 60, 'v2', now() + interval '20 days');
+    -- 上限は platform_pricing から読む。数字を書くと、上限を変えるたびに
+    -- ここが落ちて「壊れた」ように見える(実際は設定を変えただけ)。
+    perform public.create_booking('e0000000-0000-0000-0000-0000000000a1'::uuid, 60, 'v2',
+      now() + make_interval(days => (select max_lead_days + 1 from public.platform_pricing where id = 1)));
     raise exception 'FAIL 上限より先の指定が通ってしまった';
   exception when others then
     if sqlerrm <> 'START_TOO_FAR' then raise; end if;

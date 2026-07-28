@@ -714,6 +714,17 @@ export type Database = {
         Args: Record<string, never>
         Returns: number
       }
+      /** 0061: 同じ時刻を毎週くり返して2〜4回まとめて予約する。全部通るか、1件も作らないか。 */
+      create_booking_series: {
+        Args: {
+          p_host_id: string
+          p_duration_minutes: number
+          p_policy_version: string | null
+          p_first_start: string
+          p_count: number
+        }
+        Returns: string[]
+      }
       /** 0056: 自分の「ひとこと」を書き換える。空文字で消える。 */
       set_host_status: {
         Args: { p_text: string }

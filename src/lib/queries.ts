@@ -1705,6 +1705,31 @@ export async function setPresenceStatus(status: PresenceStatus): Promise<void> {
  * この時点では予約は「承諾待ち(requested)」で、約束(トーク)はまだ成立しない。
  * ピタメイトが承諾して初めてトークが開く。戻り値は booking_id。
  */
+/**
+ * 同じ時刻を毎週くり返して2〜4回まとめて予約する(0061)。
+ *
+ * 新しいお金の仕組みではなく、create_booking を回数分呼ぶだけ。料金・割引・
+ * キャンセル規定は1件ずつ従来どおり効く。**どこかで失敗すれば1件も作られない**
+ * ので、途中まで作られて頼んでいない組み合わせに払う、ということが起きない。
+ */
+export async function createBookingSeriesRemote(
+  hostId: string,
+  durationMinutes: number,
+  policyVersion: string,
+  firstStart: Date,
+  count: number,
+): Promise<string[]> {
+  const { data, error } = await requireSupabase().rpc('create_booking_series', {
+    p_host_id: hostId,
+    p_duration_minutes: durationMinutes,
+    p_policy_version: policyVersion,
+    p_first_start: firstStart.toISOString(),
+    p_count: count,
+  })
+  if (error) throw error
+  return data ?? []
+}
+
 export async function createBookingRemote(
   hostId: string,
   /** 30分刻み(30〜240)。上限はサーバの platform_pricing.max_duration_minutes。 */

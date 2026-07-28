@@ -15,7 +15,7 @@ import {
 } from './flow'
 import type { ReportCategory, PresenceStatus } from './lib/database.types'
 import type { LegalDocKey } from './content/legalDocs'
-import { CANCELLATION_POLICY_VERSION } from './content/bookingPolicy'
+import { CANCELLATION_POLICY_VERSION, MAX_LEAD_DAYS } from './content/bookingPolicy'
 import type { PersonalityResult } from './content/personality'
 import PhoneFrame from './components/PhoneFrame'
 import LoginOverlay from './components/LoginOverlay'
@@ -34,6 +34,7 @@ import {
   updateSafetyPrefsRemote,
   updateHostSettingsRemote,
   createBookingRemote,
+  createBookingSeriesRemote,
   checkIsAdmin,
   submitReport as submitReportRemote,
   blockUser as blockUserRemote,
@@ -216,6 +217,9 @@ export type Flow = {
   setBookingDuration: (min: BookingDuration) => void
   setBookingWhen: (w: 'now' | 'scheduled') => void
   setBookingStartAt: (d: Date | null) => void
+  /** まとめ予約の回数(0061)。1で単発。時間指定のときだけ2以上にできる。 */
+  bookingRepeat: number
+  setBookingRepeat: (n: number) => void
   confirmBooking: () => void
   setGame: (g: string) => void
   setWhen: (w: string) => void
@@ -284,6 +288,8 @@ const INITIAL = {
   bookingDuration: 60 as BookingDuration,
   bookingWhen: 'now' as 'now' | 'scheduled',
   bookingStartAt: null as Date | null,
+  // まとめ予約の回数(0061)。1で単発。
+  bookingRepeat: 1,
   bookingInsufficient: false,
   bookingError: null as string | null,
   userId: null as string | null,
@@ -555,13 +561,26 @@ export default function App() {
       try {
         // 予約はリクエスト(承諾待ち)として作られる。ピタメイトが承諾するまで
         // トークは開かないので、送信完了→承諾待ち画面に遷移する。
-        await createBookingRemote(
-          host.userId,
-          state.bookingDuration,
-          CANCELLATION_POLICY_VERSION,
-          state.bookingWhen === 'scheduled' ? state.bookingStartAt : null,
-        )
-        const cost = coinsForDuration(host.hourlyRate, state.bookingDuration)
+        // まとめ予約(0061)は専用のRPCへ。中身は create_booking を回数分呼ぶだけで、
+        // どこかで失敗すれば1件も作られない。
+        const repeat = state.bookingWhen === 'scheduled' ? state.bookingRepeat : 1
+        if (repeat > 1 && state.bookingStartAt) {
+          await createBookingSeriesRemote(
+            host.userId,
+            state.bookingDuration,
+            CANCELLATION_POLICY_VERSION,
+            state.bookingStartAt,
+            repeat,
+          )
+        } else {
+          await createBookingRemote(
+            host.userId,
+            state.bookingDuration,
+            CANCELLATION_POLICY_VERSION,
+            state.bookingWhen === 'scheduled' ? state.bookingStartAt : null,
+          )
+        }
+        const cost = coinsForDuration(host.hourlyRate, state.bookingDuration) * repeat
         clearTimer()
         setState((p) => ({
           ...p,
@@ -579,7 +598,7 @@ export default function App() {
             bookingError: '開始時刻が近すぎます。30分以上先の時間を選んでください。',
           }))
         } else if (message.includes('START_TOO_FAR')) {
-          setState((p) => ({ ...p, bookingError: '開始時刻は14日先までで選んでください。' }))
+          setState((p) => ({ ...p, bookingError: `開始時刻は${MAX_LEAD_DAYS}日先までで選んでください。` }))
         } else if (message.includes('HOST_NOT_OPEN')) {
           setState((p) => ({
             ...p,
@@ -823,6 +842,7 @@ export default function App() {
         bookingDuration: 60,
         bookingWhen: 'now',
         bookingStartAt: null,
+        bookingRepeat: 1,
         bookingInsufficient: false,
         bookingError: null,
         screen: 'booking',
@@ -835,9 +855,12 @@ export default function App() {
         bookingWhen: w,
         // 「時間を指定」に切り替えた直後は未選択。確定時に弾く
         bookingStartAt: w === 'now' ? null : p.bookingStartAt,
+        // 「今すぐ」を4回くり返すのは意味が通らないので、戻したら解除する
+        bookingRepeat: w === 'now' ? 1 : p.bookingRepeat,
         bookingError: null,
       })),
     setBookingStartAt: (d) => setState((p) => ({ ...p, bookingStartAt: d, bookingError: null })),
+    setBookingRepeat: (n) => setState((p) => ({ ...p, bookingRepeat: n, bookingError: null })),
     confirmBooking,
     go,
     openLogin,

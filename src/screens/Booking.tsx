@@ -91,6 +91,11 @@ export default function Booking({ flow }: { flow: Flow }) {
 
   const listCost = coinsForDuration(host.hourlyRate, flow.bookingDuration)
   const cost = discountedCoins(listCost, discount)
+  // まとめ予約(0061)。初回お試し割引が効くのは**1回目だけ**で、2回目以降は
+  // 通常価格になる。サーバ側も同じ判定(申込済みの予約があれば割引対象外)なので、
+  // ここで違う合計を出すと画面と実際の引き落としがずれる。
+  const repeat = flow.bookingWhen === 'scheduled' && flow.bookingStartAt ? flow.bookingRepeat : 1
+  const totalCost = cost + listCost * (repeat - 1)
   const short = flow.bookingInsufficient
 
   return (
@@ -287,6 +292,50 @@ export default function Booking({ flow }: { flow: Flow }) {
           </>
         )}
 
+        {/* まとめ予約(0061)。毎週同じ時刻が決まっている二人に、毎回ゼロから
+            予約させない。ピタメイト側も先の予定が立つ。
+            **時間指定のときだけ出す。**「今すぐ」を4回くり返すのは意味が通らない。 */}
+        {flow.bookingWhen === 'scheduled' && flow.bookingStartAt && (
+          <>
+            <span style={{ fontSize: 12, color: C.muted }}>毎週くり返す（任意）</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[1, 2, 3, 4].map((n) => {
+                const sel = flow.bookingRepeat === n
+                return (
+                  <span
+                    key={n}
+                    onClick={() => flow.setBookingRepeat(n)}
+                    {...clickable(() => flow.setBookingRepeat(n), n === 1 ? 'くり返さない' : `${n}回分まとめて予約`)}
+                    style={{
+                      flex: 1,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      fontSize: 12.5,
+                      color: sel ? C.lime : C.ink,
+                      background: sel ? C.fill : C.white,
+                      border: `1.5px solid ${C.border}`,
+                      padding: '10px 0',
+                      borderRadius: 8,
+                    }}
+                  >
+                    {n === 1 ? 'なし' : `${n}回分`}
+                  </span>
+                )
+              })}
+            </div>
+            {flow.bookingRepeat > 1 && flow.bookingStartAt && (
+              <span style={{ fontSize: 10.5, color: C.body, lineHeight: 1.7 }}>
+                {Array.from({ length: flow.bookingRepeat }, (_, i) =>
+                  formatStart(new Date(flow.bookingStartAt!.getTime() + i * 7 * 86_400_000)),
+                ).join(' / ')}
+                <br />
+                <b>1回でも空いていなければ、どれも予約されません。</b>
+                コインはまとめて引かれ、キャンセルの扱いは1回ずつ従来どおりです。
+              </span>
+            )}
+          </>
+        )}
+
         {/* 料金サマリー */}
         <div
           style={{
@@ -327,9 +376,24 @@ export default function Booking({ flow }: { flow: Flow }) {
                 </span>
               )}
               <Coin size={18} color={C.lime} />
-              <span style={{ fontSize: 24, color: C.lime }}>{cost.toLocaleString()}</span>
+              <span style={{ fontSize: 24, color: C.lime }}>{totalCost.toLocaleString()}</span>
             </div>
           </div>
+          {repeat > 1 && (
+            <span style={{ fontSize: 10, color: '#E3DCFF', lineHeight: 1.7 }}>
+              {repeat}回分の合計です（
+              {discount > 0
+                ? `初回 ${cost.toLocaleString()} ＋ 2回目以降 ${listCost.toLocaleString()} × ${repeat - 1}`
+                : `${listCost.toLocaleString()} × ${repeat}`}
+              ）。
+              {discount > 0 && (
+                <>
+                  <br />
+                  初回割引が効くのは<b style={{ color: '#fff' }}>1回目だけ</b>です。
+                </>
+              )}
+            </span>
+          )}
           {discount > 0 && (
             <span style={{ fontSize: 10, color: '#E3DCFF', lineHeight: 1.7 }}>
               このピタメイトと初めて遊ぶ方向けの割引です。2回目以降は通常価格（
@@ -359,7 +423,7 @@ export default function Booking({ flow }: { flow: Flow }) {
             }}
           >
             <span style={{ fontSize: 12, color: C.ink }}>
-              コインが不足しています(あと{cost - flow.coinBalance}コイン必要)
+              コインが不足しています(あと{totalCost - flow.coinBalance}コイン必要)
             </span>
             <span
               onClick={() => flow.go('wallet')}
@@ -460,7 +524,7 @@ export default function Booking({ flow }: { flow: Flow }) {
             ...confirm.style,
           }}
         >
-          {cost} コインで予約を確定 ▶
+          {totalCost} コインで{repeat > 1 ? `${repeat}回分を` : ''}予約を確定 ▶
         </div>
       </div>
     </Screen>
