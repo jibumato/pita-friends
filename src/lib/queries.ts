@@ -152,6 +152,8 @@ export type DiscoverableHost = {
   /** ひとこと(0056)。14日を過ぎたものはサーバ側で null になる。 */
   statusText: string | null
   statusUpdatedAt: string | null
+  /** 2回以上遊んだ人の数(0058)。0のときは表示しない。 */
+  repeatGuests: number
 }
 
 /**
@@ -189,6 +191,7 @@ export async function fetchPublicHostCards(limit = 24): Promise<DiscoverableHost
     presenceStatus: 'online' as PresenceStatus,
     statusText: r.status_text,
     statusUpdatedAt: r.status_updated_at,
+    repeatGuests: r.repeat_guests ?? 0,
   }))
 }
 
@@ -214,6 +217,12 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]))
   const statsMap = new Map((stats ?? []).map((s) => [s.user_id, s]))
 
+  // リピーター数(0058)はまとめて1往復で取る。取れなくても一覧は出す
+  // (「また呼ばれている」は選ぶ助けであって、無いと困る情報ではない)。
+  const repeatMap = new Map<string, number>()
+  const { data: repeats } = await sb.rpc('host_repeat_guest_counts', { p_host_ids: userIds })
+  for (const r of repeats ?? []) repeatMap.set(r.host_id, r.repeat_guests)
+
   return hosts
     .filter((h) => profileMap.has(h.user_id))
     .map((h) => {
@@ -237,6 +246,7 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
         presenceStatus: profile.presence_status ?? 'online',
         // 古いひとことは出さない。判定はサーバの fresh_host_status と同じ14日
         ...freshStatus(h.status_text, h.status_updated_at),
+        repeatGuests: repeatMap.get(h.user_id) ?? 0,
       }
     })
 }
@@ -1432,12 +1442,14 @@ export type PublicProfile = {
   /** ひとこと(0056)。14日を過ぎたものは null。 */
   statusText: string | null
   statusUpdatedAt: string | null
+  /** 2回以上遊んだ人の数(0058)。 */
+  repeatGuests: number
 }
 
 /** 他ユーザーの公開プロフィールを取得する(さがす/ホーム等から個別に表示)。 */
 export async function fetchPublicProfile(userId: string): Promise<PublicProfile | null> {
   const sb = requireSupabase()
-  const [profileRes, trustRes, hostRes, reviewRes] = await Promise.all([
+  const [profileRes, trustRes, hostRes, reviewRes, repeatRes] = await Promise.all([
     sb.from('profiles').select('nickname, avatar_initial, avatar_color, voice_path, voice_seconds, avatar_path, last_seen_at, presence_status').eq('id', userId).single(),
     sb
       .from('profile_trust_stats')
@@ -1452,6 +1464,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    sb.rpc('host_repeat_guests', { p_host_id: userId }),
   ])
   if (profileRes.error) throw profileRes.error
   if (!profileRes.data) return null
@@ -1493,6 +1506,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     lastSeenAt: profileRes.data.last_seen_at ?? null,
     presenceStatus: profileRes.data.presence_status ?? 'online',
     ...freshStatus(host?.status_text ?? null, host?.status_updated_at ?? null),
+    repeatGuests: repeatRes.data ?? 0,
     latestReview,
   }
 }

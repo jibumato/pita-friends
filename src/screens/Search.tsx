@@ -17,6 +17,7 @@ import { mannerScoreLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import OnlineBadge from '../components/OnlineBadge'
 import VoiceChip from '../components/VoiceChip'
 import HostStatus from '../components/HostStatus'
+import RepeatBadge from '../components/RepeatBadge'
 import type { PresenceStatus } from '../lib/database.types'
 import { GAMES, coinsPer30, SEARCH_VERIFIED_FILTER as VERIFIED_FILTER, SEARCH_DEMO_FILTERS as DEMO_FILTERS, SEARCH_REAL_FILTERS as REAL_FILTERS } from '../flow'
 
@@ -43,6 +44,8 @@ type DisplayCard = {
   /** ひとこと(0056)。 */
   statusText?: string | null
   statusUpdatedAt?: string | null
+  /** 2回以上遊んだ人の数(0058)。 */
+  repeatGuests?: number
 }
 
 function fromMock(u: (typeof searchUsers)[number]): DisplayCard {
@@ -124,6 +127,7 @@ export default function Search({ flow }: { flow: Flow }) {
           voiceSeconds: h.voiceSeconds,
           statusText: h.statusText,
           statusUpdatedAt: h.statusUpdatedAt,
+          repeatGuests: h.repeatGuests,
         }))
         setRealCards(cards)
         setPhase(cards.length > 0 ? 'results' : 'empty')
@@ -438,6 +442,7 @@ export default function Search({ flow }: { flow: Flow }) {
                     />
                     {/* 声はいちばん人となりが伝わる材料。名前のすぐ下に置く */}
                     <VoiceChip url={u.voiceUrl ?? null} seconds={u.voiceSeconds ?? null} variant="quiet" />
+                    <RepeatBadge count={u.repeatGuests} size="sm" />
                   </div>
                 </div>
               </div>

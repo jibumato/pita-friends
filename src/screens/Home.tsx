@@ -18,6 +18,7 @@ import { coinsPer30, GAMES } from '../flow'
 import FavoriteStar from '../components/FavoriteStar'
 import HostStatus from '../components/HostStatus'
 import VoiceChip from '../components/VoiceChip'
+import RepeatBadge from '../components/RepeatBadge'
 import {
   fetchDiscoverableHosts,
   fetchPublicHostCards,
@@ -651,6 +652,7 @@ function PickupCard({
               {score ? `${score}・マナー◎` : NEW_MEMBER_LABEL}
             </span>
             <VoiceChip url={host.voiceUrl} seconds={host.voiceSeconds} variant="quiet" />
+            <RepeatBadge count={host.repeatGuests} />
           </div>
           <HostStatus text={host.statusText} at={host.statusUpdatedAt} />
           {host.bio && (

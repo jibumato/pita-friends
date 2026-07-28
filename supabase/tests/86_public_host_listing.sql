@@ -94,6 +94,12 @@ update public.safety_prefs set discoverable = true
 \echo '=== 4. 出してはいけない項目を返していない ==='
 -- 戻り値の列を固定で確かめる。あとから「便利だから」と
 -- 性別やオンライン状態を足してしまうのを、ここで止める。
+--
+-- **列を足したときは、ここも一緒に直すこと。** 直すときは「この列を未ログインの
+-- 相手に見せてよいか」を一度考える。それがこの検査の目的で、通すためだけに
+-- 機械的に書き足すと意味が無くなる。
+--   0056: status_text / status_updated_at (ひとこと。本人が公開の場に書くもの)
+--   0058: repeat_guests (2回以上遊んだ人の**数**。誰かは返らない・金額も含まない)
 do $$
 declare
   v_cols text;
@@ -106,7 +112,8 @@ begin
     and a.attmode = 't';
 
   if v_cols is distinct from
-     'host_id,nickname,avatar_initial,avatar_color,avatar_path,hourly_rate,games,bio,manner_score,review_count,is_verified'
+     'host_id,nickname,avatar_initial,avatar_color,avatar_path,hourly_rate,games,bio,'
+     || 'manner_score,review_count,is_verified,status_text,status_updated_at,repeat_guests'
   then
     raise exception 'FAIL: 公開する列が変わっている: %', v_cols;
   end if;
