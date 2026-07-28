@@ -36,7 +36,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (55, '0055_play_history_with',      'funcsrc', 'my_play_history_with',        'last_played_at'),
     (56, '0056_host_status',            'column',  'host_settings',               'status_text'),
     (57, '0057_regulars_first',         'column',  'host_settings',               'regulars_first_hours'),
-    (58, '0058_repeat_proof',           'funcsrc', 'public_host_cards',           'repeat_guests')
+    (58, '0058_repeat_proof',           'funcsrc', 'public_host_cards',           'repeat_guests'),
+    (59, '0059_last_play_shape',        'funcsrc', 'my_play_history_with',        'last_duration_minutes')
 ),
 checked as (
   select
@@ -103,7 +104,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (55, '0055_play_history_with',      'funcsrc', 'my_play_history_with',        'last_played_at'),
     (56, '0056_host_status',            'column',  'host_settings',               'status_text'),
     (57, '0057_regulars_first',         'column',  'host_settings',               'regulars_first_hours'),
-    (58, '0058_repeat_proof',           'funcsrc', 'public_host_cards',           'repeat_guests')
+    (58, '0058_repeat_proof',           'funcsrc', 'public_host_cards',           'repeat_guests'),
+    (59, '0059_last_play_shape',        'funcsrc', 'my_play_history_with',        'last_duration_minutes')
 ),
 checked as (
   select e.seq, e.migration,
