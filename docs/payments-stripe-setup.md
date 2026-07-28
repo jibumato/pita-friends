@@ -135,7 +135,7 @@ supabase functions deploy record-ip
 3. 動作確認:
    1. 本人確認済みのテストユーザーでログイン → ホスト設定 → 振込先口座を登録
    2. 予約を作成(create_booking)→ トーク画面でゲストが「プレイ完了」を確定 → ホストの `earned_balance` が増える
-   3. ホスト側でウォレット画面から換金を申請(1,000コイン以上)→ `payouts` に `status='pending'` の行ができ、
+   3. ホスト側でウォレット画面から換金を申請(5,000コイン以上)→ `payouts` に `status='pending'` の行ができ、
       手数料300コインが控除された `amount_yen` が入っていることを確認
    4. SQL Editor で `select public.mark_payout_paid(id) from public.payouts where status='pending';`
       → ウォレットの履歴が「振込済み」になることを確認

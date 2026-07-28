@@ -35,10 +35,11 @@ insert into public.host_bank_accounts
   on conflict (user_id) do nothing;
 
 \echo '=== 1. 実際のRPCだけで一通り取引を回す ==='
--- 購入(Stripe経路): 有償5000 + ボーナス500
+-- 購入(Stripe経路): 有償30000 + ボーナス500
+-- (0063で最低換金額が5,000コインになったので、報酬がそこに届く規模にしている)
 select public.credit_coins_for_purchase(
   'd0000000-0000-0000-0000-0000000000e2'::uuid, 'pack_5000',
-  5000, 500, 5000, 'sess_integrity_1', 'pi_integrity_1');
+  30000, 500, 30000, 'sess_integrity_1', 'pi_integrity_1');
 
 -- 予約→承諾→完了(報酬と手数料が動く)
 set test.uid = 'd0000000-0000-0000-0000-0000000000e2';
@@ -65,11 +66,13 @@ update public.coin_purchases set created_at = now() - interval '2 days'
   where stripe_session_id = 'sess_integrity_1';
 reset app.ledger_override;
 select id as promise_id from public.promises where booking_id = :'bk1' \gset
-select public.send_gift(:'promise_id', 300, 'dev-integrity-guest', '10.0.0.1');
+-- 8,000にしているのは、0063で最低換金額が5,000コインになったため。
+-- 予約を長くすると3件の枠が重なる(0049)ので、ギフトで積む。
+select public.send_gift(:'promise_id', 8000, 'dev-integrity-guest', '10.0.0.1');
 
 -- 換金申請(報酬から引かれ、payouts に積まれる)
 set test.uid = 'd0000000-0000-0000-0000-0000000000e1';
-select public.request_bank_payout(1000);
+select public.request_bank_payout(5000);
 
 \echo '=== 2. この時点で全チェックが ok になること ==='
 set test.uid = 'd0000000-0000-0000-0000-0000000000e9';

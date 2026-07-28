@@ -1365,7 +1365,8 @@ export async function fetchEarnings(): Promise<EarningsSummary> {
 
 /** 換金の運用パラメータ。DB側(request_bank_payout)の定数と一致させること。 */
 export const PAYOUT_FEE_COINS = 300
-export const PAYOUT_MIN_COINS = 1000
+/** 最低換金額。0063で1,000→5,000に変更(サーバの request_bank_payout と揃えること)。 */
+export const PAYOUT_MIN_COINS = 5000
 
 export type BankAccount = {
   bankName: string

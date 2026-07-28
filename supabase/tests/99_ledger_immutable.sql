@@ -109,7 +109,7 @@ update public.coin_wallets set earned_balance = 5000
 insert into public.coin_transactions (user_id, amount, type, note)
   values ('c0000000-0000-0000-0000-0000000000f1'::uuid, 5000, 'booking_earned', 'test:seed');
 set test.uid = 'c0000000-0000-0000-0000-0000000000f1';
-select public.request_bank_payout(1000);
+select public.request_bank_payout(5000);  -- 0063で最低額5,000
 
 do $$
 begin

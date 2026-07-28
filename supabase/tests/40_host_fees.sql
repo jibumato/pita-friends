@@ -47,14 +47,14 @@ where user_id='b2222222-2222-2222-2222-222222222222';
 select type, amount, note from public.coin_transactions
 where user_id='b2222222-2222-2222-2222-222222222222' order by created_at;
 
-\echo '=== ギフト(一律30%) ==='
+\echo '=== ギフト(一律35%・0063で30%から変更) ==='
 -- 完了した予約があるのでギフトを贈れる
 select id as pid from public.promises where booking_id = :'b1' \gset
 set test.uid = 'a1111111-1111-1111-1111-111111111111';
 select public.send_gift(:'pid', 1000, null, null) is not null as gift_sent;
 select gross_coins, fee_coins, net_coins, applied_rate
 from public.platform_fees where kind='gift';
-\echo '(1000 × 30% = 300 が手数料。手取り700)'
+\echo '(1000 × 35% = 350 が手数料。手取り650)'
 
 \echo '=== ティア跨ぎ(月間GMVが3万を越える予約) ==='
 -- 既存の完了予約を積み増して、境界をまたぐ1件の手数料を見る
