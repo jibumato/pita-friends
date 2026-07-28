@@ -13,6 +13,7 @@ import OnlineBadge from '../components/OnlineBadge'
 import { subscribeOnlineUsers } from '../lib/presence'
 import FavoriteStar from '../components/FavoriteStar'
 import HostStatus from '../components/HostStatus'
+import RepeatBadge, { playMilestone } from '../components/RepeatBadge'
 import { fetchMyFavorites, fetchPlayHistoryWith, type PlayHistoryWith } from '../lib/queries'
 
 /* ---- デモ(モック)用の固定データ ---- */
@@ -329,6 +330,14 @@ export default function Profile({ flow }: { flow: Flow }) {
             ))}
           </div>
 
+          {/* 「また呼ばれている」ことの証拠(0058)。上のタイルはどれも
+              「1回来た人」を何度数えても増えるので、繰り返し来た人の数を別に出す。 */}
+          {useReal && (data?.repeatGuests ?? 0) > 0 && (
+            <div style={{ display: 'flex' }}>
+              <RepeatBadge count={data?.repeatGuests} />
+            </div>
+          )}
+
           {/* 「あなたとは3回目」。上のタイルは通算の回数なので、見ている自分との
               関係は何も表していない。積み上がっているものが見えると、次も同じ人に
               頼む理由になる(0055)。0回のときは何も出さない。 */}
@@ -348,6 +357,22 @@ export default function Profile({ flow }: { flow: Flow }) {
               <span style={{ fontSize: 12, color: C.ink }}>
                 あなたとは <b style={{ color: C.lavenderText }}>{history.count}回</b> 遊んでいます
               </span>
+              {/* 節目のときだけ強調する。毎回出すと数字が流れるだけになる */}
+              {playMilestone(history.count) && (
+                <span
+                  style={{
+                    flex: 'none',
+                    fontSize: 9.5,
+                    color: C.ink,
+                    background: C.lime,
+                    border: `1.5px solid ${C.border}`,
+                    borderRadius: 20,
+                    padding: '2px 7px',
+                  }}
+                >
+                  🏅 {playMilestone(history.count)}回超え
+                </span>
+              )}
               {history.lastPlayedAt && (
                 <span style={{ fontSize: 10.5, color: C.muted, marginLeft: 'auto' }}>
                   最後は{lastPlayedLabel(history.lastPlayedAt)}

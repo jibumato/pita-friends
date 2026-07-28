@@ -742,7 +742,19 @@ export type Database = {
           /** 0056: 14日以内のひとことだけが入る(古いものは null)。 */
           status_text: string | null
           status_updated_at: string | null
+          /** 0058: 2回以上遊んだ人の数(誰かは返らない)。 */
+          repeat_guests: number
         }[]
+      }
+      /** 0058: そのピタメイトと2回以上遊んだ人の数。 */
+      host_repeat_guests: {
+        Args: { p_host_id: string }
+        Returns: number
+      }
+      /** 0058: 一覧向けにまとめて取る。 */
+      host_repeat_guest_counts: {
+        Args: { p_host_ids: string[] }
+        Returns: { host_id: string; repeat_guests: number }[]
       }
       host_open_now: {
         Args: { p_host_id: string }
