@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { color as C } from '../theme/tokens'
 import { setFavorite } from '../lib/queries'
 import { isBackendConfigured } from '../lib/supabase'
+import { armInstallGuide } from '../lib/install'
 
 type Props = {
   hostId: string
@@ -38,6 +39,10 @@ export default function FavoriteStar({ hostId, initialOn, onBlocked, size = 30, 
     try {
       await setFavorite(hostId, next)
       onChanged?.(next)
+      // 推した直後は「この人をまた見に来る」気持ちがいちばん強い瞬間で、
+      // 枠が空いたときの通知(0054)が届く相手ができた瞬間でもある。
+      // ここでだけホーム画面への追加を勧める(抑制中なら何も起きない)。
+      if (next) armInstallGuide()
     } catch {
       setOn(!next)
       onBlocked?.()

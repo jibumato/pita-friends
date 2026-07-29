@@ -3,6 +3,11 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary.tsx'
+import { initInstall } from './lib/install.ts'
+
+// beforeinstallprompt は React が乗る前に飛ぶことがあり、取り逃すと
+// ネイティブの追加ダイアログを二度と出せない。描画より先に構える。
+initInstall()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

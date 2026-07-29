@@ -19,6 +19,7 @@ import { CANCELLATION_POLICY_VERSION, MAX_LEAD_DAYS } from './content/bookingPol
 import type { PersonalityResult } from './content/personality'
 import PhoneFrame from './components/PhoneFrame'
 import LoginOverlay from './components/LoginOverlay'
+import InstallGuideHost from './components/InstallGuideHost'
 import DesktopTopBar from './components/DesktopTopBar'
 import DesktopSidebar from './components/DesktopSidebar'
 import DesktopHero from './components/DesktopHero'
@@ -938,6 +939,8 @@ export default function App() {
         {flow.reportTarget && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
         <LoginOverlay flow={flow} />
+        {/* ホーム画面への追加の案内。開くきっかけは設定・マイページ・⭐から飛んでくる */}
+        <InstallGuideHost />
           </>
         )}
       </PhoneFrame>
