@@ -41,21 +41,35 @@
      案内が消えること**(`display-mode` と `navigator.standalone` で判定)
    - ⚠️ Androidで既に追加済みの人がタブで開くと案内が一度出る
      (`beforeinstallprompt` が飛ばないため)。閉じれば止まる
-7. ☐ **Web Push の許可取得**(未実装、`src/lib/install.ts` の文面にも通知の話は
-   書いていない)。iOSはホーム画面から開いたときしか届かないので、
-   実装したら 6 の案内に「通知が届くようになる」という理由を足せる
+7. ◑ **Web Push**(2026-07-29 実装、0064)。**鍵の設定が残っています。**
+   手順は [web-push-setup.md](web-push-setup.md)。要点だけ:
+   - VAPID鍵を作る → Cloudflare に `VITE_VAPID_PUBLIC_KEY`、Supabase の
+     Secrets に `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` / `PUSH_CRON_SECRET`
+   - `supabase functions deploy push-send --no-verify-jwt`
+   - pg_cron から1分おきに push-send を叩く / 1日1回 `prune_push()`
+   - **`VITE_VAPID_PUBLIC_KEY` が空のあいだは通知の導線が一切出ません**
+     (壊れたボタンは出ないので、未設定のまま公開しても事故らない)
+   - ⚠️ **秘密鍵はリポジトリに絶対に入れない。** 漏れると第三者が
+     ピタフレを名乗って利用者にプッシュを送れます
+   - ⚠️ **公開鍵は一度公開したら変えない。** 変えると既存の購読が全部
+     無効になり、利用者に再登録してもらう手立てがありません
+   - 実機確認: iPhoneをホーム画面に追加 → ⭐を付けて説明シート → 許可 →
+     **アプリを閉じた状態で**予約リクエストが届くこと →
+     `message_received` でロック画面に本文が出ないこと
 
 ## B. Supabase 本番設定
 
 1. ◑ **マイグレーション適用**: 0001〜0056は適用済み(2026-07-27)。
-   **`0057_regulars_first.sql`(常連への先行予約)と
-   `0058_repeat_proof.sql`(リピーター数)・`0059_last_play_shape.sql`
-   (前回と同じ条件で再予約)・`0060_discovery_repeat_rank.sql`(掲載順)が
-   `0061_booking_series.sql`(まとめ予約)・`0062_fast_release.sql`
-   (自動確定の短縮)・`0063_align_payout_terms.sql`(換金・ギフト条件)が
-   未適用**です。0057 → 0058 → 0059 → 0060 → 0061 → 0062 → 0063
-   の順に当ててください
-   (0060は0058の関数を作り直すため、逆順では失敗します)。
+   **0057〜0064が未適用**です。次の順に当ててください:
+
+   `0057_regulars_first`(常連への先行予約)→ `0058_repeat_proof`(リピーター数)
+   → `0059_last_play_shape`(前回と同じ条件で再予約)
+   → `0060_discovery_repeat_rank`(掲載順)→ `0061_booking_series`(まとめ予約)
+   → `0062_fast_release`(自動確定の短縮)
+   → `0063_align_payout_terms`(換金・ギフト条件)
+   → `0064_web_push`(プッシュ通知)
+
+   (0060は0058の関数を作り直すため、逆順では失敗します。)
 
    > **新しいマイグレーションを足したら**、Supabase SQL Editor で
    > **必ず番号の小さい順に**実行してください(手順: `docs/apply-migrations.md`)。
@@ -99,6 +113,7 @@
    | `0061_booking_series.sql` ← **その次** | まとめ予約(同じ時刻を毎週2〜4回)。あわせて予約できる先を14日→35日に | 「毎週くり返す」を押しても4回目が期間外で弾かれる |
    | `0062_fast_release.sql` ← **その次** | ゲストが相手ごとに自動確定を24時間まで短縮できる（**規約第9条6項の改定を伴う**） | プロフィールの「すぐ確定でいい」が保存されない |
    | `0063_align_payout_terms.sql` ← **その次** | ギフト30→35%・最低換金1,000→5,000コイン（**規約第7条6項・第8条の2第4項と特商法表記の改定を伴う**） | 表示と実際の控除が食い違う |
+   | `0064_web_push.sql` ← **最後** | プッシュ通知（購読先・送信待ち・静かにする時間。**別途VAPID鍵の設定が必要** → `docs/web-push-setup.md`） | 通知がアプリを開いたときしか見えないまま（0054の枠空き通知が届かない） |
 
    </details>
 
@@ -119,8 +134,10 @@
      公開前に Authentication → Emails で独自ドメインのSMTPを設定するのが望ましい
    - 本文の `{{ .ConfirmationURL }}` はそのまま使う(戻り先はアプリ側が指定する)
    - リンクの有効期限(既定1時間)は Authentication → Sessions で確認
-4. ☐ **pg_cron の確認**: Database → Extensions で `pg_cron` が有効か確認
-   (プレイ完了の72時間自動確定に使用。0015参照)
+4. ☐ **pg_cron / pg_net の確認**: Database → Extensions で有効か確認
+   - `pg_cron`: プレイ完了の72時間自動確定(0015)、プッシュの送信と片付け(0064)
+   - `pg_net`: プッシュの送信で Edge Function を叩くのに使う(0064)。
+     登録する cron の中身は `docs/web-push-setup.md` の手順5
 5. ☐ **(必須)Pro プランにする**($25/月。無料プランには保証されたバックアップが無い)
    - **コインを売る前に**。Settings → Billing → Pro
    - PITR($100/月 + Small コンピュート$15/月)は取引量が増えてからで可

@@ -20,6 +20,7 @@ import type { PersonalityResult } from './content/personality'
 import PhoneFrame from './components/PhoneFrame'
 import LoginOverlay from './components/LoginOverlay'
 import InstallGuideHost from './components/InstallGuideHost'
+import PushPromptHost from './components/PushPromptHost'
 import DesktopTopBar from './components/DesktopTopBar'
 import DesktopSidebar from './components/DesktopSidebar'
 import DesktopHero from './components/DesktopHero'
@@ -45,6 +46,7 @@ import {
   touchPresence,
   setPresenceStatus as setPresenceStatusRemote,
 } from './lib/queries'
+import { armNotifyPrompt, refreshPushSubscription } from './lib/push'
 
 import SignUp from './screens/SignUp'
 import ResetPassword from './screens/ResetPassword'
@@ -122,6 +124,27 @@ const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
   'boardCreate',
   'personality',
 ])
+
+/**
+ * プッシュ通知(0064)をタップしたときの行き先。
+ *
+ * **通知が指す当人の画面まで開けるものだけ、そこへ送る。** 相手や予約を
+ * 特定するIDはロック画面に載せていない(_push_lockscreen_body)ので、
+ * 種類から辿れる範囲でいちばん近い一覧へ着地させ、あとは選んでもらう。
+ * 分からないものは通知一覧へ。押したのに何も起きないのが最悪なので、
+ * 必ずどこかへ着地させる。
+ */
+function screenForPushType(type: string | null | undefined): ScreenKey {
+  switch (type) {
+    case 'message_received':
+      return 'talkList'
+    case 'invite_received':
+    case 'booking_requested':
+      return 'requests'
+    default:
+      return 'notifications'
+  }
+}
 
 /** 予約対象のピタメイト(さがす画面のカードから渡す最小情報)。 */
 export type BookingHost = {
@@ -476,6 +499,14 @@ export default function App() {
     void recordIp()
   }, [state.userId])
 
+  // 許可済みなら購読を保存し直す(0064)。**ここで許可を求めてはいけない。**
+  // ブラウザのダイアログは一度しか出せないので、起動時に撃つと断られて
+  // 通知経路が永久に死ぬ。やるのは失効した購読の作り直しと last_seen_at の更新だけ。
+  useEffect(() => {
+    if (!isBackendConfigured || !state.userId) return
+    void refreshPushSubscription()
+  }, [state.userId])
+
   // テーマを <html data-theme> に反映(CSS変数が切替わる)
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme
@@ -521,6 +552,29 @@ export default function App() {
     },
     [clearTimer],
   )
+
+  // 通知をタップして来たときの行き先(0064)。
+  // 開いていたウィンドウには sw.js が postMessage で伝え、閉じていた場合は
+  // ?push=<種類> を付けて起動される。どちらも同じ表で行き先を決める。
+  // (go の定義より後に置くこと。依存配列で参照するため)
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    const onMessage = (e: MessageEvent) => {
+      const d = e.data as { source?: string; type?: string } | null
+      if (d?.source === 'pita-push') go(screenForPushType(d.type))
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [go])
+
+  // 閉じている状態で通知をタップされた場合。起動時に一度だけ見る
+  useEffect(() => {
+    const type = new URLSearchParams(window.location.search).get('push')
+    if (type === null) return
+    // リロードで二度処理しないようURLを掃除する
+    window.history.replaceState({}, '', window.location.pathname)
+    go(screenForPushType(type))
+  }, [go])
 
   // 専用のログイン画面は持たず、いまの画面にかぶせて出す。
   // 以前はようこそ画面に固定していたが、その画面自体を廃止したため
@@ -589,6 +643,10 @@ export default function App() {
           screen: 'bookingRequested',
           activeThreadId: null,
         }))
+        // 承諾を待つ状態になったところ。ここから先の連絡(承認・変更・
+        // キャンセル)は取り逃がすと困るので、通知を勧めるのに適した瞬間。
+        // 通知が無理な環境ならホーム画面への追加を勧める(抑制中は何も起きない)。
+        armNotifyPrompt('booking')
       } catch (err) {
         const message = err instanceof Error ? err.message : ''
         if (message.includes('INSUFFICIENT_COINS')) {
@@ -939,8 +997,10 @@ export default function App() {
         {flow.reportTarget && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
         <LoginOverlay flow={flow} />
-        {/* ホーム画面への追加の案内。開くきっかけは設定・マイページ・⭐から飛んでくる */}
+        {/* ホーム画面への追加と通知の案内。開くきっかけは設定・マイページ・⭐・
+            予約完了から飛んでくる。両方が同時に出ないことは armNotifyPrompt が保証する */}
         <InstallGuideHost />
+        <PushPromptHost />
           </>
         )}
       </PhoneFrame>

@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { color as C } from '../theme/tokens'
 import { setFavorite } from '../lib/queries'
 import { isBackendConfigured } from '../lib/supabase'
-import { armInstallGuide } from '../lib/install'
+import { armNotifyPrompt } from '../lib/push'
 
 type Props = {
   hostId: string
@@ -41,8 +41,9 @@ export default function FavoriteStar({ hostId, initialOn, onBlocked, size = 30, 
       onChanged?.(next)
       // 推した直後は「この人をまた見に来る」気持ちがいちばん強い瞬間で、
       // 枠が空いたときの通知(0054)が届く相手ができた瞬間でもある。
-      // ここでだけホーム画面への追加を勧める(抑制中なら何も起きない)。
-      if (next) armInstallGuide()
+      // 通知が取れるなら通知を、iOSで未追加ならホーム画面への追加を勧める
+      // (どちらも抑制中なら何も起きない)。
+      if (next) armNotifyPrompt('favorite')
     } catch {
       setOn(!next)
       onBlocked?.()

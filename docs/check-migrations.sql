@@ -41,7 +41,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (60, '0060_discovery_repeat_rank',  'funcsrc', 'public_host_cards',           'repeat_score'),
     (61, '0061_booking_series',         'funcsrc', 'create_booking_series',       'INVALID_SERIES_COUNT'),
     (62, '0062_fast_release',           'table',   'fast_release_prefs',          null),
-    (63, '0063_align_payout_terms',     'funcsrc', 'request_bank_payout',         '5000')
+    (63, '0063_align_payout_terms',     'funcsrc', 'request_bank_payout',         '5000'),
+    (64, '0064_web_push',               'table',   'push_subscriptions',          null)
 ),
 checked as (
   select
@@ -113,7 +114,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (60, '0060_discovery_repeat_rank',  'funcsrc', 'public_host_cards',           'repeat_score'),
     (61, '0061_booking_series',         'funcsrc', 'create_booking_series',       'INVALID_SERIES_COUNT'),
     (62, '0062_fast_release',           'table',   'fast_release_prefs',          null),
-    (63, '0063_align_payout_terms',     'funcsrc', 'request_bank_payout',         '5000')
+    (63, '0063_align_payout_terms',     'funcsrc', 'request_bank_payout',         '5000'),
+    (64, '0064_web_push',               'table',   'push_subscriptions',          null)
 ),
 checked as (
   select e.seq, e.migration,
