@@ -11,6 +11,7 @@ import {
   submitAccountRequest,
   type NotificationPrefs,
 } from '../lib/queries'
+import { installGuideAvailable, openInstallGuide } from '../lib/install'
 
 export default function Settings({ flow }: { flow: Flow }) {
   const [email, setEmail] = useState<string | null>(null)
@@ -98,6 +99,15 @@ export default function Settings({ flow }: { flow: Flow }) {
       >
         <SectionLabel>表示</SectionLabel>
         <Card>
+          {/* 自動の案内は抑制されると出なくなるので、ここには常に置いておく。
+              すでに追加済み・PCでは行そのものを出さない。 */}
+          {installGuideAvailable() && (
+            <ListRow
+              label="ホーム画面に追加"
+              sub="アイコンから開けるようにする"
+              onClick={openInstallGuide}
+            />
+          )}
           <ListRow
             label="ダークテーマ"
             right={<Toggle on={flow.theme === 'dark'} onToggle={flow.toggleTheme} />}

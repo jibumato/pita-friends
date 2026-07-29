@@ -17,6 +17,7 @@ import type { PresenceStatus } from '../lib/database.types'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { TYPES } from '../content/personality'
 import SignedOutPrompt from '../components/SignedOutPrompt'
+import InstallCard from '../components/InstallCard'
 
 export default function MyPage({ flow }: { flow: Flow }) {
   const mobile = useIsMobile()
@@ -96,6 +97,9 @@ export default function MyPage({ flow }: { flow: Flow }) {
         }}
       >
         <span style={{ fontSize: 21, color: C.ink }}>▶ マイページ</span>
+
+        {/* ホーム画面への追加。すでに追加済み・PC・閉じたあとは何も描かない */}
+        <InstallCard />
 
         {/* プロフィールサマリー */}
         <div
