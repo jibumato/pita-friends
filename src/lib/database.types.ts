@@ -829,6 +829,31 @@ export type Database = {
         Args: { p_verification_id: string; p_reason?: string | null }
         Returns: void
       }
+      /** 0064: この端末をプッシュの宛先として登録する(起動ごとに呼んでよい)。 */
+      save_push_subscription: {
+        Args: { p_endpoint: string; p_p256dh: string; p_auth: string; p_ua?: string | null }
+        Returns: void
+      }
+      /** 0064: この端末をプッシュの宛先から外す。 */
+      delete_push_subscription: {
+        Args: { p_endpoint: string }
+        Returns: void
+      }
+      /** 0064: プッシュの設定と、登録してある端末の数。 */
+      my_push_settings: {
+        Args: Record<string, never>
+        Returns: {
+          enabled: boolean
+          quietFrom: number | null
+          quietTo: number | null
+          devices: number
+        }
+      }
+      /** 0064: プッシュの受け取りと、静かにする時間(JSTの時)。 */
+      set_push_settings: {
+        Args: { p_enabled: boolean; p_quiet_from?: number | null; p_quiet_to?: number | null }
+        Returns: void
+      }
     }
   }
 }

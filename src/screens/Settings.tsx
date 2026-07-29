@@ -12,6 +12,7 @@ import {
   type NotificationPrefs,
 } from '../lib/queries'
 import { installGuideAvailable, openInstallGuide } from '../lib/install'
+import PushSettingsRows from '../components/PushSettingsRows'
 
 export default function Settings({ flow }: { flow: Flow }) {
   const [email, setEmail] = useState<string | null>(null)
@@ -127,6 +128,10 @@ export default function Settings({ flow }: { flow: Flow }) {
 
         <SectionLabel>通知</SectionLabel>
         <Card>
+          {/* ロック画面へのプッシュ(0064)。下の3つは「何を」の設定で、
+              これは「どうやって」の設定。混ぜると
+              「アプリ内では見たいがロック画面には出したくない」が表現できない */}
+          <PushSettingsRows />
           <ListRow
             label="誘い・メッセージ"
             right={

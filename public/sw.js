@@ -6,7 +6,7 @@
  * Viteはアセット名をハッシュ化するため、事前プリキャッシュではなく取得時キャッシュにしている。
  */
 // ロゴ等の静的アセットを差し替えたらここを上げる(キャッシュ優先のため古い版が残り続ける)
-const CACHE = 'pita-friends-v6'
+const CACHE = 'pita-friends-v7'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.ico', '/icon-192.png', '/icon-512.png']
 
 /**
@@ -79,5 +79,54 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(() => cached),
     ),
+  )
+})
+
+// ------------------------------------------------------------
+// プッシュ通知(0064)
+// ------------------------------------------------------------
+// 本文は push-send が RFC 8291 で暗号化して送ってくるので、配信元
+// (FCM/Apple)には中身が読めない。ただし**ロック画面には出る**ので、
+// 何を入れるかはサーバ側で絞ってある(_push_lockscreen_body)。
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    /* 本文が読めなくても、通知そのものは出す(黙って落とすと理由が分からない) */
+  }
+  const type = data.type || 'pita'
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'ピタフレ', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      lang: 'ja',
+      // 同じ相手・同じ予約についての連投は1つにまとめる。
+      // type だけで束ねると別の人からのメッセージが隠れてしまうので、
+      // 関連ID(相手のトーク・予約)まで含めて分ける。
+      tag: type + ':' + (data.relatedId || ''),
+      data: { type, relatedId: data.relatedId || null },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const info = event.notification.data || {}
+  event.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      // すでに開いていればそれを前に出して、画面遷移だけ頼む
+      for (const c of clients) {
+        if (new URL(c.url).origin === self.location.origin) {
+          if ('focus' in c) await c.focus()
+          c.postMessage({ source: 'pita-push', type: info.type, relatedId: info.relatedId })
+          return
+        }
+      }
+      // 開いていなければ起動する。行き先はクエリで渡す
+      await self.clients.openWindow('/?push=' + encodeURIComponent(info.type || ''))
+    })(),
   )
 })
