@@ -17,6 +17,7 @@ import RepeatBadge, { playMilestone } from '../components/RepeatBadge'
 import RebookSame from '../components/RebookSame'
 import FastReleaseToggle from '../components/FastReleaseToggle'
 import { fetchMyFavorites, fetchPlayHistoryWith, type PlayHistoryWith } from '../lib/queries'
+import SignedOutPrompt from '../components/SignedOutPrompt'
 
 /* ---- デモ(モック)用の固定データ ---- */
 const MOCK_STATS = [
@@ -70,6 +71,8 @@ function StatTile({ value, label, bg, fg, sub }: { value: string; label: string;
 
 export default function Profile({ flow }: { flow: Flow }) {
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
+  // デモモード(バックエンド未設定)はローカル確認用なのでログイン済み扱い。
+  const signedIn = !isBackendConfigured || flow.userId !== null
   const targetId = flow.profileUserId
   const useReal = isBackendConfigured && !!targetId
   // お気に入り登録の状態。自分自身のページには出さない。
@@ -85,7 +88,7 @@ export default function Profile({ flow }: { flow: Flow }) {
   const [history, setHistory] = useState<PlayHistoryWith | null>(null)
 
   useEffect(() => {
-    if (!useReal || !targetId || targetId === flow.userId) return
+    if (!useReal || !signedIn || !targetId || targetId === flow.userId) return
     let active = true
     fetchMyFavorites()
       .then((f) => active && setIsFav(f.some((x) => x.userId === targetId)))
@@ -93,10 +96,12 @@ export default function Profile({ flow }: { flow: Flow }) {
     return () => {
       active = false
     }
-  }, [useReal, targetId, flow.userId])
+  }, [useReal, signedIn, targetId, flow.userId])
 
   useEffect(() => {
-    if (!useReal || !targetId) return
+    // 未ログインでは profiles 等のRLSに弾かれて必ず失敗する(認証済み限定)。
+    // 「取得に失敗しました」を出すのではなく、下の signedIn ガードで登録に誘導する。
+    if (!useReal || !signedIn || !targetId) return
     let active = true
     setLoading(true)
     fetchPublicProfile(targetId)
@@ -110,10 +115,10 @@ export default function Profile({ flow }: { flow: Flow }) {
     return () => {
       active = false
     }
-  }, [useReal, targetId])
+  }, [useReal, signedIn, targetId])
 
   useEffect(() => {
-    if (!useReal || !targetId) return
+    if (!useReal || !signedIn || !targetId) return
     let active = true
     fetchHostSchedule(targetId, 7)
       .then((rows) => {
@@ -125,10 +130,10 @@ export default function Profile({ flow }: { flow: Flow }) {
     return () => {
       active = false
     }
-  }, [useReal, targetId])
+  }, [useReal, signedIn, targetId])
 
   useEffect(() => {
-    if (!useReal || !targetId || targetId === flow.userId) return
+    if (!useReal || !signedIn || !targetId || targetId === flow.userId) return
     let active = true
     fetchPlayHistoryWith(targetId)
       .then((h) => active && setHistory(h))
@@ -137,16 +142,64 @@ export default function Profile({ flow }: { flow: Flow }) {
     return () => {
       active = false
     }
-  }, [useReal, targetId, flow.userId])
+  }, [useReal, signedIn, targetId, flow.userId])
 
   // Realtime Presence でいま接続中かを見る(last_seen_at より確実なので優先)。
   useEffect(() => {
-    if (!useReal || !targetId) return
+    if (!useReal || !signedIn || !targetId) return
     return subscribeOnlineUsers(flow.userId, (users) => setLive(users.some((u) => u.userId === targetId)))
-  }, [useReal, targetId, flow.userId])
+  }, [useReal, signedIn, targetId, flow.userId])
 
   // 戻り先は開いた画面(さがす/ホーム/募集…)。デモ・実データを問わず元の一覧に戻す。
   const back = () => flow.go(flow.profileReturn)
+
+  // 未ログインでは profiles 等がRLSで読めず、必ず失敗する。「今日のピタメイト」
+  // カードなど、どこかの導線が openHost を経ずにここへ来た場合の最後の砦として、
+  // 個々のクリック元を直さなくてもここで塞がる形にしておく(Search/Board等と同じ考え方)。
+  if (useReal && !signedIn) {
+    return (
+      <Screen background={C.surface}>
+        <div
+          style={{
+            background: C.lavender,
+            borderBottom: `1.5px solid ${C.border}`,
+            padding: '14px 24px 12px',
+          }}
+        >
+          <div
+            onClick={back}
+            role="button"
+            tabIndex={0}
+            aria-label={`${screenNames[flow.profileReturn]}に戻る`}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') back()
+            }}
+            style={{
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 3,
+              margin: '-8px -6px',
+              padding: '8px 10px',
+              borderRadius: 8,
+              color: '#fff',
+              fontSize: 12.5,
+            }}
+          >
+            <ChevronLeft color="#fff" />
+            {screenNames[flow.profileReturn]}
+          </div>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 24px' }}>
+          <SignedOutPrompt
+            flow={flow}
+            title="プロフィールはログインしてから見られます"
+            body="ピタメイトの実績やあそべる時間は、登録すると見られるようになります。登録は無料で、すぐに使えます。"
+          />
+        </div>
+      </Screen>
+    )
+  }
 
   // 表示値(実データ or モック)
   const name = useReal ? data?.nickname ?? '' : 'みなと'

@@ -69,7 +69,7 @@ const ONLINE_STRIP = [
 ]
 
 /** ヒーロー直下に置く、今あそべる人のアイコンのみ横並び(コンパクト)。 */
-function OnlineStrip({ flow, online }: { flow: Flow; online: OnlineUser[] }) {
+function OnlineStrip({ flow, online, onOpen }: { flow: Flow; online: OnlineUser[]; onOpen: (id: string | null) => void }) {
   const items = isBackendConfigured
     ? online.map((u) => ({ key: u.userId, initial: u.avatarInitial, name: u.nickname, color: u.avatarColor, userId: u.userId, status: 'online' as PresenceStatus }))
     : ONLINE_STRIP.map((u, i) => ({ key: `${u.initial}-${i}`, initial: u.initial, name: u.name, color: u.color, userId: null as string | null, status: 'online' as PresenceStatus }))
@@ -94,8 +94,8 @@ function OnlineStrip({ flow, online }: { flow: Flow; online: OnlineUser[] }) {
         {items.map((u) => (
           <div
             key={u.key}
-            onClick={() => (u.userId ? flow.openProfile(u.userId) : flow.go('profile'))}
-            {...clickable(() => (u.userId ? flow.openProfile(u.userId) : flow.go('profile')), `${u.name} のプロフィールを見る`)}
+            onClick={() => onOpen(u.userId)}
+            {...clickable(() => onOpen(u.userId), `${u.name} のプロフィールを見る`)}
             style={{
               flex: 'none',
               width: 52,
@@ -1191,7 +1191,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
 
         {/* その次: 今あそべる人。「今すぐ誰かと遊びたい」が来訪の主目的。
             深夜オフライン時は隠す。 */}
-        {!night && <OnlineStrip flow={flow} online={onlineUsers} />}
+        {!night && <OnlineStrip flow={flow} online={onlineUsers} onOpen={openHost} />}
 
         {/* ランキングへの導線(デスクトップはサイドバー/メニューに常設済みのため、モバイルのみ表示) */}
         {mobile && (
