@@ -55,7 +55,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 会計用の残高集計。将来のインボイス用の列でも見られる
     (70, '0070_accounting_reconciliation', 'column', 'host_settings',            'invoice_registration_number'),
     -- あんしん保証料→あんしんサポート料。コメントの文言で見る
-    (71, '0071_safety_fee_rename',       'tcomment', 'platform_pricing',          'あんしんサポート料の率')
+    (71, '0071_safety_fee_rename',       'tcomment', 'platform_pricing',          'あんしんサポート料の率'),
+    -- 短縮設定が既存予約に遡らないようにした。判定条件が入ったかで見る
+    (72, '0072_fast_release_no_retroactive', 'funcsrc', 'auto_complete_bookings',  'f.created_at <= b.created_at')
 ),
 checked as (
   select
@@ -146,7 +148,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 会計用の残高集計。将来のインボイス用の列でも見られる
     (70, '0070_accounting_reconciliation', 'column', 'host_settings',            'invoice_registration_number'),
     -- あんしん保証料→あんしんサポート料。コメントの文言で見る
-    (71, '0071_safety_fee_rename',       'tcomment', 'platform_pricing',          'あんしんサポート料の率')
+    (71, '0071_safety_fee_rename',       'tcomment', 'platform_pricing',          'あんしんサポート料の率'),
+    -- 短縮設定が既存予約に遡らないようにした。判定条件が入ったかで見る
+    (72, '0072_fast_release_no_retroactive', 'funcsrc', 'auto_complete_bookings',  'f.created_at <= b.created_at')
 ),
 checked as (
   select e.seq, e.migration,
