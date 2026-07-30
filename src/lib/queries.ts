@@ -2733,6 +2733,155 @@ export async function fetchAdminActions(): Promise<AdminAction[]> {
 }
 
 // ------------------------------------------------------------
+// 会計(0070/0076/0078/0079)
+//
+// 月次の締めをこの画面だけで終わらせるための読み取り。
+// **SQL Editor を毎月開くのは続かない**ので、残高・損益・仕訳を
+// 同じ画面から取れるようにしてある。すべて読み取り専用。
+// ------------------------------------------------------------
+
+/** accounting_balances() の1行。列名が日本語なのは、そのまま帳簿に写せるようにするため。 */
+export type AccountingBalanceRow = {
+  区分: string
+  勘定科目: string
+  金額円: number
+  備考: string
+}
+
+export async function fetchAccountingBalances(): Promise<AccountingBalanceRow[]> {
+  const { data, error } = await requireSupabase().rpc('accounting_balances', {})
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    区分: String(r['区分'] ?? ''),
+    勘定科目: String(r['勘定科目'] ?? ''),
+    金額円: Number(r['金額円'] ?? 0),
+    備考: String(r['備考'] ?? ''),
+  }))
+}
+
+export type AccountingRevenueRow = {
+  区分: string
+  科目: string
+  金額円: number
+  消費税: string
+}
+
+export async function fetchAccountingRevenue(
+  from: string,
+  to: string,
+): Promise<AccountingRevenueRow[]> {
+  const { data, error } = await requireSupabase().rpc('accounting_revenue', {
+    p_from: from,
+    p_to: to,
+  })
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    区分: String(r['区分'] ?? ''),
+    科目: String(r['科目'] ?? ''),
+    金額円: Number(r['金額円'] ?? 0),
+    消費税: String(r['消費税'] ?? ''),
+  }))
+}
+
+/** accounting_journal() の1行。1行=借方1・貸方1・金額1(単純仕訳)。 */
+export type AccountingJournalRow = {
+  日付: string
+  区分: string
+  借方科目: string
+  借方補助: string
+  貸方科目: string
+  貸方補助: string
+  金額円: number
+  税区分: string
+  摘要: string
+  伝票id: string
+}
+
+export async function fetchAccountingJournal(
+  from: string,
+  to: string,
+): Promise<AccountingJournalRow[]> {
+  const { data, error } = await requireSupabase().rpc('accounting_journal', {
+    p_from: from,
+    p_to: to,
+  })
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    日付: String(r['日付'] ?? ''),
+    区分: String(r['区分'] ?? ''),
+    借方科目: String(r['借方科目'] ?? ''),
+    借方補助: String(r['借方補助'] ?? ''),
+    貸方科目: String(r['貸方科目'] ?? ''),
+    貸方補助: String(r['貸方補助'] ?? ''),
+    金額円: Number(r['金額円'] ?? 0),
+    税区分: String(r['税区分'] ?? ''),
+    摘要: String(r['摘要'] ?? ''),
+    伝票id: String(r['伝票id'] ?? ''),
+  }))
+}
+
+export type AccountingJournalCheckRow = {
+  項目: string
+  仕訳から円: number
+  元帳から円: number
+  差額円: number
+  判定: string
+}
+
+/**
+ * 仕訳の自己検証。**開業日から当日まで**の全期間で呼ぶこと
+ * (累計で元帳の残高と比べるため、月だけを渡すと必ず食い違う)。
+ */
+export async function fetchAccountingJournalCheck(
+  from: string,
+  to: string,
+): Promise<AccountingJournalCheckRow[]> {
+  const { data, error } = await requireSupabase().rpc('accounting_journal_check', {
+    p_from: from,
+    p_to: to,
+  })
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    項目: String(r['項目'] ?? ''),
+    仕訳から円: Number(r['仕訳から円'] ?? 0),
+    元帳から円: Number(r['元帳から円'] ?? 0),
+    差額円: Number(r['差額円'] ?? 0),
+    判定: String(r['判定'] ?? ''),
+  }))
+}
+
+/**
+ * ピタメイト1人あたりの年間支払額。
+ *
+ * 源泉徴収は不要と整理しているが(`docs/legal/tax-inquiry-withholding.md`)、
+ * **年間いくら誰に払ったかは、いつ聞かれても即答できる状態にしておく**。
+ * 聞かれてから集計するのでは遅い。
+ */
+export type AccountingHostPaymentRow = {
+  userId: string
+  nickname: string
+  件数: number
+  支払額円: number
+  手数料円: number
+  最終支払日: string | null
+}
+
+export async function fetchAccountingHostPayments(
+  year: number,
+): Promise<AccountingHostPaymentRow[]> {
+  const { data, error } = await requireSupabase().rpc('accounting_host_payments', { p_year: year })
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    userId: String(r.user_id ?? ''),
+    nickname: String(r.nickname ?? ''),
+    件数: Number(r['件数'] ?? 0),
+    支払額円: Number(r['支払額円'] ?? 0),
+    手数料円: Number(r['手数料円'] ?? 0),
+    最終支払日: (r['最終支払日'] as string) ?? null,
+  }))
+}
+
+// ------------------------------------------------------------
 // 手数料の率(表示用)
 // ------------------------------------------------------------
 

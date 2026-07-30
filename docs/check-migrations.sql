@@ -69,7 +69,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 係争中のチャージバックに紐づく報酬を換金保留にした(税理士 第3回)
     (77, '0077_dispute_payout_hold',     'funcsrc', 'request_bank_payout',        'DISPUTE_ON_HOLD'),
     -- 純額処理を選べるよう「PF利用料のうち無償コイン起因」を内数で出す(税理士 第4回)
-    (78, '0078_bonus_origin_fee',        'funcsrc', 'accounting_revenue',         '無償コイン起因')
+    (78, '0078_bonus_origin_fee',        'funcsrc', 'accounting_revenue',         '無償コイン起因'),
+    -- 会計ソフト取込用の仕訳を自動生成する(月次の締めをSQL Editorから外す)
+    (79, '0079_accounting_journal',      'funcsrc', 'accounting_journal',         '販売促進費')
 ),
 checked as (
   select
@@ -179,7 +181,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 係争中のチャージバックに紐づく報酬を換金保留にした(税理士 第3回)
     (77, '0077_dispute_payout_hold',     'funcsrc', 'request_bank_payout',        'DISPUTE_ON_HOLD'),
     -- 純額処理を選べるよう「PF利用料のうち無償コイン起因」を内数で出す(税理士 第4回)
-    (78, '0078_bonus_origin_fee',        'funcsrc', 'accounting_revenue',         '無償コイン起因')
+    (78, '0078_bonus_origin_fee',        'funcsrc', 'accounting_revenue',         '無償コイン起因'),
+    -- 会計ソフト取込用の仕訳を自動生成する(月次の締めをSQL Editorから外す)
+    (79, '0079_accounting_journal',      'funcsrc', 'accounting_journal',         '販売促進費')
 ),
 checked as (
   select e.seq, e.migration,

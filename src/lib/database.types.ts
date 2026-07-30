@@ -822,6 +822,26 @@ export type Database = {
         Args: { p_id: string; p_note: string }
         Returns: void
       }
+      accounting_balances: {
+        Args: Record<string, never>
+        Returns: unknown[]
+      }
+      accounting_revenue: {
+        Args: { p_from: string; p_to: string }
+        Returns: unknown[]
+      }
+      accounting_journal: {
+        Args: { p_from: string; p_to: string }
+        Returns: unknown[]
+      }
+      accounting_journal_check: {
+        Args: { p_from: string; p_to: string }
+        Returns: unknown[]
+      }
+      accounting_host_payments: {
+        Args: { p_year: number }
+        Returns: unknown[]
+      }
       host_ranking: {
         Args: { p_period?: string; p_limit?: number }
         Returns: {

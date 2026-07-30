@@ -46,9 +46,28 @@ import {
   fetchAdminDisputes,
   resolveDispute,
   type AdminDispute,
+  fetchAccountingBalances,
+  fetchAccountingRevenue,
+  fetchAccountingJournal,
+  fetchAccountingJournalCheck,
+  fetchAccountingHostPayments,
+  type AccountingBalanceRow,
+  type AccountingRevenueRow,
+  type AccountingJournalRow,
+  type AccountingJournalCheckRow,
+  type AccountingHostPaymentRow,
 } from '../lib/queries'
 
-type Tab = 'summary' | 'reports' | 'holds' | 'payouts' | 'requests' | 'disputes' | 'health' | 'log'
+type Tab =
+  | 'summary'
+  | 'reports'
+  | 'holds'
+  | 'payouts'
+  | 'requests'
+  | 'disputes'
+  | 'accounting'
+  | 'health'
+  | 'log'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'summary', label: 'やること' },
@@ -57,6 +76,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'payouts', label: '換金' },
   { key: 'requests', label: '請求' },
   { key: 'disputes', label: '異議申立て' },
+  { key: 'accounting', label: '会計' },
   { key: 'health', label: '健全性' },
   { key: 'log', label: '操作記録' },
 ]
@@ -145,6 +165,7 @@ export default function AdminConsole({ flow }: { flow: Flow }) {
         {tab === 'payouts' && <PayoutsTab onChanged={loadSummary} />}
         {tab === 'requests' && <RequestsTab onChanged={loadSummary} />}
         {tab === 'disputes' && <DisputesTab />}
+        {tab === 'accounting' && <AccountingTab />}
         {tab === 'health' && <HealthTab />}
         {tab === 'log' && <LogTab />}
       </div>
@@ -1125,5 +1146,350 @@ function LogTab() {
         </div>
       ))}
     </>
+  )
+}
+
+// ------------------------------------------------------------
+// 会計(0079)
+//
+// **月次の締めを、この画面だけで終わらせる**ためのタブ。
+// これまで会計の数字は Supabase の SQL Editor でしか見られなかった。
+// 月に一度しかやらない作業を、毎回SQLを手打ちで始めるのは続かない。
+//
+// ここで出るのは「アプリの中で起きた取引」だけ。
+// **Stripeの着金と決済手数料、経費、家事按分はここには出ない**
+// (DBに無いものは出せない)。手順は docs/accounting-monthly-close.md。
+// ------------------------------------------------------------
+
+/** 会計ソフトが読めるCSVにして落とす。Excelで開けるようにBOM付き・CRLF。 */
+function downloadCsv(filename: string, header: string[], rows: (string | number)[][]) {
+  const esc = (v: string | number) => {
+    const s = String(v ?? '')
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const body = [header, ...rows].map((r) => r.map(esc).join(',')).join('\r\n')
+  const blob = new Blob(['﻿' + body], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const yen = (n: number) => n.toLocaleString('ja-JP')
+
+/** 前月の初日・末日。締めは前月分をやるので、これを初期値にする。 */
+function lastMonthRange(): { from: string; to: string } {
+  const now = new Date()
+  const first = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const last = new Date(now.getFullYear(), now.getMonth(), 0)
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return { from: fmt(first), to: fmt(last) }
+}
+
+function AccountingTab() {
+  const init = lastMonthRange()
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
+  /** 実際に問い合わせた期間。入力のたびに叩かないよう「表示」ボタンで確定する */
+  const [range, setRange] = useState(init)
+  /**
+   * 純額処理を採るか。**税理士の推奨は純額**(第4回回答)。
+   * 両建てのままだと、現金を受け取っていない無償コイン起因の利用料まで
+   * 課税売上高に乗り、1,000万円の判定が実態より早く来る。
+   */
+  const [netting, setNetting] = useState(true)
+
+  const balances = useList<AccountingBalanceRow>(fetchAccountingBalances, [])
+  const revenue = useList<AccountingRevenueRow>(
+    () => fetchAccountingRevenue(range.from, range.to),
+    [range.from, range.to],
+  )
+  const journal = useList<AccountingJournalRow>(
+    () => fetchAccountingJournal(range.from, range.to),
+    [range.from, range.to],
+  )
+  // 自己検証は**開業日から当日まで**の累計で見る。月だけを渡すと必ず食い違う
+  const check = useList<AccountingJournalCheckRow>(
+    () => fetchAccountingJournalCheck('2026-08-01', todayIso()),
+    [],
+  )
+  const payments = useList<AccountingHostPaymentRow>(
+    () => fetchAccountingHostPayments(new Date(range.to).getFullYear()),
+    [range.to],
+  )
+
+  const err =
+    balances.error ?? revenue.error ?? journal.error ?? check.error ?? payments.error ?? null
+  const ng = (check.items ?? []).filter((c) => c.判定 !== 'OK')
+  const rows = (journal.items ?? []).filter((j) => netting || j.区分 !== '純額調整')
+
+  return (
+    <>
+      <Note>
+        アプリの中で起きた取引だけが出ます。
+        <b style={{ color: C.ink }}>
+          Stripeの着金と決済手数料、経費、家事按分はここには出ません
+        </b>
+        （Stripeの明細と領収書から別に起票します）。手順は
+        docs/accounting-monthly-close.md にあります。
+      </Note>
+      {err && <ErrorBox>{err}</ErrorBox>}
+
+      {/* 期間 */}
+      <Card>
+        <b style={{ fontSize: 12.5, color: C.ink }}>期間</b>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <DateField value={from} onChange={setFrom} />
+          <span style={{ fontSize: 12, color: C.body }}>〜</span>
+          <DateField value={to} onChange={setTo} />
+        </div>
+        <Btn onClick={() => setRange({ from, to })}>この期間で表示</Btn>
+        <Note>初期値は前月です（締めは前月分を扱うため）。</Note>
+      </Card>
+
+      {/* 自己検証。**合わないことに気づけない自動化は、手作業より危ない** */}
+      <Card alert={ng.length > 0}>
+        <b style={{ fontSize: 12.5, color: C.ink }}>仕訳と元帳の突合（開業日からの累計）</b>
+        {!check.items && <Note>読み込み中…</Note>}
+        {(check.items ?? []).map((c) => (
+          <Row
+            key={c.項目}
+            left={c.項目}
+            right={`${c.判定}${c.差額円 === 0 ? '' : ` / 差 ${yen(c.差額円)}円`}`}
+            alert={c.判定 !== 'OK'}
+          />
+        ))}
+        {ng.length > 0 && (
+          <Note>
+            ⚠️ 差額が出ています。<b style={{ color: C.ink }}>この状態のCSVは取り込まないでください。</b>
+            仕訳の生成漏れか、関数を経由しない残高の書き換えが疑われます。
+          </Note>
+        )}
+      </Card>
+
+      {/* 残高 */}
+      <Card>
+        <b style={{ fontSize: 12.5, color: C.ink }}>残高（今日時点）</b>
+        {!balances.items && <Note>読み込み中…</Note>}
+        {(balances.items ?? []).map((b) => (
+          <Row
+            key={b.勘定科目}
+            left={`${b.区分}・${b.勘定科目}`}
+            right={`${yen(b.金額円)}円`}
+            alert={b.区分 === '要確認' && b.金額円 > 0}
+          />
+        ))}
+        <Btn
+          onClick={() =>
+            downloadCsv(
+              `残高_${todayIso()}.csv`,
+              ['区分', '勘定科目', '金額円', '備考'],
+              (balances.items ?? []).map((b) => [b.区分, b.勘定科目, b.金額円, b.備考]),
+            )
+          }
+          disabled={!balances.items?.length}
+        >
+          CSVで保存
+        </Btn>
+      </Card>
+
+      {/* 損益 */}
+      <Card>
+        <b style={{ fontSize: 12.5, color: C.ink }}>売上・雑収入（{range.from}〜{range.to}）</b>
+        {!revenue.items && <Note>読み込み中…</Note>}
+        {(revenue.items ?? []).map((r) => (
+          <Row key={`${r.区分}/${r.科目}`} left={`${r.区分}・${r.科目}`} right={`${yen(r.金額円)}円`} />
+        ))}
+        <Btn
+          onClick={() =>
+            downloadCsv(
+              `売上_${range.from}_${range.to}.csv`,
+              ['区分', '科目', '金額円', '消費税'],
+              (revenue.items ?? []).map((r) => [r.区分, r.科目, r.金額円, r.消費税]),
+            )
+          }
+          disabled={!revenue.items?.length}
+        >
+          CSVで保存
+        </Btn>
+      </Card>
+
+      {/* 仕訳 */}
+      <Card>
+        <b style={{ fontSize: 12.5, color: C.ink }}>
+          仕訳（{rows.length}行）
+        </b>
+        <Note>
+          1行が「借方1・貸方1・金額1」になっています。会計ソフトの
+          <b style={{ color: C.ink }}>汎用仕訳インポート</b>で取り込めます。
+          金額は1コイン＝1円です。
+        </Note>
+        <label
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'flex-start',
+            fontSize: 11.5,
+            color: C.body,
+            lineHeight: 1.6,
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={netting}
+            onChange={(e) => setNetting(e.target.checked)}
+            style={{ marginTop: 3, flex: 'none' }}
+          />
+          <span>
+            純額処理で出力する（区分「純額調整」を含める）
+            <br />
+            <span style={{ color: C.muted }}>
+              無償コインで成立した予約の利用料を売上から落とします。
+              両建てのままだと、現金を受け取っていない分まで課税売上高に乗り、
+              <b style={{ color: C.ink }}>1,000万円の判定が実態より早く来ます</b>
+              （税理士の第4回回答）。
+            </span>
+          </span>
+        </label>
+        <Btn
+          onClick={() =>
+            downloadCsv(
+              `仕訳_${range.from}_${range.to}${netting ? '_純額' : '_両建て'}.csv`,
+              [
+                '日付',
+                '借方勘定科目',
+                '借方補助科目',
+                '借方金額',
+                '借方税区分',
+                '貸方勘定科目',
+                '貸方補助科目',
+                '貸方金額',
+                '貸方税区分',
+                '摘要',
+              ],
+              rows.map((j) => [
+                j.日付,
+                j.借方科目,
+                j.借方補助,
+                j.金額円,
+                // 税区分は収益側に付く。借方が売上でない限り対象外
+                j.借方科目 === '売上高' ? j.税区分 : '対象外',
+                j.貸方科目,
+                j.貸方補助,
+                j.金額円,
+                j.貸方科目 === '売上高' ? j.税区分 : '対象外',
+                j.摘要,
+              ]),
+            )
+          }
+          disabled={rows.length === 0 || ng.length > 0}
+        >
+          {ng.length > 0 ? '突合が合うまで出力できません' : '仕訳CSVで保存'}
+        </Btn>
+      </Card>
+
+      {/* ピタメイト別の年間支払額 */}
+      <Card>
+        <b style={{ fontSize: 12.5, color: C.ink }}>
+          ピタメイト別の年間支払額（{new Date(range.to).getFullYear()}年）
+        </b>
+        <Note>
+          源泉徴収は不要と整理していますが（docs/legal/tax-inquiry-withholding.md）、
+          <b style={{ color: C.ink }}>誰にいくら払ったかは即答できる状態にしておきます。</b>
+        </Note>
+        {!payments.items && <Note>読み込み中…</Note>}
+        {(payments.items ?? []).slice(0, 20).map((p) => (
+          <Row key={p.userId} left={`${p.nickname}（${p.件数}件）`} right={`${yen(p.支払額円)}円`} />
+        ))}
+        {(payments.items?.length ?? 0) > 20 && (
+          <Note>上位20名のみ表示しています。全件はCSVで。</Note>
+        )}
+        <Btn
+          onClick={() =>
+            downloadCsv(
+              `ピタメイト別支払額_${new Date(range.to).getFullYear()}.csv`,
+              ['user_id', 'ニックネーム', '件数', '支払額円', '手数料円', '最終支払日'],
+              (payments.items ?? []).map((p) => [
+                p.userId,
+                p.nickname,
+                p.件数,
+                p.支払額円,
+                p.手数料円,
+                p.最終支払日 ?? '',
+              ]),
+            )
+          }
+          disabled={!payments.items?.length}
+        >
+          CSVで保存
+        </Btn>
+      </Card>
+    </>
+  )
+}
+
+function todayIso(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function DateField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      type="date"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        background: C.white,
+        border: `1.5px solid ${C.border}`,
+        borderRadius: 8,
+        padding: '8px 10px',
+        fontSize: 12,
+        color: C.ink,
+        outline: 'none',
+        fontFamily: 'inherit',
+        flex: 1,
+        minWidth: 0,
+      }}
+    />
+  )
+}
+
+/** 見出しと金額の1行。数字は右端で揃える(桁を目で追えるように)。 */
+function Row({
+  left,
+  right,
+  alert = false,
+}: {
+  left: string
+  right: string
+  alert?: boolean
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 10,
+        fontSize: 11.5,
+        lineHeight: 1.6,
+        color: alert ? '#E5484D' : C.body,
+      }}
+    >
+      <span style={{ minWidth: 0 }}>{left}</span>
+      <span
+        style={{
+          flex: 'none',
+          color: alert ? '#E5484D' : C.ink,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {right}
+      </span>
+    </div>
   )
 }
