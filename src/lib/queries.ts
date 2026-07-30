@@ -345,7 +345,7 @@ export async function createInvite(
     if (error.code === '42501' || /row-level security/i.test(error.message)) {
       throw new Error('相手の安心設定により、いまは誘いを送れません（本人確認や同性のみ等の条件）。')
     }
-    throw error
+    throwMapped(error)
   }
 }
 
@@ -589,7 +589,7 @@ export async function sendMessage(promiseId: string, body: string): Promise<void
   const me = auth.user?.id
   if (!me) throw new Error('ログインが必要です')
   const { error } = await sb.from('messages').insert({ promise_id: promiseId, sender_id: me, body })
-  if (error) throw error
+  if (error) throwMapped(error)
 }
 
 /** ピタメイトランキングの期間。 */
@@ -1004,7 +1004,7 @@ export async function createBoardPost(input: {
     verified_only: input.verifiedOnly,
     note: input.note,
   })
-  if (error) throw error
+  if (error) throwMapped(error)
 }
 
 /** 募集に参加する。定員・本人確認要件等はDB側(join_board_post RPC)でアトミックに検証される。 */
@@ -1038,7 +1038,7 @@ export async function joinBoardPost(postId: string): Promise<void> {
   if (msg.includes('BLOCKED')) throw new Error('参加できません')
   if (msg.includes('CANNOT_JOIN_OWN_POST')) throw new Error('自分の募集には参加できません')
   if (msg.includes('POST_NOT_OPEN')) throw new Error('この募集は締め切られました')
-  throw error
+  throwMapped(error)
 }
 
 /* ============================================================
@@ -1723,6 +1723,61 @@ export async function revokeMonitoringConsent(): Promise<void> {
   if (error) throw error
 }
 
+/** みまもり同意の現状(設定画面の表示用)。0074 の my_monitoring_consent。 */
+export type MonitoringConsentState = {
+  /** 有効な同意があるか。false のときメッセージ等が止まっている */
+  active: boolean
+  /** 記録が1件も無い(0031より前の登録・記録の失敗)。撤回とは区別する */
+  unrecorded: boolean
+  version: string | null
+  agreedAt: Date | null
+  revokedAt: Date | null
+}
+
+export async function fetchMonitoringConsent(): Promise<MonitoringConsentState | null> {
+  const { data, error } = await requireSupabase().rpc('my_monitoring_consent', {})
+  if (error) throw error
+  if (!data) return null
+  const r = data as {
+    active?: boolean
+    unrecorded?: boolean
+    version?: string | null
+    agreedAt?: string | null
+    revokedAt?: string | null
+  }
+  return {
+    active: r.active !== false,
+    unrecorded: r.unrecorded === true,
+    version: r.version ?? null,
+    agreedAt: r.agreedAt ? new Date(r.agreedAt) : null,
+    revokedAt: r.revokedAt ? new Date(r.revokedAt) : null,
+  }
+}
+
+/**
+ * みまもり同意の撤回でDB側が止めた操作を、利用者向けの文言に言い換える。
+ * 該当しなければ null を返す。
+ *
+ * 撤回の帰結は規約 第4条6項(弁護士回答 Q16 の文言)。相手側の撤回でも止まるのは
+ * 「メッセージは双方の通信」だから(Q19) だが、**誰が撤回したかは相手に明かさない**
+ * — 撤回は同意の状態であって、他人に開示すべき情報ではない。
+ */
+export function monitoringConsentBlockMessage(message: string): string | null {
+  if (/PARTNER_MONITORING_CONSENT_REVOKED/.test(message)) {
+    return 'お相手が「みまもり」への同意を撤回しているため、やりとりの機能をご利用いただけません。'
+  }
+  if (/MONITORING_CONSENT_REVOKED/.test(message)) {
+    return '「みまもり」への同意を撤回されているため、メッセージなどのやりとりの機能は停止しています。設定＞みまもりへの同意から再度同意すると、ご利用いただけます。'
+  }
+  return null
+}
+
+/** DBのエラーを、みまもり撤回なら言い換えてから投げ直す。 */
+function throwMapped(error: { message: string }): never {
+  const m = monitoringConsentBlockMessage(error.message)
+  throw m ? new Error(m) : error
+}
+
 /** 自分の状態(今すぐ遊べる/オンライン/取り込み中)を設定する。 */
 export async function setPresenceStatus(status: PresenceStatus): Promise<void> {
   const { error } = await requireSupabase().rpc('set_presence_status', { p_status: status })
@@ -1755,7 +1810,7 @@ export async function createBookingSeriesRemote(
     p_first_start: firstStart.toISOString(),
     p_count: count,
   })
-  if (error) throw error
+  if (error) throwMapped(error)
   return data ?? []
 }
 
@@ -1773,7 +1828,7 @@ export async function createBookingRemote(
     p_policy_version: policyVersion,
     p_scheduled_at: scheduledAt ? scheduledAt.toISOString() : null,
   })
-  if (error) throw error
+  if (error) throwMapped(error)
   return data as string
 }
 

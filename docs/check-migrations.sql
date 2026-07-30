@@ -59,7 +59,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 短縮設定が既存予約に遡らないようにした。判定条件が入ったかで見る
     (72, '0072_fast_release_no_retroactive', 'funcsrc', 'auto_complete_bookings',  'f.created_at <= b.created_at'),
     -- 料率を画面に出すための読み取り口(規約 第8条の2第3項)
-    (73, '0073_fee_rates_public',        'funcsrc', 'fee_rates',                  'bookingTiers')
+    (73, '0073_fee_rates_public',        'funcsrc', 'fee_rates',                  'bookingTiers'),
+    -- みまもり撤回に実際の効果を持たせた。メッセージ側のトリガで見る
+    (74, '0074_monitoring_revoke_effect', 'trigger', 'messages',                  'messages_require_consent')
 ),
 checked as (
   select
@@ -86,6 +88,11 @@ checked as (
       -- 表のコメント(説明文)が期待どおりに書き換わっているか
       when 'tcomment' then coalesce(
         obj_description(('public.' || e.obj)::regclass) like '%' || e.needle || '%', false)
+      -- 表にトリガが付いているか(obj=表名, needle=トリガ名)
+      when 'trigger' then exists (
+        select 1 from pg_trigger t
+        where t.tgrelid = ('public.' || e.obj)::regclass
+          and not t.tgisinternal and t.tgname = e.needle)
     end as applied
   from expected e
 )
@@ -154,7 +161,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 短縮設定が既存予約に遡らないようにした。判定条件が入ったかで見る
     (72, '0072_fast_release_no_retroactive', 'funcsrc', 'auto_complete_bookings',  'f.created_at <= b.created_at'),
     -- 料率を画面に出すための読み取り口(規約 第8条の2第3項)
-    (73, '0073_fee_rates_public',        'funcsrc', 'fee_rates',                  'bookingTiers')
+    (73, '0073_fee_rates_public',        'funcsrc', 'fee_rates',                  'bookingTiers'),
+    -- みまもり撤回に実際の効果を持たせた。メッセージ側のトリガで見る
+    (74, '0074_monitoring_revoke_effect', 'trigger', 'messages',                  'messages_require_consent')
 ),
 checked as (
   select e.seq, e.migration,
@@ -174,6 +183,11 @@ checked as (
       -- 表のコメント(説明文)が期待どおりに書き換わっているか
       when 'tcomment' then coalesce(
         obj_description(('public.' || e.obj)::regclass) like '%' || e.needle || '%', false)
+      -- 表にトリガが付いているか(obj=表名, needle=トリガ名)
+      when 'trigger' then exists (
+        select 1 from pg_trigger t
+        where t.tgrelid = ('public.' || e.obj)::regclass
+          and not t.tgisinternal and t.tgname = e.needle)
     end as applied
   from expected e
 )

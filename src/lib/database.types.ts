@@ -806,6 +806,10 @@ export type Database = {
         Args: Record<string, never>
         Returns: void
       }
+      my_monitoring_consent: {
+        Args: Record<string, never>
+        Returns: unknown
+      }
       host_ranking: {
         Args: { p_period?: string; p_limit?: number }
         Returns: {
