@@ -810,6 +810,10 @@ export type Database = {
         Args: Record<string, never>
         Returns: unknown
       }
+      my_payout_hold: {
+        Args: Record<string, never>
+        Returns: unknown
+      }
       admin_open_disputes: {
         Args: Record<string, never>
         Returns: unknown[]
