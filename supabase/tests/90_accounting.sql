@@ -227,6 +227,76 @@ begin
 end $$;
 
 -- ------------------------------------------------------------
+\echo '=== 5c. PF利用料のうち無償コイン起因の額が内数で出ること(0078) ==='
+-- 税理士の第4回回答:「両建てにすると**課税売上高が水増しされ、免税判定と
+-- 簡易課税判定が実態より早く到来します**。純額処理を採れるよう、内数を出すこと。」
+do $$
+declare v_row record; v_fee bigint; v_bonus bigint; v_expect bigint;
+begin
+  select 金額円 into v_fee from public.accounting_revenue(
+    (now() - interval '1 day')::date, (now() + interval '1 day')::date)
+    where 科目 = 'PF利用料(予約)';
+  select 金額円 into v_bonus from public.accounting_revenue(
+    (now() - interval '1 day')::date, (now() + interval '1 day')::date)
+    where 科目 = 'PF利用料のうち無償コイン起因';
+
+  if v_bonus is null then
+    raise exception 'FAIL: 「PF利用料のうち無償コイン起因」の行が集計に無い';
+  end if;
+  -- **内数**なので、PF利用料そのものを超えてはならない
+  if v_bonus > coalesce(v_fee, 0) then
+    raise exception 'FAIL: 内数%が本体%を超えている', v_bonus, v_fee;
+  end if;
+
+  -- 予約から按分で計算した期待値と一致すること
+  select coalesce(sum(round(f.fee_coins::numeric * b.bonus_coins / nullif(b.coins,0))), 0)
+    into v_expect
+    from public.platform_fees f
+    join public.bookings b on b.id = f.booking_id
+   where f.kind = 'booking' and coalesce(b.bonus_coins,0) > 0;
+  if v_bonus <> v_expect then
+    raise exception 'FAIL: 無償起因の利用料%が按分の期待値%と一致しない', v_bonus, v_expect;
+  end if;
+  raise notice 'OK: PF利用料% のうち無償起因% (内数)', v_fee, v_bonus;
+end $$;
+
+-- ★ここまでは無償コインを使った予約が無く、0 と 0 の比較で通ってしまう。
+-- **無償だけで払う別のゲストを立てて、実際に値が立つことを確かめる。**
+-- (既存ゲストの残高をいじると、後段の失効テストの前提を壊す)
+insert into auth.users (id) values ('e0000000-0000-0000-0000-000000000003');
+insert into public.profiles (id, nickname) values
+  ('e0000000-0000-0000-0000-000000000003','無償だけのゲスト') on conflict (id) do nothing;
+insert into public.coin_lots (user_id, kind, remaining, expires_at) values
+  ('e0000000-0000-0000-0000-000000000003','bonus', 5000, public.coin_expiry_from(now()));
+update public.coin_wallets set balance = 0, bonus_balance = 5000
+  where user_id = 'e0000000-0000-0000-0000-000000000003';
+set test.uid = 'e0000000-0000-0000-0000-000000000003';
+select public.create_booking('e0000000-0000-0000-0000-000000000002'::uuid, 60,
+         'v1', date_trunc('hour', now()) + interval '80 hours') as bonus_b \gset
+update public.bookings set scheduled_at = now() - interval '3 hours', status = 'confirmed'
+  where id = :'bonus_b';
+select public.complete_booking(:'bonus_b');
+
+set test.uid = 'e0000000-0000-0000-0000-000000000009';
+do $$
+declare v_bonus bigint; v_paid int; v_bon int;
+begin
+  select paid_coins, bonus_coins into v_paid, v_bon from public.bookings
+   where guest_id = 'e0000000-0000-0000-0000-000000000003'
+   order by created_at desc limit 1;
+  if coalesce(v_bon,0) = 0 then
+    raise exception 'FAIL: 無償コインで払う予約を作れていない(paid=% / bonus=%)', v_paid, v_bon;
+  end if;
+
+  select 金額円 into v_bonus from public.accounting_revenue(
+    (now() - interval '1 day')::date, (now() + interval '1 day')::date)
+    where 科目 = 'PF利用料のうち無償コイン起因';
+  if coalesce(v_bonus,0) <= 0 then
+    raise exception 'FAIL: 無償コインで払った予約があるのに内数が0のまま(%)', v_bonus;
+  end if;
+  raise notice 'OK: 無償%コインの予約 → 無償起因の利用料% が立った', v_bon, v_bonus;
+end $$;
+
 \echo '=== 6. 失効処理待ちが検知されること(雑収入の計上漏れ防止) ==='
 set test.uid = 'e0000000-0000-0000-0000-000000000009';
 do $$

@@ -67,7 +67,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 会計集計を税理士の第2回回答に合わせた。仮受金の行が出るかで見る
     (76, '0076_accounting_round2',       'funcsrc', 'accounting_balances',        '仮受金(換金手数料)'),
     -- 係争中のチャージバックに紐づく報酬を換金保留にした(税理士 第3回)
-    (77, '0077_dispute_payout_hold',     'funcsrc', 'request_bank_payout',        'DISPUTE_ON_HOLD')
+    (77, '0077_dispute_payout_hold',     'funcsrc', 'request_bank_payout',        'DISPUTE_ON_HOLD'),
+    -- 純額処理を選べるよう「PF利用料のうち無償コイン起因」を内数で出す(税理士 第4回)
+    (78, '0078_bonus_origin_fee',        'funcsrc', 'accounting_revenue',         '無償コイン起因')
 ),
 checked as (
   select
@@ -175,7 +177,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 会計集計を税理士の第2回回答に合わせた。仮受金の行が出るかで見る
     (76, '0076_accounting_round2',       'funcsrc', 'accounting_balances',        '仮受金(換金手数料)'),
     -- 係争中のチャージバックに紐づく報酬を換金保留にした(税理士 第3回)
-    (77, '0077_dispute_payout_hold',     'funcsrc', 'request_bank_payout',        'DISPUTE_ON_HOLD')
+    (77, '0077_dispute_payout_hold',     'funcsrc', 'request_bank_payout',        'DISPUTE_ON_HOLD'),
+    -- 純額処理を選べるよう「PF利用料のうち無償コイン起因」を内数で出す(税理士 第4回)
+    (78, '0078_bonus_origin_fee',        'funcsrc', 'accounting_revenue',         '無償コイン起因')
 ),
 checked as (
   select e.seq, e.migration,
