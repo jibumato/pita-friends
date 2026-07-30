@@ -106,7 +106,16 @@ supabase functions deploy record-ip
    ```
    https://<プロジェクトRef>.supabase.co/functions/v1/stripe-webhook
    ```
-3. リッスンするイベント: **`checkout.session.completed`**
+3. リッスンするイベント: **次の3つを必ず選ぶ**
+   - **`checkout.session.completed`** … コインの付与
+   - **`charge.dispute.created`** … チャージバックの申立て。**残高を凍結する**
+   - **`charge.dispute.closed`** … 決着。当社の主張が通れば自動で解除
+
+   > ⚠️ **dispute の2つを選び忘れると、凍結が働きません。**
+   > 税理士の第2回回答(Q14): 「これがないと『**チャージバックを申し立てながら、
+   > その間にコインを使い切る**』という極めて単純な不正が通ります。
+   > 会計処理をどう決めても、この穴が開いていれば損失は防げません。」
+   > **コードだけでは担保できない設定**なので、ここで必ず確認してください。
 4. 追加後に表示される **署名シークレット(`whsec_...`)** を控え、Supabase に設定:
    ```bash
    supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_xxx

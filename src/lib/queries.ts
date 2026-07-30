@@ -1763,6 +1763,11 @@ export async function fetchMonitoringConsent(): Promise<MonitoringConsentState |
  * — 撤回は同意の状態であって、他人に開示すべき情報ではない。
  */
 export function monitoringConsentBlockMessage(message: string): string | null {
+  if (/COINS_FROZEN_DISPUTE/.test(message)) {
+    // **凍結の理由や回避方法は書かない。** 書くと、申立てを取り下げれば
+    // 使えると分かってしまう。問い合わせ窓口に誘導するにとどめる。
+    return 'お支払いの確認中のため、コインのご利用を一時的にお預かりしています。お手数ですが、お問い合わせ窓口までご連絡ください。'
+  }
   if (/PARTNER_MONITORING_CONSENT_REVOKED/.test(message)) {
     return 'お相手が「みまもり」への同意を撤回しているため、やりとりの機能をご利用いただけません。'
   }
@@ -2598,6 +2603,52 @@ export async function setAccountRequestStatus(
     p_status: status,
   })
   if (error) throw error
+}
+
+/**
+ * 決済の異議申立て(チャージバック)。0075。
+ * **resolved_at が null の行がある利用者は、コインの消費が止まっている。**
+ */
+export type AdminDispute = {
+  id: string
+  userId: string | null
+  nickname: string | null
+  stripeDisputeId: string
+  amountYen: number | null
+  reason: string | null
+  status: 'open' | 'won' | 'lost' | 'closed'
+  createdAt: string
+  coinBalance: number
+  earnedBalance: number
+}
+
+export async function fetchAdminDisputes(): Promise<AdminDispute[]> {
+  const { data, error } = await requireSupabase().rpc('admin_open_disputes', {})
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((d) => ({
+    id: String(d.id),
+    userId: (d.user_id as string) ?? null,
+    nickname: (d.nickname as string) ?? null,
+    stripeDisputeId: String(d.stripe_dispute_id),
+    amountYen: (d.amount_yen as number) ?? null,
+    reason: (d.reason as string) ?? null,
+    status: d.status as AdminDispute['status'],
+    createdAt: String(d.created_at),
+    coinBalance: Number(d.coin_balance ?? 0),
+    earnedBalance: Number(d.earned_balance ?? 0),
+  }))
+}
+
+/** 凍結を解除する。理由は必須(後から説明を求められる操作なので)。 */
+export async function resolveDispute(id: string, note: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_resolve_dispute', {
+    p_id: id,
+    p_note: note,
+  })
+  if (!error) return
+  if (/NOTE_REQUIRED/.test(error.message)) throw new Error('解除の理由を入力してください')
+  if (/DISPUTE_NOT_FOUND/.test(error.message)) throw new Error('すでに解除されています')
+  throw error
 }
 
 export type AdminHealth = {

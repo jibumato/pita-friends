@@ -43,9 +43,12 @@ import {
   type AdminAccountRequest,
   type AdminHealth,
   type AdminAction,
+  fetchAdminDisputes,
+  resolveDispute,
+  type AdminDispute,
 } from '../lib/queries'
 
-type Tab = 'summary' | 'reports' | 'holds' | 'payouts' | 'requests' | 'health' | 'log'
+type Tab = 'summary' | 'reports' | 'holds' | 'payouts' | 'requests' | 'disputes' | 'health' | 'log'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'summary', label: 'やること' },
@@ -53,6 +56,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'reports', label: '通報' },
   { key: 'payouts', label: '換金' },
   { key: 'requests', label: '請求' },
+  { key: 'disputes', label: '異議申立て' },
   { key: 'health', label: '健全性' },
   { key: 'log', label: '操作記録' },
 ]
@@ -140,6 +144,7 @@ export default function AdminConsole({ flow }: { flow: Flow }) {
         {tab === 'reports' && <ReportsTab onChanged={loadSummary} />}
         {tab === 'payouts' && <PayoutsTab onChanged={loadSummary} />}
         {tab === 'requests' && <RequestsTab onChanged={loadSummary} />}
+        {tab === 'disputes' && <DisputesTab />}
         {tab === 'health' && <HealthTab />}
         {tab === 'log' && <LogTab />}
       </div>
@@ -867,6 +872,97 @@ function RequestsTab({ onChanged }: { onChanged: () => void }) {
               対応済みにする
             </Btn>
           </div>
+        </Card>
+      ))}
+    </>
+  )
+}
+
+// ------------------------------------------------------------
+// 異議申立て(チャージバック)。0075。
+// ------------------------------------------------------------
+// ⚠️ **解除するとコインが使えるようになる。** lost(返金が確定した)場合は、
+//    残高の調整を済ませてから解除すること。順序を逆にすると、返金された
+//    うえにコインも使われる。
+// ------------------------------------------------------------
+
+function DisputesTab() {
+  const { items, error, reload } = useList<AdminDispute>(fetchAdminDisputes, [])
+  const [note, setNote] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function run(id: string) {
+    if (busy) return
+    setBusy(true)
+    setErr(null)
+    try {
+      await resolveDispute(id, note[id] ?? '')
+      setNote((n) => ({ ...n, [id]: '' }))
+      reload()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '解除に失敗しました')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (error) return <ErrorBox>{error}</ErrorBox>
+  if (!items) return <Note>読み込み中…</Note>
+  if (items.length === 0) return <Note>未処理の異議申立てはありません。</Note>
+
+  return (
+    <>
+      <Note>
+        Stripeで異議申立て（チャージバック）を受けている決済です。
+        <b style={{ color: C.ink }}>この間、対象の方はコインを使えません</b>
+        （新しい予約・ギフト。すでに成立した予約の進行は止まりません）。
+        <br />
+        ⚠️ <b style={{ color: C.ink }}>
+          lost（返金が確定）の場合は、先に残高を調整してから解除してください。
+        </b>
+        順序を逆にすると、返金されたうえにコインも使われます。
+      </Note>
+      {err && <ErrorBox>{err}</ErrorBox>}
+      {items.map((d) => (
+        <Card key={d.id} alert={d.status === 'lost'}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontSize: 12.5, color: C.ink }}>
+              {d.nickname ?? '（購入と紐づかない申立て）'}
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                flex: 'none',
+                color: d.status === 'lost' ? '#E5484D' : C.muted,
+              }}
+            >
+              {d.status}
+            </span>
+          </div>
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+            {d.amountYen != null ? `¥${d.amountYen.toLocaleString()}` : '金額不明'} /{' '}
+            {d.reason ?? '理由なし'} / {jst(d.createdAt)}
+            <br />
+            残高 {d.coinBalance.toLocaleString()}コイン / 報酬{' '}
+            {d.earnedBalance.toLocaleString()}コイン
+            <br />
+            Stripe: {d.stripeDisputeId}
+            {d.userId && (
+              <>
+                <br />
+                対象のユーザーID: {d.userId}
+              </>
+            )}
+          </span>
+          <Field
+            value={note[d.id] ?? ''}
+            onChange={(v) => setNote((n) => ({ ...n, [d.id]: v }))}
+            placeholder="解除の理由（必須）例: 返金分を残高から差し引いたうえで解除"
+          />
+          <Btn disabled={busy} onClick={() => void run(d.id)}>
+            凍結を解除する
+          </Btn>
         </Card>
       ))}
     </>

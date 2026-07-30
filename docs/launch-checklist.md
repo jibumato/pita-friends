@@ -60,7 +60,7 @@
 ## B. Supabase 本番設定
 
 1. ◑ **マイグレーション適用**: 0001〜0056は適用済み(2026-07-27)。
-   **0057〜0074が未適用**です。次の順に当ててください:
+   **0057〜0075が未適用**です。次の順に当ててください:
 
    `0057_regulars_first`(常連への先行予約)→ `0058_repeat_proof`(リピーター数)
    → `0059_last_play_shape`(前回と同じ条件で再予約)
@@ -78,6 +78,7 @@
    → `0072_fast_release_no_retroactive`(**短縮設定が既存予約に遡らないようにする**)
    → `0073_fee_rates_public`(料率を画面に出す)
    → `0074_monitoring_revoke_effect`(**みまもり撤回に実際の効果を持たせる**)
+   → `0075_payment_dispute_freeze`(**チャージバック中はコインを使えなくする**)
 
    (0060は0058の関数を作り直すため、逆順では失敗します。
     0069は0063の `request_bank_payout` を作り直すため、これも逆順では失敗します。)
@@ -93,7 +94,7 @@
    > いずれも `create_booking` を差し替えます。逆順に当てると、後から当てた
    > 古いほうが新しい修正を打ち消します。
 
-   <details><summary>適用済みの内容(0037〜0056)と、次に当てる0057〜0074</summary>
+   <details><summary>適用済みの内容(0037〜0056)と、次に当てる0057〜0075</summary>
 
    | # | 内容 | 適用しないと |
    |---|---|---|
@@ -134,7 +135,8 @@
 | `0071_safety_fee_rename.sql` ← **その次** | 「あんしん保証料」→「あんしんサポート料」（説明文のみ。列名は変えない） | 保険と誤認されうる古い名前が残る |
 | `0072_fast_release_no_retroactive.sql` ← **その次** | 自動確定の短縮設定が**既存の進行中予約には及ばない**ようにする（消費者契約法10条。規約第9条6項） | **設定をONにした瞬間、進行中の予約の検収期間も遡って縮む** |
 | `0073_fee_rates_public.sql` ← **その次** | 手数料の率を画面に出すための読み取り口（規約第8条の2第3項「率は本サービス上に表示します」） | **規約に「表示します」と書いてあるのに表示されない**（守れない約束） |
-| `0074_monitoring_revoke_effect.sql` ← **最後** | みまもりの同意を撤回したら、実際にメッセージ・誘い・募集・新規予約が止まる（規約第4条6項。既存予約の履行と換金は止めない） | **「撤回できます」が空約束のまま**（0031は記録だけで何も止まらない） |
+| `0074_monitoring_revoke_effect.sql` ← **その次** | みまもりの同意を撤回したら、実際にメッセージ・誘い・募集・新規予約が止まる（規約第4条6項。既存予約の履行と換金は止めない） | **「撤回できます」が空約束のまま**（0031は記録だけで何も止まらない） |
+| `0075_payment_dispute_freeze.sql` ← **最後** | チャージバック（決済の異議申立て）を受けたら、その方のコインの利用を止める。すでに成立した予約の進行は止めない | **「異議を申し立てながら、その間にコインを使い切る」が通ります。**税理士が「リリース前の必須実装・優先度は最上位」とした項目 |
 
    </details>
 
@@ -176,8 +178,11 @@
    supabase secrets set STRIPE_SECRET_KEY=sk_live_xxx
    supabase secrets set APP_URL=https://pitafure.com
    ```
-3. ☐ 本番用Webhookエンドポイントを追加(`checkout.session.completed`)し、
-   `STRIPE_WEBHOOK_SECRET=whsec_xxx`(本番用)を設定
+3. ☐ 本番用Webhookエンドポイントを追加し、`STRIPE_WEBHOOK_SECRET=whsec_xxx`(本番用)を設定
+   - イベントは **`checkout.session.completed`** に加えて
+     **`charge.dispute.created`** と **`charge.dispute.closed`** の**3つ**を選ぶ
+   - ⚠️ **dispute の2つを忘れると、チャージバック中もコインが使える**
+     (「申し立てながら使い切る」が通る)。`docs/payments-stripe-setup.md` §5
 3-b. ☐ **取引データの外部バックアップ Worker をデプロイ**
    - R2バケット作成 → `service_role` キーをシークレット登録 → `npx wrangler deploy`
    - 手順: `workers/ledger-export/README.md`(費用は無料枠)
