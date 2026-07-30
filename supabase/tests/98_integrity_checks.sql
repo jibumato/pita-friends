@@ -70,6 +70,12 @@ select id as promise_id from public.promises where booking_id = :'bk1' \gset
 -- 予約を長くすると3件の枠が重なる(0049)ので、ギフトで積む。
 select public.send_gift(:'promise_id', 8000, 'dev-integrity-guest', '10.0.0.1');
 
+-- 受領直後のギフトは7日間換金保留になる(0069。0063で消えていたのを復活させた)。
+-- ここで見たいのは整合チェックであって保留の挙動ではないので、
+-- 受領を過去にずらして保留を外す。保留そのものの検証は 89 で行う。
+update public.gifts set created_at = now() - interval '8 days'
+  where promise_id = :'promise_id';
+
 -- 換金申請(報酬から引かれ、payouts に積まれる)
 set test.uid = 'd0000000-0000-0000-0000-0000000000e1';
 select public.request_bank_payout(5000);

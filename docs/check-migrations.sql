@@ -47,7 +47,11 @@ with expected(seq, migration, kind, obj, needle) as (
     (65, '0065_lock_down_function_grants', 'noexec', '_ledger_record_bypass(text, text, jsonb, jsonb)', null),
     (66, '0066_admin_console',          'table',   'admin_actions',               null),
     -- コメントだけを直した移行。表の説明文が新しい言い方になっているかで見る
-    (67, '0067_favorites_wording',      'tcomment', 'favorites',                  'お気に入り登録。誰が誰を')
+    (67, '0067_favorites_wording',      'tcomment', 'favorites',                  'お気に入り登録。誰が誰を'),
+    -- 管理操作の記録漏れをふさいだ。通報の閲覧を記録するようになったかで見る
+    (68, '0068_admin_read_audit',       'funcsrc', 'admin_reports',              'view_reports'),
+    -- 0063で消えたギフトの7日換金保留を復活させた
+    (69, '0069_restore_gift_payout_hold', 'funcsrc', 'request_bank_payout',      'GIFT_ON_HOLD')
 ),
 checked as (
   select
@@ -130,7 +134,11 @@ with expected(seq, migration, kind, obj, needle) as (
     (65, '0065_lock_down_function_grants', 'noexec', '_ledger_record_bypass(text, text, jsonb, jsonb)', null),
     (66, '0066_admin_console',          'table',   'admin_actions',               null),
     -- コメントだけを直した移行。表の説明文が新しい言い方になっているかで見る
-    (67, '0067_favorites_wording',      'tcomment', 'favorites',                  'お気に入り登録。誰が誰を')
+    (67, '0067_favorites_wording',      'tcomment', 'favorites',                  'お気に入り登録。誰が誰を'),
+    -- 管理操作の記録漏れをふさいだ。通報の閲覧を記録するようになったかで見る
+    (68, '0068_admin_read_audit',       'funcsrc', 'admin_reports',              'view_reports'),
+    -- 0063で消えたギフトの7日換金保留を復活させた
+    (69, '0069_restore_gift_payout_hold', 'funcsrc', 'request_bank_payout',      'GIFT_ON_HOLD')
 ),
 checked as (
   select e.seq, e.migration,
