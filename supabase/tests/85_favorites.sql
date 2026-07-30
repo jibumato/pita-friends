@@ -1,22 +1,22 @@
--- お気に入り(推し登録・0053)の検証。
+-- お気に入り(お気に入り登録・0053)の検証。
 --
--- 重点は**「誰が誰を推しているかが漏れないこと」**。
--- 推しの一覧が他人に見えると、行動の追跡や付きまといの材料になる。
--- 推された側にも人数だけを返し、名前は返さない。
+-- 重点は**「誰が誰をお気に入りにしているかが漏れないこと」**。
+-- お気に入りの一覧が他人に見えると、行動の追跡や付きまといの材料になる。
+-- お気に入りにされた側にも人数だけを返し、名前は返さない。
 
 \set ON_ERROR_STOP on
 
 insert into auth.users (id) values
-  ('c5000000-0000-0000-0000-000000000001'::uuid),  -- 推す人A
-  ('c5000000-0000-0000-0000-000000000002'::uuid),  -- 推す人B
-  ('c5000000-0000-0000-0000-000000000009'::uuid),  -- 推されるピタメイト
+  ('c5000000-0000-0000-0000-000000000001'::uuid),  -- ファンA
+  ('c5000000-0000-0000-0000-000000000002'::uuid),  -- ファンB
+  ('c5000000-0000-0000-0000-000000000009'::uuid),  -- お気に入りにされるピタメイト
   ('c5000000-0000-0000-0000-00000000000b'::uuid)   -- ブロック関係の相手
 on conflict do nothing;
 
 insert into public.profiles (id, nickname) values
-  ('c5000000-0000-0000-0000-000000000001'::uuid, '推す人A'),
-  ('c5000000-0000-0000-0000-000000000002'::uuid, '推す人B'),
-  ('c5000000-0000-0000-0000-000000000009'::uuid, '推されメイト'),
+  ('c5000000-0000-0000-0000-000000000001'::uuid, 'ファンA'),
+  ('c5000000-0000-0000-0000-000000000002'::uuid, 'ファンB'),
+  ('c5000000-0000-0000-0000-000000000009'::uuid, 'お気に入りメイト'),
   ('c5000000-0000-0000-0000-00000000000b'::uuid, 'ブロック相手')
 on conflict (id) do update set nickname = excluded.nickname;
 
@@ -28,7 +28,7 @@ insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('c5000000-0000-0000-0000-00000000000b'::uuid, true, 1200)
   on conflict (user_id) do update set is_host = true, hourly_rate = 1200;
 
-\echo '=== 1. 推し登録できる / 二重登録にならない ==='
+\echo '=== 1. お気に入り登録できる / 二重登録にならない ==='
 set test.uid = 'c5000000-0000-0000-0000-000000000001';
 select public.set_favorite('c5000000-0000-0000-0000-000000000009'::uuid, true);
 select public.set_favorite('c5000000-0000-0000-0000-000000000009'::uuid, true);
@@ -42,26 +42,26 @@ begin
   end if;
 end $$;
 
-\echo '=== 2. 自分自身は推せない ==='
+\echo '=== 2. 自分自身はお気に入りにできない ==='
 do $$
 begin
   begin
     perform public.set_favorite('c5000000-0000-0000-0000-000000000001'::uuid, true);
-    raise exception 'FAIL: 自分を推せてしまった';
+    raise exception 'FAIL: 自分をお気に入りにできてしまった';
   exception when others then
     if sqlerrm not like '%CANNOT_FAVORITE_SELF%' then raise; end if;
   end;
 end $$;
 
-\echo '=== 3. 他人の推しは見えない ==='
--- Bも同じ相手を推す。AからはBの行が見えないこと(件数が増えないこと)を確かめる。
+\echo '=== 3. 他人のお気に入りは見えない ==='
+-- Bも同じ相手をお気に入りに入れる。AからはBの行が見えないこと(件数が増えないこと)を確かめる。
 set test.uid = 'c5000000-0000-0000-0000-000000000002';
 select public.set_favorite('c5000000-0000-0000-0000-000000000009'::uuid, true);
 set test.uid = 'c5000000-0000-0000-0000-000000000001';
 do $$
 begin
   if (select count(*) from public.my_favorites()) <> 1 then
-    raise exception 'FAIL: 他人の推しが自分の一覧に混ざっている';
+    raise exception 'FAIL: 他人のお気に入りが自分の一覧に混ざっている';
   end if;
 end $$;
 
@@ -90,14 +90,14 @@ begin
   end if;
 end $$;
 
-\echo '=== 4. 推された側には人数だけが返る ==='
+\echo '=== 4. お気に入りにされた側には人数だけが返る ==='
 set test.uid = 'c5000000-0000-0000-0000-000000000009';
 do $$
 begin
   if public.my_favorite_count() <> 2 then
     raise exception 'FAIL: 人数が2でない(実際: %)', public.my_favorite_count();
   end if;
-  -- 推された側に「誰が」を返す口が無いこと。人数を返す関数しか公開していない。
+  -- お気に入りにされた側に「誰が」を返す口が無いこと。人数を返す関数しか公開していない。
   if exists (
     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname='public' and p.proname like '%favorite%'
@@ -134,7 +134,7 @@ end $$;
 update public.host_settings set is_host = true
   where user_id = 'c5000000-0000-0000-0000-000000000009'::uuid;
 
-\echo '=== 7. ブロック関係では推せない・一覧にも出ない ==='
+\echo '=== 7. ブロック関係ではお気に入りにできない・一覧にも出ない ==='
 insert into public.blocks (blocker_id, blocked_id)
   values ('c5000000-0000-0000-0000-000000000001'::uuid, 'c5000000-0000-0000-0000-00000000000b'::uuid)
   on conflict do nothing;
@@ -142,12 +142,12 @@ do $$
 begin
   begin
     perform public.set_favorite('c5000000-0000-0000-0000-00000000000b'::uuid, true);
-    raise exception 'FAIL: ブロックした相手を推せてしまった';
+    raise exception 'FAIL: ブロックした相手をお気に入りにできてしまった';
   exception when others then
     if sqlerrm not like '%BLOCKED%' then raise; end if;
   end;
 end $$;
--- 先に推してからブロックした場合も一覧から外れること
+-- 先にお気に入りにしてからブロックした場合も一覧から外れること
 delete from public.blocks where blocker_id = 'c5000000-0000-0000-0000-000000000001'::uuid;
 select public.set_favorite('c5000000-0000-0000-0000-00000000000b'::uuid, true);
 insert into public.blocks (blocker_id, blocked_id)
@@ -164,10 +164,10 @@ end $$;
 do $$
 begin
   if has_function_privilege('anon', 'public.my_favorites()', 'execute') then
-    raise exception 'FAIL: anonが推し一覧を引ける';
+    raise exception 'FAIL: anonがお気に入り一覧を引ける';
   end if;
   if has_function_privilege('anon', 'public.set_favorite(uuid, boolean)', 'execute') then
-    raise exception 'FAIL: anonが推し登録できる';
+    raise exception 'FAIL: anonがお気に入り登録できる';
   end if;
   if exists (
     select 1 from pg_policy pol join pg_class c on c.oid = pol.polrelid

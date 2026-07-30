@@ -19,7 +19,7 @@ type Props = {
 
 /** きっかけごとに、いちばん効く一行を先に出す。 */
 const HEADLINE: Record<PushReason, string> = {
-  favorite: '推しが枠を開けたら、すぐ知らせます',
+  favorite: 'お気に入りのピタメイトが枠を開けたら、すぐ知らせます',
   booking: '予約の連絡を取り逃さないように',
 }
 
@@ -122,7 +122,7 @@ export default function PushPrompt({ reason, onClose }: Props) {
             </span>
             <Steps
               items={[
-                '推しに追加した相手が、遊べる枠を開けたとき',
+                'お気に入りに追加した相手が、遊べる枠を開けたとき',
                 '予約が承認された・変更された・キャンセルされたとき',
                 'メッセージや誘いが届いたとき',
               ]}

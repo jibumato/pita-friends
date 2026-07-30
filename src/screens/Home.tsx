@@ -579,8 +579,8 @@ function RankingSection({
 /**
  * 今日のピックアップ: 1人だけ大きく出す。
  *
- * 小さいカードを並べるのは「探す」ための形で、**推しは1人を深く見て生まれる**。
- * 顔・声・自己紹介まで一度に見えるようにして、その場で推し登録も予約もできる。
+ * 小さいカードを並べるのは「探す」ための形で、**お気に入りは1人を深く見て生まれる**。
+ * 顔・声・自己紹介まで一度に見えるようにして、その場でお気に入り登録も予約もできる。
  *
  * 誰を出すかは日付で決めて1日固定する。表示のたびに変わると、
  * 「さっきの人をもう一度見たい」ができない。ランダムも同じ理由で使わない。
@@ -679,7 +679,7 @@ function PickupCard({
  *
  * 実績順に並べると、始めたばかりの人は永遠に埋もれる。1件も予約が来ないまま
  * 辞めていくと供給が育たないので、レビューの少ない順に別枠で出す。
- * 「早く見つけた」という感覚は、推す動機そのものでもある。
+ * 「早く見つけた」という感覚は、お気に入りに入れる動機そのものでもある。
  */
 function NewcomerRow({ flow, items, onOpen }: { flow: Flow; items: DiscoverableHost[]; onOpen: (id: string) => void }) {
   if (items.length === 0) return null
@@ -728,9 +728,9 @@ function NewcomerRow({ flow, items, onOpen }: { flow: Flow; items: DiscoverableH
 }
 
 /**
- * 推しの近況: お気に入りに入れたピタメイトを最上部に出す。
+ * お気に入りの近況: お気に入りに入れたピタメイトを最上部に出す。
  *
- * 既に推しがいる人にとって、ホームに来る目的はほぼこれ一つ。
+ * 既にお気に入りがいる人にとって、ホームに来る目的はほぼこれ一つ。
  * 掲載を休んでいる相手も**消さずに残す**(黙って消えると理由が分からない)。
  */
 function FavoriteRow({
@@ -746,7 +746,7 @@ function FavoriteRow({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 14, color: C.ink }}>⭐ 推しのピタメイト</span>
+        <span style={{ fontSize: 14, color: C.ink }}>⭐ お気に入りのピタメイト</span>
         <span style={{ fontSize: 10.5, color: C.muted }}>{items.length}人</span>
       </div>
       <div className="pita-scroll" style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
@@ -953,7 +953,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
       }
     }
 
-    // 推しの一覧。ホームに来る目的がこれ一つ、という人がいるので最初に取る。
+    // お気に入りの一覧。ホームに来る目的がこれ一つ、という人がいるので最初に取る。
     const loadFavorites = () =>
       fetchMyFavorites()
         .then((f) => active && setFavorites(f))
@@ -1143,12 +1143,12 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '14px 20px 0',
         }}
       >
-        {/* 最上部: 推しているピタメイト。既に推しがいる人は、ホームに来る目的が
+        {/* 最上部: お気に入りのピタメイト。既にお気に入りがいる人は、ホームに来る目的が
             ほぼこれ一つなので、どの回遊導線よりも先に出す。 */}
         {signedIn && <FavoriteRow flow={flow} items={favorites} onChanged={() => favRef.current?.()} />}
 
         {/* 今日のピタメイト: 1人だけ深く見せる。小さいカードを並べるのは
-            「探す」ための形で、推しは1人を深く見て生まれる。 */}
+            「探す」ための形で、お気に入りは1人を深く見て生まれる。 */}
         {isBackendConfigured && pickup && (
           <PickupCard
             flow={flow}
@@ -1323,7 +1323,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
         )}
 
         {/* ゲーム一覧: タップでそのゲームに絞ってさがすへ。人より後に置く —
-            推しを探しに来た人には、条件で絞る前にまず人を見せる(モバイル・デスクトップ共通)。 */}
+            お気に入りを探しに来た人には、条件で絞る前にまず人を見せる(モバイル・デスクトップ共通)。 */}
         <GameGrid flow={flow} />
 
         {/* ランキング(デスクトップのみ。モバイルは上部のランキング導線カードから)。

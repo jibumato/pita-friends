@@ -45,7 +45,9 @@ with expected(seq, migration, kind, obj, needle) as (
     (64, '0064_web_push',               'table',   'push_subscriptions',          null),
     -- 未ログインへの過剰なEXECUTEを閉じた。塞げたかは has_function_privilege で見る
     (65, '0065_lock_down_function_grants', 'noexec', '_ledger_record_bypass(text, text, jsonb, jsonb)', null),
-    (66, '0066_admin_console',          'table',   'admin_actions',               null)
+    (66, '0066_admin_console',          'table',   'admin_actions',               null),
+    -- コメントだけを直した移行。表の説明文が新しい言い方になっているかで見る
+    (67, '0067_favorites_wording',      'tcomment', 'favorites',                  'お気に入り登録。誰が誰を')
 ),
 checked as (
   select
@@ -69,6 +71,9 @@ checked as (
           and pg_get_functiondef(p.oid) like '%' || e.needle || '%')
       -- 「未ログインから呼べなくなっていること」を確認する種別
       when 'noexec' then not has_function_privilege('anon', 'public.' || e.obj, 'execute')
+      -- 表のコメント(説明文)が期待どおりに書き換わっているか
+      when 'tcomment' then coalesce(
+        obj_description(('public.' || e.obj)::regclass) like '%' || e.needle || '%', false)
     end as applied
   from expected e
 )
@@ -123,7 +128,9 @@ with expected(seq, migration, kind, obj, needle) as (
     (64, '0064_web_push',               'table',   'push_subscriptions',          null),
     -- 未ログインへの過剰なEXECUTEを閉じた。塞げたかは has_function_privilege で見る
     (65, '0065_lock_down_function_grants', 'noexec', '_ledger_record_bypass(text, text, jsonb, jsonb)', null),
-    (66, '0066_admin_console',          'table',   'admin_actions',               null)
+    (66, '0066_admin_console',          'table',   'admin_actions',               null),
+    -- コメントだけを直した移行。表の説明文が新しい言い方になっているかで見る
+    (67, '0067_favorites_wording',      'tcomment', 'favorites',                  'お気に入り登録。誰が誰を')
 ),
 checked as (
   select e.seq, e.migration,
@@ -140,6 +147,9 @@ checked as (
         where n.nspname = 'public' and p.proname = e.obj
           and pg_get_functiondef(p.oid) like '%' || e.needle || '%')
       when 'noexec' then not has_function_privilege('anon', 'public.' || e.obj, 'execute')
+      -- 表のコメント(説明文)が期待どおりに書き換わっているか
+      when 'tcomment' then coalesce(
+        obj_description(('public.' || e.obj)::regclass) like '%' || e.needle || '%', false)
     end as applied
   from expected e
 )

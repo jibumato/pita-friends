@@ -629,7 +629,7 @@ export async function fetchHostRanking(period: RankingPeriod, limit = 30): Promi
   }))
 }
 
-/** 推し(お気に入り)に登録しているピタメイト。 */
+/** お気に入りに登録しているピタメイト。 */
 export type FavoriteHost = {
   userId: string
   nickname: string
@@ -650,15 +650,15 @@ export type FavoriteHost = {
 }
 
 /**
- * 推し登録の追加・解除(0053)。
- * **誰を推しているかは本人以外に見えない。** 相手には人数だけが伝わる。
+ * お気に入り登録の追加・解除(0053)。
+ * **誰をお気に入りにしているかは本人以外に見えない。** 相手には人数だけが伝わる。
  */
 export async function setFavorite(hostId: string, on: boolean): Promise<void> {
   const { error } = await requireSupabase().rpc('set_favorite', { p_host_id: hostId, p_on: on })
   if (error) throw error
 }
 
-/** 自分が推しているピタメイトの一覧。掲載を休んでいる相手も isActive=false で残る。 */
+/** 自分がお気に入りにしているピタメイトの一覧。掲載を休んでいる相手も isActive=false で残る。 */
 export async function fetchMyFavorites(): Promise<FavoriteHost[]> {
   const { data, error } = await requireSupabase().rpc('my_favorites')
   if (error) throw error
@@ -680,7 +680,7 @@ export async function fetchMyFavorites(): Promise<FavoriteHost[]> {
   }))
 }
 
-/** 自分を推している人数。誰かは分からない。 */
+/** 自分をお気に入りにしている人数。誰かは分からない。 */
 export async function fetchMyFavoriteCount(): Promise<number> {
   const { data, error } = await requireSupabase().rpc('my_favorite_count')
   if (error) throw error

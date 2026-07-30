@@ -194,7 +194,7 @@ begin
 
   -- 急がない種類(枠が空いた)は止まる
   insert into public.notifications (user_id, type, title, body)
-  values ('f1000000-0000-0000-0000-000000000001'::uuid, 'host_slots_opened', '推しが枠を開けました', '今週末')
+  values ('f1000000-0000-0000-0000-000000000001'::uuid, 'host_slots_opened', 'お気に入りのピタメイトが枠を開けました', '今週末')
   returning id into v_casual;
   -- 急ぐ種類(通報の警告)は通る
   insert into public.notifications (user_id, type, title, body)

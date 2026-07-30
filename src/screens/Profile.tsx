@@ -72,7 +72,7 @@ export default function Profile({ flow }: { flow: Flow }) {
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
   const targetId = flow.profileUserId
   const useReal = isBackendConfigured && !!targetId
-  // 推し登録の状態。自分自身のページには出さない。
+  // お気に入り登録の状態。自分自身のページには出さない。
   const [isFav, setIsFav] = useState<boolean | null>(null)
 
   const [live, setLive] = useState(false)
@@ -295,7 +295,7 @@ export default function Profile({ flow }: { flow: Flow }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 20, color: C.ink }}>{name}</span>
-                {/* 推し登録。相手には人数だけが伝わり、誰が押したかは伝わらない(0053) */}
+                {/* お気に入り登録。相手には人数だけが伝わり、誰が押したかは伝わらない(0053) */}
                 {targetId && targetId !== flow.userId && isFav !== null && (
                   <FavoriteStar hostId={targetId} initialOn={isFav} size={28} onChanged={setIsFav} />
                 )}
