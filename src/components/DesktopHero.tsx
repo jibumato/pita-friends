@@ -1,30 +1,31 @@
 /**
  * デスクトップ専用ヒーロー。ホーム画面の上部に表示。
  *
- * ■ 初めて来た人と、常連とで出すものを分ける
- *   ヒーローの仕事は「初めて来た人にサービスを説明する」こと。一度登録した人に
- *   480pxの説明を毎回見せると、推し・通知・次の予約が全部その下にあるので
- *   ただの遠回りになる。
+ * ■ ヒーローは**必ず出す**
+ *   ログイン済みでは出さない実装を一度入れたが、ビジュアルが寂しくなるとの
+ *   判断で常時表示に戻した。コピー・演出はスクリーンショットでの
+ *   art-direction で確定したもので、**一字も変えない。**
  *
- *   しかも以前ログイン済みに出していた「フレンドをさがす」は、
- *   直下の「ゲーム・ジャンルからさがす」・トップバーの検索欄・サイドバーの
- *   「さがす」と**3重に重なっていて**、押すと絞り込み前の空の検索へ後退していた。
+ * ■ 変えるのはCTAだけ
+ *   以前ログイン済みに出していた「フレンドをさがす」には2つ問題があった。
+ *     ・「フレンド」が商品と合っていない。ピタフレは**特定の人の時間を買う**
+ *       サービスで、無料で友達を作る場ではない。ここで友達を約束すると、
+ *       コインが必要だと分かった時点で落ちる
+ *     ・直下の「ゲーム・ジャンルからさがす」・トップバーの検索欄・
+ *       サイドバーの「さがす」と重なっている
+ *   後者は「ヒーローを常に出す以上、CTAが無いと未完成に見える」ほうを取って
+ *   許容し、前者だけ直して「ピタメイトをさがす」にした。
+ *   (行き先の さがす画面は空の検索ではなく、fetchDiscoverableHosts で
+ *    掲載中の全ピタメイトを出す。押して情報が減るわけではない)
  *
- *   なので:
- *     未ログイン(とデモ) → 大ヒーローのまま。説明して登録へ送る
- *     ログイン済み       → その人が**まだやっていない一手**だけを細い帯で出す。
- *                          無ければ何も出さない(トップバーにロゴがあるので、
- *                          ブランドのために場所を取る必要もない)
- *
- * ■ ログイン済みに出す一手は、ピタメイトの「あそべる時間」
- *   枠の登録はこの人しかできず、しかも効果が大きい:
- *     ・**枠が未登録だと、いつでも予約が入る。** `booking_fits_availability` は
- *       枠を1つも持たない相手を「制限なし」として扱う(0051)。深夜でも入る
- *     ・**枠を増やすと、推してくれている人に通知が届く**(0054。24時間に1回まで)
+ * ■ 枠が未登録のピタメイトにだけ、ヒーローの下に細い帯を出す
+ *   これは**実害のある状態**なので別扱いにしている:
+ *     ・`booking_fits_availability` は枠を1つも持たない相手を「制限なし」として
+ *       扱う(0051)。つまり**枠が未登録だと深夜でも予約が入る**
+ *     ・枠を増やすと推してくれている人に通知が届く(0054。24時間に1回まで)
  *     ・常連への先行予約(0057)も枠がある前提の仕組み
- *
- *   ゲストには出さない。相手を選ぶ導線は下の一覧そのもので、
- *   ボタンを足すと4重目になる。
+ *   帯は枠を登録すれば消える。それ以外の状態では出さないので、
+ *   ふだんのホームはヒーロー→内容のままで余計なものが挟まらない。
  */
 import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
@@ -33,50 +34,54 @@ import { isBackendConfigured } from '../lib/supabase'
 import { fetchMyAvailability } from '../lib/queries'
 
 export default function DesktopHero({ flow }: { flow: Flow }) {
-  // バックエンド未接続(デモ)は「初めて来た人」として扱う。説明を見せる場面なので、
-  // 常連向けの細い帯にはしない。
-  const firstTime = !isBackendConfigured || flow.userId === null
+  // バックエンド未接続(デモ)は未ログイン扱い。説明を見せる場面なので
+  const signedOut = !isBackendConfigured || flow.userId === null
   const isHost = flow.hostSettings.isHost
 
   // 枠の数。ピタメイトのときだけ読む。読めるまでは null
   const [slots, setSlots] = useState<number | null>(null)
 
   useEffect(() => {
-    if (firstTime || !isHost || !isBackendConfigured) return
+    if (signedOut || !isHost || !isBackendConfigured) return
     let active = true
     fetchMyAvailability()
       .then((s) => active && setSlots(s.length))
-      // 取れなくても帯は出す(文言だけ「枠あり」の側に寄せる)。ここで消すと
-      // 「枠が無いのに何も言われない」が起きうる
+      // 取れなかったときは帯を出さない。憶測で「未登録です」と言わない
       .catch(() => active && setSlots(null))
     return () => {
       active = false
     }
-  }, [firstTime, isHost])
+  }, [signedOut, isHost])
 
-  if (firstTime) return <FullHero flow={flow} />
-  if (!isHost) return null
-  return <HostBand slots={slots} onGo={() => flow.go('hostSettings')} />
+  return (
+    <>
+      <FullHero
+        label={signedOut ? '▶ 無料ではじめる' : '▶ ピタメイトをさがす'}
+        onGo={() => flow.go(signedOut ? 'signUp' : 'search')}
+      />
+      {/* 枠が未登録のピタメイトにだけ。登録すれば消える */}
+      {!signedOut && isHost && slots === 0 && (
+        <NoSlotsBand onGo={() => flow.go('hostSettings')} />
+      )}
+    </>
+  )
 }
 
 // ------------------------------------------------------------
-// ログイン済みのピタメイト向け・細い帯
+// 枠が未登録のピタメイトにだけ出す帯
 // ------------------------------------------------------------
 
-function HostBand({ slots, onGo }: { slots: number | null; onGo: () => void }) {
-  // slots===null は読み込み中か失敗。**高さを変えないために帯は先に出す**
-  // (あとから現れると下の内容が押し下げられる)。文言だけ差し替える。
-  const empty = slots === 0
-  const label = empty ? '▶ あそべる時間を登録する' : '▶ あそべる時間を追加する'
-  const sub = empty
-    ? '枠が未登録のあいだは、深夜でも予約が入ります。登録すると希望の時間だけになります。'
-    : '枠を増やすと、推してくれている人に通知が届きます（24時間に1回まで）。'
-
+/**
+ * ヒーローの直下。**枠を登録すれば消える**ので、ふだんは邪魔にならない。
+ * 「深夜でも予約が入る」は 0051 の実際の挙動
+ * (`booking_fits_availability` は枠を1つも持たない相手を制限なしとして扱う)。
+ */
+function NoSlotsBand({ onGo }: { onGo: () => void }) {
   return (
     <div
       style={{
         flex: 'none',
-        background: empty ? C.surfaceLavender : C.surface,
+        background: C.surfaceLavender,
         borderBottom: `1.5px solid ${C.border}`,
         padding: '14px 24px',
         display: 'flex',
@@ -87,10 +92,11 @@ function HostBand({ slots, onGo }: { slots: number | null; onGo: () => void }) {
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-        <span style={{ fontSize: 14, color: C.ink }}>
-          {empty ? 'あそべる時間が未登録です' : '今週の枠は埋まっていませんか？'}
+        <span style={{ fontSize: 14, color: C.ink }}>あそべる時間が未登録です</span>
+        <span style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.7 }}>
+          枠が未登録のあいだは、深夜でも予約が入ります。登録すると希望の時間だけになり、
+          枠を開けたことが推してくれている人に届きます。
         </span>
-        <span style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.7 }}>{sub}</span>
       </div>
       <span
         onClick={onGo}
@@ -111,22 +117,22 @@ function HostBand({ slots, onGo }: { slots: number | null; onGo: () => void }) {
           padding: '11px 20px',
         }}
       >
-        {label}
+        ▶ あそべる時間を登録する
       </span>
     </div>
   )
 }
 
 // ------------------------------------------------------------
-// 未ログイン向け・大ヒーロー
+// 大ヒーロー(常に出す)
 // ------------------------------------------------------------
 
 /**
  * コピー・演出はスクリーンショットでのユーザー art-direction を経て確定した内容。
- * **勝手に文言を変えないこと。**
+ * **勝手に文言を変えないこと。** 差し替えてよいのはCTAのラベルと行き先だけ。
  */
-function FullHero({ flow }: { flow: Flow }) {
-  const go = () => flow.go('signUp')
+function FullHero({ label, onGo }: { label: string; onGo: () => void }) {
+  const go = onGo
   return (
     <div
       style={{
@@ -236,7 +242,7 @@ function FullHero({ flow }: { flow: Flow }) {
             animation: 'heroPulse 2.2s ease-in-out infinite',
           }}
         >
-          ▶ 無料ではじめる
+          {label}
         </span>
       </div>
     </div>
