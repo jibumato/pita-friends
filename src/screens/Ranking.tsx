@@ -30,6 +30,8 @@ function medal(rank: number): { bg: string; fg: string } | null {
 }
 
 export default function Ranking({ flow }: { flow: Flow }) {
+  // デモモード(バックエンド未設定)はローカル確認用なのでログイン済み扱い。
+  const signedIn = !isBackendConfigured || flow.userId !== null
   const [period, setPeriod] = useState<RankingPeriod>('weekly')
   const [rows, setRows] = useState<RankingEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,6 +54,18 @@ export default function Ranking({ flow }: { flow: Flow }) {
       active = false
     }
   }, [period])
+
+  /**
+   * ランキングは未ログインでも見られる(host_rankingは公開)が、プロフィールは
+   * RLSで認証済み限定。未ログインでの行タップは登録へ誘導する(openHost と同じ考え方)。
+   */
+  const open = (hostId: string | null) => {
+    if (!signedIn) {
+      flow.go('signUp')
+      return
+    }
+    if (hostId) flow.openProfile(hostId)
+  }
 
   return (
     <Screen background={C.surface}>
@@ -100,9 +114,9 @@ export default function Ranking({ flow }: { flow: Flow }) {
               return (
                 <div
                   key={r.rank + r.nickname}
-                  onClick={() => r.hostId && flow.openProfile(r.hostId)}
+                  onClick={() => open(r.hostId)}
                   style={{
-                    cursor: r.hostId ? 'pointer' : 'default',
+                    cursor: r.hostId || !signedIn ? 'pointer' : 'default',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,

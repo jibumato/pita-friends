@@ -54,7 +54,9 @@ export default function Notifications({ flow }: { flow: Flow }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!isBackendConfigured) return
+    // 通知ベルは signedIn のときだけ出るが、端末に残ったプッシュ通知をログアウト後に
+    // タップした場合もここへ来る。認証が要る取得なので、未ログインでは叩かない。
+    if (!isBackendConfigured || flow.userId === null) return
     let active = true
     fetchNotifications()
       .then((data) => active && setRealItems(data))
@@ -62,7 +64,7 @@ export default function Notifications({ flow }: { flow: Flow }) {
     return () => {
       active = false
     }
-  }, [])
+  }, [flow.userId])
 
   const items = isBackendConfigured ? realItems ?? [] : read ? [] : notifications
 
