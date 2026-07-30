@@ -2324,3 +2324,275 @@ export async function fetchHostDashboard(): Promise<HostDashboard> {
       : [],
   }
 }
+
+// ============================================================
+// 運営コンソール(0066)
+// ------------------------------------------------------------
+// **すべて管理者判定つきのRPC経由。** RLSは利用者本人に絞られているので、
+// 運営でも通報や換金申請を直接 select できない。判定はDB側に置いてあり、
+// 画面を隠すだけの制御にはしていない(隠しても叩けたら意味がない)。
+// ============================================================
+
+/** ダッシュボードの件数。キーは日本語のままDBから来る(画面にそのまま並べる)。 */
+export type AdminSummary = Record<string, number | null>
+
+export async function fetchAdminSummary(): Promise<AdminSummary> {
+  const { data, error } = await requireSupabase().rpc('admin_console_summary')
+  if (error) throw error
+  return (data ?? {}) as AdminSummary
+}
+
+export type AdminReport = {
+  id: string
+  reporterName: string
+  reportedId: string
+  reportedName: string
+  category: string
+  severity: string
+  messageSnapshot: unknown
+  status: string
+  resolution: string | null
+  createdAt: string
+  reportedManner: number | null
+  reportedReportCount: number
+}
+
+export async function fetchAdminReports(status = 'open'): Promise<AdminReport[]> {
+  const { data, error } = await requireSupabase().rpc('admin_reports', {
+    p_status: status,
+    p_limit: 100,
+  })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    reporterName: r.reporter_name,
+    reportedId: r.reported_id,
+    reportedName: r.reported_name,
+    category: r.category,
+    severity: r.severity,
+    messageSnapshot: r.message_snapshot,
+    status: r.status,
+    resolution: r.resolution,
+    createdAt: r.created_at,
+    reportedManner: r.reported_manner,
+    reportedReportCount: r.reported_report_count,
+  }))
+}
+
+/** 通報の処分。理由は必須(理由の無い処分を記録に残さないため)。 */
+export async function resolveReportAsAdmin(
+  reportId: string,
+  resolution: string,
+  status: 'resolved' | 'dismissed',
+  penaltyPoints: number | null,
+): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_resolve_report', {
+    p_report_id: reportId,
+    p_resolution: resolution,
+    p_status: status,
+    p_penalty_points: penaltyPoints,
+  })
+  if (error) throw error
+}
+
+export type AdminHeldBooking = {
+  id: string
+  guestName: string
+  hostName: string
+  coins: number
+  paidCoins: number
+  durationMinutes: number
+  scheduledAt: string
+  heldAt: string
+  heldDays: number
+  holdReason: string | null
+  reportCount: number
+}
+
+export async function fetchAdminHeldBookings(): Promise<AdminHeldBooking[]> {
+  const { data, error } = await requireSupabase().rpc('admin_held_bookings', { p_limit: 100 })
+  if (error) throw error
+  return (data ?? []).map((b) => ({
+    id: b.id,
+    guestName: b.guest_name,
+    hostName: b.host_name,
+    coins: b.coins,
+    paidCoins: b.paid_coins,
+    durationMinutes: b.duration_minutes,
+    scheduledAt: b.scheduled_at,
+    heldAt: b.held_at,
+    heldDays: b.held_days,
+    holdReason: b.hold_reason,
+    reportCount: b.report_count,
+  }))
+}
+
+/** 申し出を退けて確定する(ピタメイトに全額)。 */
+export async function releaseHoldComplete(bookingId: string, note: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_release_hold_complete', {
+    p_booking_id: bookingId,
+    p_note: note,
+  })
+  if (error) throw error
+}
+
+/** 申し出を認めて指定の割合を返還する。0%なら全額返還。 */
+export async function releaseHoldRefund(
+  bookingId: string,
+  percent: number,
+  note: string,
+): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_release_hold_refund', {
+    p_booking_id: bookingId,
+    p_refund_percent: percent,
+    p_note: note,
+  })
+  if (error) throw error
+}
+
+export type AdminPayout = {
+  id: string
+  nickname: string
+  coins: number
+  amountYen: number
+  feeYen: number
+  createdAt: string
+  bankName: string
+  bankCode: string
+  branchName: string
+  branchCode: string
+  accountType: string
+  accountNumber: string
+  accountHolderKana: string
+  isVerified: boolean
+}
+
+/**
+ * 未処理の換金申請。**口座情報を含む。**
+ * この呼び出しは admin_actions に記録される(誰がいつ口座を見たか)。
+ */
+export async function fetchAdminPendingPayouts(): Promise<AdminPayout[]> {
+  const { data, error } = await requireSupabase().rpc('admin_pending_payouts', { p_limit: 500 })
+  if (error) throw error
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    nickname: p.nickname,
+    coins: p.coins,
+    amountYen: p.amount_yen,
+    feeYen: p.fee_yen,
+    createdAt: p.created_at,
+    bankName: p.bank_name,
+    bankCode: p.bank_code,
+    branchName: p.branch_name,
+    branchCode: p.branch_code,
+    accountType: p.account_type,
+    accountNumber: p.account_number,
+    accountHolderKana: p.account_holder_kana,
+    isVerified: p.is_verified,
+  }))
+}
+
+/** ⚠️ 実際に振り込んだ後にだけ押す。取り消す手立ては無い。 */
+export async function markPayoutPaid(payoutId: string, note: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_mark_payout_paid', {
+    p_payout_id: payoutId,
+    p_note: note,
+  })
+  if (error) throw error
+}
+
+/** 振込できなかった。申請コインは手数料も含め全額戻る(0014)。 */
+export async function markPayoutFailed(payoutId: string, reason: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_mark_payout_failed', {
+    p_payout_id: payoutId,
+    p_reason: reason,
+  })
+  if (error) throw error
+}
+
+export type AdminAccountRequest = {
+  id: string
+  userId: string
+  nickname: string
+  type: 'data_export' | 'account_deletion'
+  status: string
+  createdAt: string
+  waitingDays: number
+}
+
+export async function fetchAdminAccountRequests(): Promise<AdminAccountRequest[]> {
+  const { data, error } = await requireSupabase().rpc('admin_account_requests', { p_limit: 100 })
+  if (error) throw error
+  return (data ?? []).map((a) => ({
+    id: a.id,
+    userId: a.user_id,
+    nickname: a.nickname,
+    type: a.type as 'data_export' | 'account_deletion',
+    status: a.status,
+    createdAt: a.created_at,
+    waitingDays: a.waiting_days,
+  }))
+}
+
+export async function setAccountRequestStatus(
+  requestId: string,
+  status: 'processing' | 'completed',
+): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_set_account_request_status', {
+    p_request_id: requestId,
+    p_status: status,
+  })
+  if (error) throw error
+}
+
+export type AdminHealth = {
+  integrity: {
+    check_name: string
+    severity: string
+    affected_count: number
+    total_gap: number | null
+    ran_at: string
+    detail: unknown
+  }[]
+  ledgerExport: { ran_at: string; ok: boolean; row_count: number; error: string | null } | null
+  push: {
+    pending: number
+    givenUp: number
+    devices: number
+    disabled: number
+    lastError: string | null
+  }
+}
+
+export async function fetchAdminHealth(): Promise<AdminHealth> {
+  const { data, error } = await requireSupabase().rpc('admin_health')
+  if (error) throw error
+  const d = (data ?? {}) as Partial<AdminHealth>
+  return {
+    integrity: d.integrity ?? [],
+    ledgerExport: d.ledgerExport ?? null,
+    push: d.push ?? { pending: 0, givenUp: 0, devices: 0, disabled: 0, lastError: null },
+  }
+}
+
+export type AdminAction = {
+  id: string
+  actorName: string
+  kind: string
+  targetId: string | null
+  note: string | null
+  at: string
+}
+
+export async function fetchAdminActions(): Promise<AdminAction[]> {
+  const { data, error } = await requireSupabase().rpc('admin_recent_actions', { p_limit: 100 })
+  if (error) throw error
+  return (data ?? []).map((a) => ({
+    id: a.id,
+    actorName: a.actor_name,
+    kind: a.kind,
+    targetId: a.target_id,
+    note: a.note,
+    at: a.at,
+  }))
+}

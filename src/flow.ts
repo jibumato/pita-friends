@@ -37,6 +37,7 @@ export type ScreenKey =
   | 'booking'
   | 'ranking'
   | 'adminVerifications'
+  | 'adminConsole'
   | 'blockList'
   | 'legalDoc'
   | 'personality'
@@ -75,6 +76,7 @@ export const screenNames: Record<ScreenKey, string> = {
   booking: '予約する',
   ranking: 'ランキング',
   adminVerifications: '本人確認の審査(管理)',
+  adminConsole: '運営コンソール(管理)',
   blockList: 'ブロックリスト',
   legalDoc: '規約・ポリシー',
   personality: 'ゲーム相性診断',
@@ -292,6 +294,7 @@ export const stepOf: Record<ScreenKey, number> = {
   booking: -1,
   ranking: -1,
   adminVerifications: -1,
+  adminConsole: -1,
   blockList: -1,
   legalDoc: -1,
   personality: -1,
