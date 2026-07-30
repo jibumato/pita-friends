@@ -14,6 +14,12 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+# 自己ホストしたフォント。ファイル名にハッシュが付かない(生成手順の都合)ので
+# immutable にはせず、30日で再検証させる。差し替えるのはフォントの版を
+# 上げるときだけ。
+/fonts/*
+  Cache-Control: public, max-age=2592000
+
 # 全ページ共通のセキュリティヘッダ
 /*
   X-Content-Type-Options: nosniff
@@ -28,12 +34,15 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   # CSP: 差し込まれたスクリプトが動かないように、読み込み元を絞る。
   #   script-src 'self'  … インラインスクリプトを禁じる(Viteはバンドルを外部ファイルで出す)
-  #   style-src に 'unsafe-inline' … Reactのstyle属性とGoogle Fontsのために必要。
+  #   style-src に 'unsafe-inline' … Reactのstyle属性のために必要。
   #     このアプリはCSS-in-JS(style属性)で全画面を組んでいるので外せない
+  #   ⚠️ **fonts.googleapis.com / fonts.gstatic.com は意図的に外してある。**
+  #     フォントは自己ホストに切り替えた(弁護士回答Q20・外部送信規律)。
+  #     ここに戻すと、外部読み込みに戻す変更をCSPが素通ししてしまう
   #   connect-src … Supabase(REST/Realtime/Storage/Functions)への接続を許す。
   #     wss: はRealtime(通知の即時反映)に必要
   #   frame-ancestors 'none' … 埋め込み禁止(X-Frame-Options より新しい規定)
   #   form-action 'self' … 差し込まれたフォームで外部へ送信させない
   # ⚠️ Stripeの決済ページへは window.location.href で遷移する(iframeではない)ので
   #    frame-src は要らない。将来Stripe Elementsを埋め込むなら追加すること。
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'

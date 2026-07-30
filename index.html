@@ -40,12 +40,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="ピタフレ" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap"
-      rel="stylesheet"
-    />
+    <!--
+      フォントは自己ホスト。Google Fonts から読み込むと、利用者の端末から
+      第三者(Google)への送信が発生し、電気通信事業法の外部送信規律の
+      該当性判断と、該当する場合の公表・通知の維持管理が恒久的に必要になる。
+      弁護士回答 Q20 は自己ホストを推奨。実体は public/fonts/dotgothic16/。
+      **ここに外部ホストの <link> を戻さないこと。**
+    -->
+    <link href="/fonts/dotgothic16.css" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>
