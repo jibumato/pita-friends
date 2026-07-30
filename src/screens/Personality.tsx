@@ -92,28 +92,46 @@ function Intro({
         </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {[
-          ['🕹️', '通話やゲームの楽しみ方のクセがわかる'],
-          ['🤝', '一緒に遊ぶと合いそうなタイプがわかる'],
-          ['✨', 'プロフィールに載せてきっかけ作りに'],
-        ].map(([icon, text]) => (
-          <div
-            key={text}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              background: C.white,
-              border: `1.5px solid ${C.border}`,
-              borderRadius: 10,
-              padding: '11px 13px',
-            }}
-          >
-            <span style={{ fontSize: 17, flex: 'none' }}>{icon}</span>
-            <span style={{ fontSize: 12.5, color: C.ink }}>{text}</span>
-          </div>
-        ))}
+      {/* 1つの枠にまとめる。以前は3項目を1つずつ枠で囲っていて、
+          下の「診断をはじめる」と同じ形だったので**押せるボタンに見えていた**。
+          押しても何も起きないので、押した人は壊れていると思う。
+          見出しを付けて中身は枠なしの箇条書きにし、押せないものだと分かる形にした。 */}
+      <div
+        style={{
+          background: C.white,
+          border: `1.5px solid ${C.border}`,
+          borderRadius: 12,
+          padding: '13px 15px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        <span style={{ fontSize: 12.5, color: C.ink }}>診断でわかること</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          {[
+            ['🕹️', '通話やゲームの楽しみ方のクセ'],
+            ['🤝', '一緒に遊ぶと合いそうなタイプ'],
+          ].map(([icon, text]) => (
+            <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span aria-hidden style={{ fontSize: 15, flex: 'none' }}>
+                {icon}
+              </span>
+              <span style={{ fontSize: 12.5, color: C.body }}>{text}</span>
+            </div>
+          ))}
+        </div>
+        <span
+          style={{
+            fontSize: 11,
+            color: C.muted,
+            lineHeight: 1.7,
+            borderTop: `1.5px solid ${C.divider}`,
+            paddingTop: 9,
+          }}
+        >
+          結果はプロフィールに載せられます。話のきっかけになります。
+        </span>
       </div>
 
       <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
