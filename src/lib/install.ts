@@ -291,8 +291,12 @@ export async function promptInstall(): Promise<boolean> {
  */
 export function androidChromeUrl(): string | null {
   if (typeof window === 'undefined' || !/Android/i.test(ua())) return null
-  const { host, pathname, search } = window.location
-  return `intent://${host}${pathname}${search}#Intent;scheme=https;package=com.android.chrome;end`
+  // **パスもクエリも混ぜない。** intent:// はフラグメント以降を
+  // 「起動するアプリの指定」として解釈するので、URLに攻撃者の文字列が
+  // 混じると別のアプリを起動させられる余地が残る(%23 が # として
+  // 解釈されるかはAndroid側の実装に依存する)。ここで開きたいのは
+  // トップページだけなので、ホスト名しか入れない。
+  return `intent://${window.location.host}/#Intent;scheme=https;package=com.android.chrome;end`
 }
 
 /** トップページのURL。 */

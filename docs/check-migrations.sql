@@ -42,7 +42,9 @@ with expected(seq, migration, kind, obj, needle) as (
     (61, '0061_booking_series',         'funcsrc', 'create_booking_series',       'INVALID_SERIES_COUNT'),
     (62, '0062_fast_release',           'table',   'fast_release_prefs',          null),
     (63, '0063_align_payout_terms',     'funcsrc', 'request_bank_payout',         '5000'),
-    (64, '0064_web_push',               'table',   'push_subscriptions',          null)
+    (64, '0064_web_push',               'table',   'push_subscriptions',          null),
+    -- 未ログインへの過剰なEXECUTEを閉じた。塞げたかは has_function_privilege で見る
+    (65, '0065_lock_down_function_grants', 'noexec', '_ledger_record_bypass(text, text, jsonb, jsonb)', null)
 ),
 checked as (
   select
@@ -64,6 +66,8 @@ checked as (
         join pg_namespace n on n.oid = p.pronamespace
         where n.nspname = 'public' and p.proname = e.obj
           and pg_get_functiondef(p.oid) like '%' || e.needle || '%')
+      -- 「未ログインから呼べなくなっていること」を確認する種別
+      when 'noexec' then not has_function_privilege('anon', 'public.' || e.obj, 'execute')
     end as applied
   from expected e
 )
@@ -115,7 +119,9 @@ with expected(seq, migration, kind, obj, needle) as (
     (61, '0061_booking_series',         'funcsrc', 'create_booking_series',       'INVALID_SERIES_COUNT'),
     (62, '0062_fast_release',           'table',   'fast_release_prefs',          null),
     (63, '0063_align_payout_terms',     'funcsrc', 'request_bank_payout',         '5000'),
-    (64, '0064_web_push',               'table',   'push_subscriptions',          null)
+    (64, '0064_web_push',               'table',   'push_subscriptions',          null),
+    -- 未ログインへの過剰なEXECUTEを閉じた。塞げたかは has_function_privilege で見る
+    (65, '0065_lock_down_function_grants', 'noexec', '_ledger_record_bypass(text, text, jsonb, jsonb)', null)
 ),
 checked as (
   select e.seq, e.migration,
@@ -131,6 +137,7 @@ checked as (
         join pg_namespace n on n.oid = p.pronamespace
         where n.nspname = 'public' and p.proname = e.obj
           and pg_get_functiondef(p.oid) like '%' || e.needle || '%')
+      when 'noexec' then not has_function_privilege('anon', 'public.' || e.obj, 'execute')
     end as applied
   from expected e
 )
