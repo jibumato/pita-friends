@@ -23,3 +23,17 @@
   # microphone=() にすると Chrome のサイト設定で許可しても
   # "Permissions policy violation" で録音できなくなる。
   Permissions-Policy: geolocation=(), microphone=(self), camera=()
+  # HTTPSに固定する。1年 + サブドメイン。**preload は入れていない**
+  # (プリロードリストは事実上取り消せず、将来サブドメインでHTTPを使えなくなる)
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  # CSP: 差し込まれたスクリプトが動かないように、読み込み元を絞る。
+  #   script-src 'self'  … インラインスクリプトを禁じる(Viteはバンドルを外部ファイルで出す)
+  #   style-src に 'unsafe-inline' … Reactのstyle属性とGoogle Fontsのために必要。
+  #     このアプリはCSS-in-JS(style属性)で全画面を組んでいるので外せない
+  #   connect-src … Supabase(REST/Realtime/Storage/Functions)への接続を許す。
+  #     wss: はRealtime(通知の即時反映)に必要
+  #   frame-ancestors 'none' … 埋め込み禁止(X-Frame-Options より新しい規定)
+  #   form-action 'self' … 差し込まれたフォームで外部へ送信させない
+  # ⚠️ Stripeの決済ページへは window.location.href で遷移する(iframeではない)ので
+  #    frame-src は要らない。将来Stripe Elementsを埋め込むなら追加すること。
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
