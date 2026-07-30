@@ -12,6 +12,14 @@ import Stripe from 'https://esm.sh/stripe@14.25.0?target=deno&no-check'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 import { corsHeaders } from '../_shared/cors.ts'
 
+/**
+ * 3Dセキュアの要求方法。'any'(既定・発行会社が対応していれば必ず認証)
+ * または 'automatic'(Stripeの判断に任せる)。
+ * 詳細は下の payment_method_options のコメントを参照。
+ */
+const THREE_D_SECURE =
+  (Deno.env.get('STRIPE_3DS') ?? 'any') === 'automatic' ? 'automatic' : 'any'
+
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2024-06-20',
   httpClient: Stripe.createFetchHttpClient(),
@@ -118,6 +126,31 @@ Deno.serve(async (req) => {
       // (Stripe側で有効化していない手段を指定するとセッション作成が失敗するため、
       //  コードではなく設定で切り替えられるようにしておく)
       ...(PAYMENT_METHODS.length > 0 ? { payment_method_types: PAYMENT_METHODS } : {}),
+      // ------------------------------------------------------------
+      // EMV 3-Dセキュア(3DS2)を要求する。
+      // ------------------------------------------------------------
+      // 税理士の第4回回答:
+      //   「チャージバックの期間が、設計とまったく噛み合っていません。
+      //     **国際ブランドの申立期限は取引日から120日程度**です。対する現在の
+      //     防御は7日保留＋週次振込で、**期間が一桁違います。** 規約でピタメイトに
+      //     返還義務を課すことは可能ですが、**善意の受領者から既払金を回収するのは
+      //     実務上ほぼ不可能で、規約は防御になりません。**
+      //     設計で防ぐべきで、**最も効果が大きいのは EMV 3-Dセキュア(3DS2)の適用**
+      //     です。認証済み取引では不正利用によるチャージバックの責任がカード発行
+      //     会社に移転します(ライアビリティシフト)。」
+      //
+      // 'any' は、発行会社が対応していれば必ず認証を挟む(= 転嫁を最大化する)。
+      // 'automatic' は Stripe の判断に任せるため、認証されない取引が残る。
+      // **既定を 'any' にしている**のは、本サービスが
+      //   ①換金を伴い ②申立てまでに数か月あり ③回収手段が実質的に無い
+      // という、取りこぼしが致命傷になる構造だからである。
+      //
+      // ⚠️ 認証を挟むぶん、購入の途中離脱は増える。数字を見て緩める場合は
+      //    環境変数で 'automatic' にできるようにしてあるが、**戻すときは
+      //    上の3条件が変わったかを確認すること。**
+      payment_method_options: {
+        card: { request_three_d_secure: THREE_D_SECURE },
+      },
       // 付与に必要な情報は metadata に載せ、webhook で使う
       metadata: {
         user_id: user.id,
