@@ -1436,6 +1436,35 @@ const PAYOUT_ERROR_MESSAGES: Record<string, string> = {
   BANK_ACCOUNT_NOT_REGISTERED: '先にピタメイト設定から振込先口座を登録してください',
   INSUFFICIENT_EARNED_BALANCE: '換金可能な残高が足りません',
   GIFT_ON_HOLD: '受け取ったギフトは7日間は換金できません。保留が明けるまでお待ちください',
+  // 0077。**理由を詳しく書かない。**チャージバックの存否は決済当事者と当社の間の
+  // 情報で、報酬を受け取る側に相手方の決済事情を伝えるべきではない。
+  // 「いつ明けるか」も申立ての決着次第なので約束できない。
+  DISPUTE_ON_HOLD:
+    'お支払いの確認中の予約が含まれているため、その分は一時的に換金をお預かりしています。確認が済み次第、換金できるようになります',
+}
+
+/** 換金できる額と保留の内訳(0077)。 */
+export type PayoutHold = {
+  earnedBalance: number
+  /** 直近7日に受け取ったギフト(0069) */
+  giftHold: number
+  /** 係争中のチャージバックに紐づく予約の報酬(0077) */
+  disputeHold: number
+  /** いま申請できる額 */
+  available: number
+}
+
+export async function fetchPayoutHold(): Promise<PayoutHold | null> {
+  const { data, error } = await requireSupabase().rpc('my_payout_hold', {})
+  if (error) throw error
+  if (!data) return null
+  const r = data as Record<string, unknown>
+  return {
+    earnedBalance: Number(r.earnedBalance ?? 0),
+    giftHold: Number(r.giftHold ?? 0),
+    disputeHold: Number(r.disputeHold ?? 0),
+    available: Number(r.available ?? 0),
+  }
 }
 
 /** 報酬コインの換金(銀行振込)を申請する。振込は運営がまとめて行う。 */
