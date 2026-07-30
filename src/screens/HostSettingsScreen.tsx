@@ -173,6 +173,26 @@ function BankAccountSection() {
                 style={{ ...inputStyle, flex: 1 }}
               />
             </div>
+            {/* ゆうちょ(9900)は記号・番号のままでは他行から振り込めない。
+                変換後の店番・口座番号を入れてもらわないと、振込が失敗して
+                組戻し手数料(¥660〜880)が当社負担になる。入力した瞬間に気づけるよう出す。 */}
+            {account.bankCode === '9900' && (
+              <div
+                style={{
+                  background: C.avatarOrange,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 6,
+                  padding: '9px 11px',
+                  fontSize: 10.5,
+                  color: C.ink,
+                  lineHeight: 1.7,
+                }}
+              >
+                ゆうちょ銀行は、通帳の<b>記号・番号のままでは他行からの振込を受け取れません。</b>
+                ゆうちょ銀行アプリ・通帳・ゆうちょの「振込用の店名・預金種目・口座番号」の照会で、
+                <b>店番(3桁)・口座番号(7桁)</b>に変換した値を確認して入力してください。
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 value={account.branchName}

@@ -19,7 +19,10 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-const APP_URL = Deno.env.get('APP_URL') ?? ''
+// 末尾スラッシュを剥がす。"https://例.com/" のまま success_url を組むと
+// "https://例.com//?checkout=success" と // になるうえ、CORS(_shared/cors.ts)の
+// 許可オリジンもブラウザの Origin と一致しなくなる。設定ミスに強くする。
+const APP_URL = (Deno.env.get('APP_URL') ?? '').replace(/\/+$/, '')
 
 // 決済手段。カンマ区切りで指定する(例: "card,paypay")。
 // 未設定なら Stripe のダッシュボード設定に任せる。
