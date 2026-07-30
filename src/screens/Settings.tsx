@@ -5,14 +5,181 @@ import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader, SectionLabel, Card, ListRow, Toggle } from '../components/Ui'
 import { isBackendConfigured, supabase } from '../lib/supabase'
+import { clickable } from '../hooks/clickable'
 import {
   fetchNotificationPrefs,
   updateNotificationPrefs,
   submitAccountRequest,
+  fetchMonitoringConsent,
+  revokeMonitoringConsent,
+  recordMonitoringConsent,
   type NotificationPrefs,
+  type MonitoringConsentState,
 } from '../lib/queries'
+import { MONITORING_CONSENT_VERSION } from '../content/consentText'
 import { installGuideAvailable, openInstallGuide } from '../lib/install'
 import PushSettingsRows from '../components/PushSettingsRows'
+
+/**
+ * みまもりへの同意の撤回・再同意。
+ *
+ * 規約 第4条6項(弁護士回答 Q16 の文言):
+ *   「撤回された場合、当社はメッセージ機能その他の利用者間のやりとりに関する
+ *     機能の提供を停止します。この場合も、既に成立した予約の履行および換金の
+ *     手続については、本規約の定めに従います。」
+ *
+ * **止まる範囲を画面に正確に書くこと。** 「一部機能が使えなくなります」のような
+ * ぼかした書き方では、撤回するかどうかを判断できない。撤回は同意の任意性を支える
+ * 導線なので、選べる形にしておく必要がある(Q19)。
+ * 実際に止める範囲は 0074 のトリガが決めている。**片方を変えたら両方直すこと。**
+ */
+function MonitoringConsentRows() {
+  const [state, setState] = useState<MonitoringConsentState | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    let active = true
+    fetchMonitoringConsent()
+      .then((s) => active && setState(s))
+      .catch(() => {
+        /* 取得できなくても設定画面は開ける。撤回の導線だけ出さない */
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  async function apply(next: 'revoke' | 'agree') {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (next === 'revoke') await revokeMonitoringConsent()
+      else await recordMonitoringConsent(MONITORING_CONSENT_VERSION)
+      setState(await fetchMonitoringConsent())
+      setConfirming(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '変更に失敗しました')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!isBackendConfigured || !state) {
+    return <ListRow label="みまもりへの同意" sub="ログイン後に確認できます" />
+  }
+
+  if (!state.active) {
+    return (
+      <>
+        <ListRow
+          label="みまもりへの同意（撤回中）"
+          sub={
+            state.revokedAt
+              ? `${state.revokedAt.toLocaleDateString('ja-JP')}に撤回。メッセージ・誘い・募集・新しい予約が停止中です`
+              : 'メッセージ・誘い・募集・新しい予約が停止中です'
+          }
+          right={
+            <span style={{ fontSize: 11, color: C.lavenderText, whiteSpace: 'nowrap' }}>
+              {busy ? '…' : '再開する'}
+            </span>
+          }
+          onClick={() => void apply('agree')}
+        />
+        {error && (
+          <div style={{ padding: '0 14px 10px' }}>
+            <span style={{ fontSize: 10.5, color: C.avatarPink }}>{error}</span>
+          </div>
+        )}
+      </>
+    )
+  }
+
+  return (
+    <>
+      <ListRow
+        label="みまもりへの同意"
+        sub={
+          state.unrecorded
+            ? '同意いただいています'
+            : state.agreedAt
+              ? `${state.agreedAt.toLocaleDateString('ja-JP')}に同意（版 ${state.version}）`
+              : '同意いただいています'
+        }
+        right={
+          <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>
+            {confirming ? '' : '撤回する'}
+          </span>
+        }
+        onClick={() => setConfirming(true)}
+      />
+      {confirming && (
+        <div
+          style={{
+            padding: '4px 14px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            borderBottom: `1.5px solid ${C.divider}`,
+          }}
+        >
+          <span style={{ fontSize: 11.5, color: C.body, lineHeight: 1.8 }}>
+            みまもりは、ピタフレの安全を守るための仕組みです。同意を撤回すると、
+            <b style={{ color: C.ink }}>
+              メッセージの送受信・誘いの送受信・募集の投稿と参加・新しい予約
+            </b>
+            がご利用いただけなくなります。
+            <br />
+            <b style={{ color: C.ink }}>
+              すでに成立している予約の進行（チェックイン・完了・キャンセル）と、換金の手続は
+              そのまま続けられます。
+            </b>
+            <br />
+            いつでもこの画面から同意して、再開できます。
+          </span>
+          <div style={{ display: 'grid', gridAutoFlow: 'column', gap: 8 }}>
+            <div
+              onClick={() => setConfirming(false)}
+              {...clickable(() => setConfirming(false), 'やめる')}
+              style={{
+                cursor: 'pointer',
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 8,
+                padding: '10px 0',
+                textAlign: 'center',
+                fontSize: 12.5,
+                color: C.ink,
+                background: C.white,
+              }}
+            >
+              やめる
+            </div>
+            <div
+              onClick={() => void apply('revoke')}
+              {...clickable(() => void apply('revoke'), '同意を撤回する')}
+              style={{
+                cursor: 'pointer',
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 8,
+                padding: '10px 0',
+                textAlign: 'center',
+                fontSize: 12.5,
+                color: '#E5484D',
+                background: C.white,
+              }}
+            >
+              {busy ? '…' : '同意を撤回する'}
+            </div>
+          </div>
+          {error && <span style={{ fontSize: 10.5, color: C.avatarPink }}>{error}</span>}
+        </div>
+      )}
+    </>
+  )
+}
 
 export default function Settings({ flow }: { flow: Flow }) {
   const [email, setEmail] = useState<string | null>(null)
@@ -182,6 +349,7 @@ export default function Settings({ flow }: { flow: Flow }) {
           />
           <ListRow label="ブロックリスト" onClick={() => flow.go('blockList')} />
           <ListRow label="安全センター" onClick={() => flow.go('safety')} />
+          <MonitoringConsentRows />
           <ListRow
             label="データのダウンロード請求"
             divider={false}

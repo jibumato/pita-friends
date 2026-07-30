@@ -95,7 +95,17 @@ export default function Consent({ flow }: { flow: Flow }) {
         </InfoCard>
 
         <InfoCard label="どこまで？(範囲)">
-          対象は、アプリ内のメッセージ・募集文・プロフィール文です。アプリの外でのやり取りは対象ではありません。
+          対象は、アプリ内のメッセージ・募集文・プロフィール文です。アプリの外でのやり取りは対象ではありません。該当する語句が見つかっても<b style={{ color: C.ink }}>送信は止めません</b>。送信前に注意を表示するだけで、記録に残すのは<b style={{ color: C.ink }}>該当した短い語句だけ</b>です（本文は保存しません）。
+        </InfoCard>
+
+        {/*
+          撤回できること・撤回すると何が止まるかを同意の前に示す。
+          弁護士回答 Q16:「撤回できるが撤回すれば退会」では任意性が空文化するが、
+          「撤回すれば当該機能が使えなくなる」は同意の対象と帰結が対応している。
+          帰結を書かずに「撤回できます」だけを書くと、判断材料にならない。
+        */}
+        <InfoCard label="あとで撤回できます">
+          この同意は、設定画面からいつでも撤回できます。撤回すると<b style={{ color: C.ink }}>メッセージ・誘い・募集・新しい予約</b>がご利用いただけなくなりますが、<b style={{ color: C.ink }}>すでに成立している予約の進行と換金の手続は続けられます</b>。設定画面から改めて同意すれば、いつでも再開できます。
         </InfoCard>
 
         {/* 明示的な同意アクション */}
@@ -148,7 +158,7 @@ export default function Consent({ flow }: { flow: Flow }) {
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', paddingBottom: 8 }}>
           <Shield size={13} style={{ flex: 'none', marginTop: 2 }} />
           <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
-            この同意はピタフレの利用に必要です。詳細は
+この同意は、ピタフレでほかの方とやり取りするために必要です。詳細は
             <span
               onClick={() => flow.openLegalDoc('privacy')}
               style={{ color: C.lavenderText, textDecoration: 'underline', cursor: 'pointer' }}
