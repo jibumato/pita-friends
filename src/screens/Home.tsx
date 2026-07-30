@@ -11,6 +11,7 @@ import GameThumb from '../components/GameThumb'
 import { mannerScoreLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { isBackendConfigured } from '../lib/supabase'
+import { consumeHostIntent } from '../lib/hostIntent'
 import SignedOutPrompt from '../components/SignedOutPrompt'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
 import type { PresenceStatus } from '../lib/database.types'
@@ -930,6 +931,22 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
     .filter((h) => h.userId !== pickup?.userId)
     .sort((a, b) => a.reviewCount - b.reviewCount)
     .slice(0, 8)
+
+  /**
+   * ヒーローの「ピタメイトとして登録する」で入ってきた人を、
+   * 登録が終わってここに着いた**1回だけ**ピタメイト設定へ送る。
+   *
+   * 登録は画面をいくつもまたぐので、意思は hostIntent.ts が localStorage に
+   * 預かっている。取り出しは1回だけで24時間で失効する(hostIntent.ts)。
+   * すでにピタメイトの人には用が無いので送らない。
+   */
+  useEffect(() => {
+    if (!isBackendConfigured || flow.userId === null) return
+    if (flow.hostSettings.isHost) return
+    if (consumeHostIntent()) flow.go('hostSettings')
+    // 着地の判定は初回のみ。以後のホーム表示で飛ばされては困る
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flow.userId])
 
   useEffect(() => {
     if (!isBackendConfigured) return

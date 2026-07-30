@@ -18,6 +18,27 @@
  *   (行き先の さがす画面は空の検索ではなく、fetchDiscoverableHosts で
  *    掲載中の全ピタメイトを出す。押して情報が減るわけではない)
  *
+ * ■ 未ログインの主CTAは「無料で登録する」
+ *   「無料ではじめる」だと**サービス全体が無料に読める。** 無料なのは
+ *   登録だけで、遊ぶにはコインが要る。景表法(有利誤認)の観点から、
+ *   無料の範囲を「登録」に絞って言い切る。
+ *
+ * ■ 副CTAで「ピタメイトになる」を出す
+ *   いま足りないのは供給(遊べる相手)で、需要ではない。ヒーローが
+ *   「さがす」しか言わないと、来た人は全員ゲスト側にしか流れない。
+ *   ただし**主CTAと張り合わせない。** 副CTAは枠線も影も持たない
+ *   ただの文字リンクにして、視線の順番を主CTA→副CTAに固定する。
+ *
+ *   **金額(20%〜/12%〜)はここに書かない。** 「20%〜」は
+ *   「20%以上」と読めて実際と逆向きだし、12%はGMVが月30万円を
+ *   超えてからの数字なので、条件を書かずに出すと有利誤認になる。
+ *
+ * ■ 副CTAの行き先(未ログインのとき)
+ *   未ログインでは主CTAも副CTAも登録画面にしか行けない。同じ画面に
+ *   着地する2つのボタンは押した人から見ると壊れているので、
+ *   hostIntent.ts に意思を預けて、登録が終わってホームに着いた1回だけ
+ *   ピタメイト設定へ送る(消費はHome側)。
+ *
  * ■ 枠が未登録のピタメイトにだけ、ヒーローの下に細い帯を出す
  *   これは**実害のある状態**なので別扱いにしている:
  *     ・`booking_fits_availability` は枠を1つも持たない相手を「制限なし」として
@@ -32,6 +53,7 @@ import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchMyAvailability } from '../lib/queries'
+import { markHostIntent } from '../lib/hostIntent'
 
 export default function DesktopHero({ flow }: { flow: Flow }) {
   // バックエンド未接続(デモ)は未ログイン扱い。説明を見せる場面なので
@@ -56,8 +78,22 @@ export default function DesktopHero({ flow }: { flow: Flow }) {
   return (
     <>
       <FullHero
-        label={signedOut ? '▶ 無料ではじめる' : '▶ ピタメイトをさがす'}
+        label={signedOut ? '▶ 無料で登録する' : '▶ ピタメイトをさがす'}
         onGo={() => flow.go(signedOut ? 'signUp' : 'search')}
+        // すでにピタメイトの人には出さない(その人にとっては用の無い誘い)
+        sub={
+          signedOut
+            ? {
+                label: 'ピタメイトとして登録する ›',
+                onGo: () => {
+                  markHostIntent()
+                  flow.go('signUp')
+                },
+              }
+            : isHost
+              ? null
+              : { label: 'ピタメイトになる ›', onGo: () => flow.go('hostSettings') }
+        }
       />
       {/* 枠が未登録のピタメイトにだけ。登録すれば消える */}
       {!signedOut && isHost && slots === 0 && (
@@ -127,11 +163,13 @@ function NoSlotsBand({ onGo }: { onGo: () => void }) {
 // 大ヒーロー(常に出す)
 // ------------------------------------------------------------
 
+type Cta = { label: string; onGo: () => void }
+
 /**
  * コピー・演出はスクリーンショットでのユーザー art-direction を経て確定した内容。
  * **勝手に文言を変えないこと。** 差し替えてよいのはCTAのラベルと行き先だけ。
  */
-function FullHero({ label, onGo }: { label: string; onGo: () => void }) {
+function FullHero({ label, onGo, sub }: { label: string; onGo: () => void; sub: Cta | null }) {
   const go = onGo
   return (
     <div
@@ -244,6 +282,33 @@ function FullHero({ label, onGo }: { label: string; onGo: () => void }) {
         >
           {label}
         </span>
+        {/*
+          副CTA。**枠線も影も持たせない。** 主CTAと同じ強さで置くと
+          「どちらを押せばいいのか」が生まれて、両方の反応が落ちる。
+        */}
+        {sub && (
+          <span
+            onClick={sub.onGo}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') sub.onGo()
+            }}
+            style={{
+              cursor: 'pointer',
+              // 主CTAには 5px の影があるので、その分を足して間隔を確保する
+              marginTop: 18,
+              fontSize: 13.5,
+              fontWeight: 700,
+              color: C.ink,
+              textDecoration: 'underline',
+              textUnderlineOffset: 3,
+              textShadow: '0 1px 3px rgba(255,255,255,.9), 0 0 12px rgba(255,255,255,.85)',
+            }}
+          >
+            {sub.label}
+          </span>
+        )}
       </div>
     </div>
   )
