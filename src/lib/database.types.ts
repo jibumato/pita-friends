@@ -945,6 +945,11 @@ export type Database = {
           push: { pending: number; givenUp: number; devices: number; disabled: number; lastError: string | null }
         }
       }
+      /** 手数料の率(表示用)。規約 第8条の2第3項の「本サービス上に表示」を満たすための口。 */
+      fee_rates: {
+        Args: Record<string, never>
+        Returns: unknown
+      }
       admin_recent_actions: {
         Args: { p_limit?: number }
         Returns: {

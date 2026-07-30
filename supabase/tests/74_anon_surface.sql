@@ -19,8 +19,15 @@
 do $$
 declare
   -- 未ログインに開いていてよいもの。掲載一覧(0052)を未ログインでも
-  -- 見せる設計なので、その材料だけが並ぶ。
+  -- 見せる設計なので、その材料が並ぶ。
+  --
+  -- **足すときは理由をここに書くこと。** 個人情報を返さないこと・
+  -- 未ログインに見せる必要があることの2つが説明できるものだけ足す。
   c_allowed constant text[] := array[
+    -- 手数料の率(0073)。規約 第8条の2第3項で「本サービス上に表示します」と
+    -- 約束しているもの。**ピタメイトになるかの判断材料なので、登録前に
+    -- 見えないと意味がない。** 個人情報は含まない(率だけ)。
+    'fee_rates()',
     'host_ranking(p_period text, p_limit integer)',
     'host_repeat_guests(p_host_id uuid)',
     'host_repeat_stats(p_host_ids uuid[])',
@@ -156,6 +163,7 @@ end $$;
 set role anon;
 do $$
 begin
+  perform public.fee_rates();
   perform public.public_host_cards(10);
   perform public.host_ranking('week', 10);
   perform public.host_repeat_guests('ba000000-0000-0000-0000-000000000009'::uuid);

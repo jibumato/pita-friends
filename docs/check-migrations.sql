@@ -57,7 +57,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- あんしん保証料→あんしんサポート料。コメントの文言で見る
     (71, '0071_safety_fee_rename',       'tcomment', 'platform_pricing',          'あんしんサポート料の率'),
     -- 短縮設定が既存予約に遡らないようにした。判定条件が入ったかで見る
-    (72, '0072_fast_release_no_retroactive', 'funcsrc', 'auto_complete_bookings',  'f.created_at <= b.created_at')
+    (72, '0072_fast_release_no_retroactive', 'funcsrc', 'auto_complete_bookings',  'f.created_at <= b.created_at'),
+    -- 料率を画面に出すための読み取り口(規約 第8条の2第3項)
+    (73, '0073_fee_rates_public',        'funcsrc', 'fee_rates',                  'bookingTiers')
 ),
 checked as (
   select
@@ -150,7 +152,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- あんしん保証料→あんしんサポート料。コメントの文言で見る
     (71, '0071_safety_fee_rename',       'tcomment', 'platform_pricing',          'あんしんサポート料の率'),
     -- 短縮設定が既存予約に遡らないようにした。判定条件が入ったかで見る
-    (72, '0072_fast_release_no_retroactive', 'funcsrc', 'auto_complete_bookings',  'f.created_at <= b.created_at')
+    (72, '0072_fast_release_no_retroactive', 'funcsrc', 'auto_complete_bookings',  'f.created_at <= b.created_at'),
+    -- 料率を画面に出すための読み取り口(規約 第8条の2第3項)
+    (73, '0073_fee_rates_public',        'funcsrc', 'fee_rates',                  'bookingTiers')
 ),
 checked as (
   select e.seq, e.migration,
