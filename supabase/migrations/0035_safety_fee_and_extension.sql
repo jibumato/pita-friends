@@ -1,7 +1,7 @@
 -- ============================================================
--- 収益施策: (1) あんしん保証料  (3) 延長課金
+-- 収益施策: (1) あんしんサポート料  (3) 延長課金
 -- ------------------------------------------------------------
--- ■ あんしん保証料
+-- ■ あんしんサポート料
 --   コイン購入時に価格の一定率を上乗せして預かる。ホストの取り分には
 --   一切触れないため、既存ホストの手取りを下げずにテイクレートを上げられる。
 --   根拠は承認制・本人確認・通報ブロック・トラブル時の返金対応という
@@ -30,14 +30,14 @@
 -- ------------------------------------------------------------
 create table public.platform_pricing (
   id smallint primary key default 1 check (id = 1),
-  -- コイン購入時に上乗せする「あんしん保証料」の率
+  -- コイン購入時に上乗せする「あんしんサポート料」の率
   safety_fee_rate numeric(4, 3) not null default 0.050
     check (safety_fee_rate >= 0 and safety_fee_rate <= 0.5),
   updated_at timestamptz not null default now()
 );
 
 comment on table public.platform_pricing is
-  'プラットフォームの価格設定(1行のみ)。あんしん保証料の率など、改定しうる数値をここに集約する。';
+  'プラットフォームの価格設定(1行のみ)。あんしんサポート料の率など、改定しうる数値をここに集約する。';
 
 insert into public.platform_pricing (id) values (1);
 
@@ -49,15 +49,15 @@ create policy "platform_pricing_select_all"
   to authenticated
   using (true);
 
--- 購入履歴に、預かった保証料を残す
+-- 購入履歴に、預かったサポート料を残す
 alter table public.coin_purchases
   add column safety_fee_yen int not null default 0 check (safety_fee_yen >= 0);
 
 comment on column public.coin_purchases.safety_fee_yen is
-  'コイン代金に上乗せして預かったあんしん保証料(円)。price_yen はコイン本体の価格で、請求総額は price_yen + safety_fee_yen。';
+  'コイン代金に上乗せして預かったあんしんサポート料(円)。price_yen はコイン本体の価格で、請求総額は price_yen + safety_fee_yen。';
 
 -- ------------------------------------------------------------
--- safety_fee_for: 指定価格に対する保証料(円)。Edge Function から使う
+-- safety_fee_for: 指定価格に対するサポート料(円)。Edge Function から使う
 -- ------------------------------------------------------------
 create function public.safety_fee_for(p_price_yen int)
 returns int
@@ -69,7 +69,7 @@ as $$
 $$;
 
 comment on function public.safety_fee_for(int) is
-  'コイン価格に対するあんしん保証料(円)。料率は platform_pricing に持つ。';
+  'コイン価格に対するあんしんサポート料(円)。料率は platform_pricing に持つ。';
 
 -- ------------------------------------------------------------
 -- extend_booking: 進行中の予約に時間とコインを追加する

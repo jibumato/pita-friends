@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
       return new Response('credit failed', { status: 500 })
     }
 
-    // 預かったあんしん保証料を購入履歴に残す。
+    // 預かったあんしんサポート料を購入履歴に残す。
     // credit_coins_for_purchase の引数は増やしていない。引数を変えると、
     // マイグレーションの適用とこの関数のデプロイの順序が前後したときに
     // 付与そのものが落ちるため(コインが増えない事故になる)。
