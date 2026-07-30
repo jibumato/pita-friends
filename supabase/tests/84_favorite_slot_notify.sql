@@ -1,11 +1,11 @@
--- 推しへの「枠を開けました」通知(0054)の検証。
+-- お気に入りに入れている人への「枠を開けました」通知(0054)の検証。
 --
 -- 重点は**通知が多すぎないこと**。枠の編集は続けて何度も行われるので、
--- 素直に流すと推し1人あたり1日に何通も届き、通知そのものが無視されるようになる。
+-- 素直に流すとお気に入り1人あたり1日に何通も届き、通知そのものが無視されるようになる。
 --   ・増えた枠があるときだけ送る(減らしただけでは送らない)
 --   ・24時間に1回まで
 --   ・掲載していないうちは送らない
--- あわせて、誰が推しているかがピタメイト側に漏れないことも確かめる。
+-- あわせて、誰がお気に入りにしているかがピタメイト側に漏れないことも確かめる。
 
 \set ON_ERROR_STOP on
 
@@ -22,7 +22,7 @@ on conflict (id) do update set nickname = excluded.nickname;
 update public.profile_trust_stats set is_verified = true
   where user_id = 'd4000000-0000-0000-0000-000000000009'::uuid;
 
--- 2人が推す
+-- 2人がお気に入りに入れる
 set test.uid = 'd4000000-0000-0000-0000-000000000001';
 select public.set_favorite('d4000000-0000-0000-0000-000000000009'::uuid, true);
 set test.uid = 'd4000000-0000-0000-0000-000000000002';
@@ -43,7 +43,7 @@ begin
   end if;
 end $$;
 
-\echo '=== 2. 掲載中に枠を増やすと、推している全員へ届く ==='
+\echo '=== 2. 掲載中に枠を増やすと、お気に入りに入れている全員へ届く ==='
 update public.profile_trust_stats set is_verified = true
   where user_id = 'd4000000-0000-0000-0000-000000000009'::uuid;
 update public.host_settings set is_host = true
@@ -54,7 +54,7 @@ declare v_n int;
 begin
   select count(*) into v_n from public.notifications where type = 'host_slots_opened';
   if v_n <> 2 then
-    raise exception 'FAIL: 推している2人に届いていない(実際: %)', v_n;
+    raise exception 'FAIL: お気に入りに入れている2人に届いていない(実際: %)', v_n;
   end if;
   if not exists (
     select 1 from public.notifications
@@ -128,8 +128,8 @@ begin
   end if;
 end $$;
 
-\echo '=== 8. 枠の保存は「誰が推しているか」を返さない ==='
--- 戻り値は保存した枠数のみ。通知した人数を返すと、推している人数が漏れる。
+\echo '=== 8. 枠の保存は「誰がお気に入りにしているか」を返さない ==='
+-- 戻り値は保存した枠数のみ。通知した人数を返すと、お気に入りに入れている人数が漏れる。
 do $$
 declare v_ret int;
 begin

@@ -1,8 +1,10 @@
 /**
- * 推し登録の⭐ボタン。カードやプロフィールの隅に置く。
+ * お気に入り登録の⭐ボタン。カードやプロフィールの隅に置く。
  *
- * **誰を推しているかは相手にも他人にも見えない。** 相手に伝わるのは人数だけ
- * (0053)。押した瞬間に相手へ通知は飛ばない — 「推された」ことが即座に伝わると、
+ * ⚠️ **利用者に見せる言葉は「お気に入り」で統一する。**「推し」「推す」は使わない。
+ *
+ * **誰をお気に入りにしているかは相手にも他人にも見えない。** 相手に伝わるのは人数だけ
+ * (0053)。押した瞬間に相手へ通知は飛ばない — 「お気に入りに入れられた」ことが即座に伝わると、
  * 見ているだけの人が押しづらくなる。
  */
 import { useState } from 'react'
@@ -39,7 +41,7 @@ export default function FavoriteStar({ hostId, initialOn, onBlocked, size = 30, 
     try {
       await setFavorite(hostId, next)
       onChanged?.(next)
-      // 推した直後は「この人をまた見に来る」気持ちがいちばん強い瞬間で、
+      // お気に入りに入れた直後は「この人をまた見に来る」気持ちがいちばん強い瞬間で、
       // 枠が空いたときの通知(0054)が届く相手ができた瞬間でもある。
       // 通知が取れるなら通知を、iOSで未追加ならホーム画面への追加を勧める
       // (どちらも抑制中なら何も起きない)。
@@ -56,8 +58,8 @@ export default function FavoriteStar({ hostId, initialOn, onBlocked, size = 30, 
     <button
       onClick={toggle}
       aria-pressed={on}
-      aria-label={on ? '推しから外す' : '推しに追加する'}
-      title={on ? '推しから外す' : '推しに追加する'}
+      aria-label={on ? 'お気に入りから外す' : 'お気に入りに追加する'}
+      title={on ? 'お気に入りから外す' : 'お気に入りに追加する'}
       style={{
         cursor: busy ? 'default' : 'pointer',
         flex: 'none',

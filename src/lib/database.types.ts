@@ -69,7 +69,7 @@ export type NotificationType =
   | 'board_cancelled'
   | 'integrity_alert'
   | 'booking_no_show'
-  /** 0054: 推しているピタメイトが募集枠を開けた */
+  /** 0054: お気に入りのピタメイトが募集枠を開けた */
   | 'host_slots_opened'
 export type AccountRequestType = 'data_export' | 'account_deletion'
 export type AccountRequestStatus = 'pending' | 'processing' | 'completed'
@@ -683,12 +683,12 @@ export type Database = {
         Args: { p_host_id: string; p_days?: number }
         Returns: Record<string, unknown>[]
       }
-      /** 0053: 推し登録の追加・解除。 */
+      /** 0053: お気に入り登録の追加・解除。 */
       set_favorite: {
         Args: { p_host_id: string; p_on: boolean }
         Returns: void
       }
-      /** 0053: 自分が推しているピタメイトの一覧。 */
+      /** 0053: 自分がお気に入りにしているピタメイトの一覧。 */
       my_favorites: {
         Args: Record<string, never>
         Returns: {
@@ -709,7 +709,7 @@ export type Database = {
           status_updated_at: string | null
         }[]
       }
-      /** 0053: 自分を推している人数(誰かは返らない)。 */
+      /** 0053: 自分をお気に入りにしている人数(誰かは返らない)。 */
       my_favorite_count: {
         Args: Record<string, never>
         Returns: number

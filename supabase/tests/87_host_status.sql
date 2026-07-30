@@ -74,7 +74,7 @@ begin
   end if;
 end $$;
 
-\echo '=== 5. 掲載カードと推し一覧にひとことが載る ==='
+\echo '=== 5. 掲載カードとお気に入り一覧にひとことが載る ==='
 select public.set_host_status('今週末はランク回します');
 set test.uid = 'f7000000-0000-0000-0000-000000000001';
 select public.set_favorite('f7000000-0000-0000-0000-000000000009'::uuid, true);
@@ -86,7 +86,7 @@ begin
   end if;
   if (select status_text from public.my_favorites()
       where host_id = 'f7000000-0000-0000-0000-000000000009'::uuid) <> '今週末はランク回します' then
-    raise exception 'FAIL: 推し一覧にひとことが出ない';
+    raise exception 'FAIL: お気に入り一覧にひとことが出ない';
   end if;
 end $$;
 
@@ -142,7 +142,7 @@ begin
     raise exception 'FAIL: anonが掲載カードを読めない(0052の意図から外れた)';
   end if;
   if has_function_privilege('anon', 'public.my_favorites()', 'execute') then
-    raise exception 'FAIL: anonが推し一覧を引ける';
+    raise exception 'FAIL: anonがお気に入り一覧を引ける';
   end if;
 end $$;
 

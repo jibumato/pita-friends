@@ -2,7 +2,7 @@
 -- 0056_host_status.sql
 -- ピタメイトの「ひとこと」(近況)
 -- ------------------------------------------------------------
--- 推しがいる人がホームに来る目的は「その人の様子を見ること」なのに、
+-- お気に入りがいる人がホームに来る目的は「その人の様子を見ること」なのに、
 -- 今のホームには**更新されるものが何も無い**。名前も料金もプロフィール文も
 -- 昨日と同じで、開く理由が続かない。
 --
@@ -107,7 +107,7 @@ comment on function public.fresh_host_status(text, timestamptz) is
 grant execute on function public.fresh_host_status(text, timestamptz) to anon, authenticated;
 
 -- ------------------------------------------------------------
--- 掲載カード・推し一覧にひとことを載せる
+-- 掲載カード・お気に入り一覧にひとことを載せる
 -- ------------------------------------------------------------
 -- 戻り値の型が変わるので、作り直す(create or replace では変えられない)。
 drop function if exists public.public_host_cards(int);
@@ -220,7 +220,7 @@ as $$
 $$;
 
 comment on function public.my_favorites() is
-  '自分が推しているピタメイトの一覧。掲載を休んでいる相手も is_active=false で残す(黙って消えると理由が分からない)。0056でひとことを追加。';
+  '自分がお気に入りに入れているピタメイトの一覧。掲載を休んでいる相手も is_active=false で残す(黙って消えると理由が分からない)。0056でひとことを追加。';
 
 revoke all on function public.my_favorites() from public;
 grant execute on function public.my_favorites() to authenticated;

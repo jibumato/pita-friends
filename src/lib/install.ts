@@ -231,7 +231,7 @@ export function openInstallGuide(): void {
 }
 
 /**
- * 「通知が効くようになる」操作(推し登録・予約)の直後に呼ぶ。
+ * 「通知が効くようになる」操作(お気に入り登録・予約)の直後に呼ぶ。
  * 抑制中や出す意味がない環境では何も起きない。
  */
 export function armInstallGuide(): void {

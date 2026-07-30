@@ -127,7 +127,7 @@ export default function Notifications({ flow }: { flow: Flow }) {
       case 'gift_received':
         if (n.relatedId) flow.openThread(n.relatedId)
         return
-      // 推しが枠を開けた。本人のページへ送り、そこで空き枠を見て予約してもらう。
+      // お気に入りのピタメイトが枠を開けた。本人のページへ送り、そこで空き枠を見て予約してもらう。
       case 'host_slots_opened':
         if (n.relatedId) flow.openProfile(n.relatedId)
         return

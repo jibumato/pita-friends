@@ -55,7 +55,7 @@ export default function PushSettingsRows() {
     return (
       <ListRow
         label="ロック画面に通知"
-        sub="推しの枠・予約の連絡を、開いていなくても受け取る"
+        sub="お気に入りのピタメイトの枠・予約の連絡を、開いていなくても受け取る"
         onClick={() => openPushPrompt('favorite')}
         right={<Toggle on={false} onToggle={() => openPushPrompt('favorite')} label="ロック画面に通知" />}
       />

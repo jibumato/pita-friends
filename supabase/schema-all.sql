@@ -11753,26 +11753,26 @@ comment on function public.host_ranking(text, int) is
 -- ============================================================================
 -- ============================================================
 -- 0053_favorites.sql
--- お気に入り(推し登録)
+-- お気に入り登録
 -- ------------------------------------------------------------
 -- これまで「気になるピタメイトを見つけた」あと、その人にたどり着く手段が
 -- 予約するか名前を覚えて検索し直すかしかなかった。
 -- 「見つける → 気に留める → 予約する」の真ん中が無い状態。
 --
 -- プライバシーの方針(ここが設計の中心):
---   ・**誰が誰を推しているかは、本人以外に見えない。** 推しの一覧が他人に
+--   ・**誰が誰をお気に入りにしているかは、本人以外に見えない。** お気に入りの一覧が他人に
 --     見えると、行動の追跡や付きまといの材料になる。
---   ・推された側には**人数だけ**返す。励みにはなるが、誰かは分からない。
+--   ・お気に入りにされた側には**人数だけ**返す。励みにはなるが、誰かは分からない。
 --   ・ブロック関係があれば、どちら向きでも一覧から外す。
 --
 -- 相手が掲載をやめた場合は、一覧から黙って消さずに「いまは募集していない」
--- と分かる形で残す。黙って消えると、推していた人には理由が分からない。
+-- と分かる形で残す。黙って消えると、お気に入りに入れていた人には理由が分からない。
 -- ============================================================
 
 create table if not exists public.favorites (
-  -- 推している人(この行を作った本人)
+  -- お気に入りに入れている人(この行を作った本人)
   user_id uuid not null references auth.users (id) on delete cascade,
-  -- 推されているピタメイト
+  -- お気に入りに入れられた側のピタメイト
   host_id uuid not null references auth.users (id) on delete cascade,
   created_at timestamptz not null default now(),
   primary key (user_id, host_id),
@@ -11780,14 +11780,14 @@ create table if not exists public.favorites (
 );
 
 comment on table public.favorites is
-  'お気に入り(推し登録)。誰が誰を推しているかは本人以外に見えない。推された側には人数のみ返す。';
+  'お気に入り登録。誰が誰をお気に入りにしているかは本人以外に見えない。お気に入りにされた側には人数のみ返す。';
 
--- 「自分を推している人数」を数えるための索引
+-- 「自分をお気に入りに入れている人数」を数えるための索引
 create index if not exists favorites_host_idx on public.favorites (host_id);
 
 alter table public.favorites enable row level security;
 
--- 自分の推しだけを読み書きできる。他人の推しは一切見えない。
+-- 自分のお気に入りだけを読み書きできる。他人のお気に入りは一切見えない。
 drop policy if exists "favorites_select_own" on public.favorites;
 create policy "favorites_select_own"
   on public.favorites for select
@@ -11807,7 +11807,7 @@ create policy "favorites_delete_own"
   using (user_id = auth.uid());
 
 -- ------------------------------------------------------------
--- set_favorite(): 推し登録の追加・解除
+-- set_favorite(): お気に入り登録の追加・解除
 -- ------------------------------------------------------------
 drop function if exists public.set_favorite(uuid, boolean);
 
@@ -11833,7 +11833,7 @@ begin
   end if;
 
   -- ブロック関係があるなら登録させない。解除は上で済ませているので、
-  -- 「ブロックしたが推しには残っている」状態は作れない。
+  -- 「ブロックしたがお気に入りには残っている」状態は作れない。
   if exists (
     select 1 from public.blocks b
     where (b.blocker_id = v_me and b.blocked_id = p_host_id)
@@ -11853,13 +11853,13 @@ end;
 $$;
 
 comment on function public.set_favorite(uuid, boolean) is
-  '推し登録の追加(p_on=true)と解除(false)。ブロック関係があると登録できない。';
+  'お気に入り登録の追加(p_on=true)と解除(false)。ブロック関係があると登録できない。';
 
 revoke all on function public.set_favorite(uuid, boolean) from public;
 grant execute on function public.set_favorite(uuid, boolean) to authenticated;
 
 -- ------------------------------------------------------------
--- my_favorites(): 自分が推しているピタメイトの一覧
+-- my_favorites(): 自分がお気に入りに入れているピタメイトの一覧
 -- ------------------------------------------------------------
 drop function if exists public.my_favorites();
 
@@ -11914,15 +11914,15 @@ as $$
 $$;
 
 comment on function public.my_favorites() is
-  '自分が推しているピタメイトの一覧。掲載を休んでいる相手も is_active=false で残す(黙って消えると理由が分からないため)。';
+  '自分がお気に入りに入れているピタメイトの一覧。掲載を休んでいる相手も is_active=false で残す(黙って消えると理由が分からないため)。';
 
 revoke all on function public.my_favorites() from public;
 grant execute on function public.my_favorites() to authenticated;
 
 -- ------------------------------------------------------------
--- my_favorite_count(): 自分を推している人数
+-- my_favorite_count(): 自分をお気に入りに入れている人数
 -- ------------------------------------------------------------
--- **人数だけ**を返す。誰が推しているかは返さない。
+-- **人数だけ**を返す。誰がお気に入りにしているかは返さない。
 drop function if exists public.my_favorite_count();
 
 create or replace function public.my_favorite_count()
@@ -11938,7 +11938,7 @@ as $$
 $$;
 
 comment on function public.my_favorite_count() is
-  '自分を推している人数。誰かは返さない(推している側の行動を相手に知らせない)。';
+  '自分をお気に入りに入れている人数。誰かは返さない(お気に入りに入れた側の行動を相手に知らせない)。';
 
 revoke all on function public.my_favorite_count() from public;
 grant execute on function public.my_favorite_count() to authenticated;
@@ -11949,19 +11949,19 @@ grant execute on function public.my_favorite_count() to authenticated;
 -- ============================================================================
 -- ============================================================
 -- 0054_favorite_slot_notify.sql
--- 推しているピタメイトが枠を開けたら知らせる
+-- お気に入りのピタメイトが枠を開けたら知らせる
 -- ------------------------------------------------------------
 -- 0051で週間の募集枠を持てるようにしたが、**枠を開けても誰にも伝わらなかった**。
 -- ファンが毎日スケジュールを見に来ることはないので、開けた枠が埋まらないまま
--- 終わる。0053の推し登録と繋いで、開けたときに知らせる。
+-- 終わる。0053のお気に入り登録と繋いで、開けたときに知らせる。
 --
 -- 設計で気をつけたこと:
 --   ・**増えた枠だけ**を対象にする。減らしただけで通知が飛ぶのはおかしい。
 --   ・**24時間に1回まで**に絞る。編集は続けて何度も行われるので、
---     素直に流すと推し1人あたり1日に何通も届く。
---   ・**誰が推しているかはピタメイトに伝えない。** 通知は各ファンの行として
+--     素直に流すとお気に入り1人あたり1日に何通も届く。
+--   ・**誰がお気に入りにしているかはピタメイトに伝えない。** 通知は各ファンの行として
 --     入るだけで、関数は件数も返さない(0053の方針をここでも守る)。
---   ・通知を止めたい人は推しを解除すればよい。細かい設定は今は持たない
+--   ・通知を止めたい人はお気に入りを解除すればよい。細かい設定は今は持たない
 --     (使われない設定を増やすより、外せることが分かるほうが良い)。
 -- ============================================================
 
@@ -11984,10 +11984,10 @@ alter table public.host_settings
   add column if not exists slots_notified_at timestamptz;
 
 comment on column public.host_settings.slots_notified_at is
-  '推しへ「枠を開けました」を最後に送った時刻。24時間に1回までに絞るために使う。';
+  'お気に入りに入れている人へ「枠を開けました」を最後に送った時刻。24時間に1回までに絞るために使う。';
 
 -- ------------------------------------------------------------
--- set_host_availability(): 枠の保存時に、増えた分があれば推しへ知らせる
+-- set_host_availability(): 枠の保存時に、増えた分があればお気に入りに入れている人へ知らせる
 -- ------------------------------------------------------------
 create or replace function public.set_host_availability(p_slots jsonb)
 returns int
@@ -12074,13 +12074,13 @@ begin
     update public.host_settings set slots_notified_at = now() where user_id = v_uid;
   end if;
 
-  -- **件数は返さない。** 誰が推しているかに繋がる情報を渡さない(0053の方針)。
+  -- **件数は返さない。** 誰がお気に入りにしているかに繋がる情報を渡さない(0053の方針)。
   return v_count;
 end;
 $$;
 
 comment on function public.set_host_availability(jsonb) is
-  '週間の募集枠を丸ごと入れ替える。0054で、枠が増えたときに推しているファンへ通知する(24時間に1回まで・増えた分のみ)。';
+  '週間の募集枠を丸ごと入れ替える。0054で、枠が増えたときにお気に入りに入れているファンへ通知する(24時間に1回まで・増えた分のみ)。';
 
 revoke all on function public.set_host_availability(jsonb) from public;
 grant execute on function public.set_host_availability(jsonb) to authenticated;
@@ -12097,7 +12097,7 @@ grant execute on function public.set_host_availability(jsonb) to authenticated;
 -- 見ている自分との関係は何も表していない。3回一緒に遊んだ相手も、
 -- 今日はじめて見た相手も、同じ画面に見える。
 --
--- 推してもらうには、積み上がっているものが本人に見えている必要がある。
+-- お気に入りに入れてもらうには、積み上がっているものが本人に見えている必要がある。
 -- 「あなたとは3回目」と出れば、次も同じ人に頼む理由になる。
 --
 -- 気をつけたこと:
@@ -12142,7 +12142,7 @@ grant execute on function public.my_play_history_with(uuid) to authenticated;
 -- 0056_host_status.sql
 -- ピタメイトの「ひとこと」(近況)
 -- ------------------------------------------------------------
--- 推しがいる人がホームに来る目的は「その人の様子を見ること」なのに、
+-- お気に入りがいる人がホームに来る目的は「その人の様子を見ること」なのに、
 -- 今のホームには**更新されるものが何も無い**。名前も料金もプロフィール文も
 -- 昨日と同じで、開く理由が続かない。
 --
@@ -12247,7 +12247,7 @@ comment on function public.fresh_host_status(text, timestamptz) is
 grant execute on function public.fresh_host_status(text, timestamptz) to anon, authenticated;
 
 -- ------------------------------------------------------------
--- 掲載カード・推し一覧にひとことを載せる
+-- 掲載カード・お気に入り一覧にひとことを載せる
 -- ------------------------------------------------------------
 -- 戻り値の型が変わるので、作り直す(create or replace では変えられない)。
 drop function if exists public.public_host_cards(int);
@@ -12360,7 +12360,7 @@ as $$
 $$;
 
 comment on function public.my_favorites() is
-  '自分が推しているピタメイトの一覧。掲載を休んでいる相手も is_active=false で残す(黙って消えると理由が分からない)。0056でひとことを追加。';
+  '自分がお気に入りに入れているピタメイトの一覧。掲載を休んでいる相手も is_active=false で残す(黙って消えると理由が分からない)。0056でひとことを追加。';
 
 revoke all on function public.my_favorites() from public;
 grant execute on function public.my_favorites() to authenticated;
@@ -13311,7 +13311,7 @@ revoke all on function public.auto_complete_bookings() from public;
 --
 -- ギフトと最低額を相手に合わせ、振込は週次にして追い越す。
 --   ・ギフト 30% → **35%**
---       推しのサービスなのでギフトの比重は大きい。ここを5pt低く保つと
+--       お気に入り中心のサービスなのでギフトの比重は大きい。ここを5pt低く保つと
 --       収益の主要な柱を自分から削ることになる。相手が35%で成立している
 --       以上、揃えて問題ない。
 --   ・最低出金 1,000 → **5,000コイン**
@@ -13439,7 +13439,7 @@ grant execute on function public.request_bank_payout(int) to authenticated;
 -- ブラウザへのプッシュ通知(Web Push)
 -- ------------------------------------------------------------
 -- これまで notifications は**アプリを開いたときにしか見えなかった**。
--- 0054の「推しが枠を開けました」も、開いてくれなければ意味がない。
+-- 0054の「お気に入りのピタメイトが枠を開けました」も、開いてくれなければ意味がない。
 -- ピタフレはApp Storeに出していないので、届く経路はWeb Pushだけになる。
 --
 -- ■ 設計で外せない点
@@ -14677,3 +14677,43 @@ $$;
 
 revoke all on function public.admin_set_account_request_status(uuid, text) from public;
 grant execute on function public.admin_set_account_request_status(uuid, text) to authenticated;
+
+
+-- ============================================================================
+-- 0067_favorites_wording.sql
+-- ============================================================================
+-- ============================================================
+-- 0067: 「推し」という言い方をやめて「お気に入り」に統一する
+-- ============================================================
+-- 利用者に見せる言葉を「お気に入り」に統一した(画面・通知・説明文)。
+-- DBの中身は変わらないが、`comment on` に残っている説明文だけが
+-- 「推し」のままだと、あとからスキーマを読んだ人が古い言い方を
+-- 復活させてしまう。**言葉のゆれは、実装のゆれになる。**
+--
+-- ここで変えるのはコメント(メタデータ)だけ。テーブル・関数・
+-- ポリシー・権限には一切触れない。0053/0054/0056 のファイル側も
+-- 同じ文言に直してあるので、新しく作ったDBとこの移行を当てた
+-- DBのコメントは一致する。
+--
+-- 通知の本文は 0054 の時点から
+-- 「<名前>さんが枠を開けました」で、「推し」を含んでいない。
+-- つまり利用者に届く文面を変える必要はない。
+-- ============================================================
+
+comment on table public.favorites is
+  'お気に入り登録。誰が誰をお気に入りにしているかは本人以外に見えない。お気に入りにされた側には人数のみ返す。';
+
+comment on function public.set_favorite(uuid, boolean) is
+  'お気に入り登録の追加(p_on=true)と解除(false)。ブロック関係があると登録できない。';
+
+comment on function public.my_favorites() is
+  '自分がお気に入りに入れているピタメイトの一覧。掲載を休んでいる相手も is_active=false で残す(黙って消えると理由が分からない)。0056でひとことを追加。';
+
+comment on function public.my_favorite_count() is
+  '自分をお気に入りに入れている人数。誰かは返さない(お気に入りに入れた側の行動を相手に知らせない)。';
+
+comment on column public.host_settings.slots_notified_at is
+  'お気に入りに入れている人へ「枠を開けました」を最後に送った時刻。24時間に1回までに絞るために使う。';
+
+comment on function public.set_host_availability(jsonb) is
+  '週間の募集枠を丸ごと入れ替える。0054で、枠が増えたときにお気に入りに入れているファンへ通知する(24時間に1回まで・増えた分のみ)。';
