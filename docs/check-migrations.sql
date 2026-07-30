@@ -51,7 +51,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 管理操作の記録漏れをふさいだ。通報の閲覧を記録するようになったかで見る
     (68, '0068_admin_read_audit',       'funcsrc', 'admin_reports',              'view_reports'),
     -- 0063で消えたギフトの7日換金保留を復活させた
-    (69, '0069_restore_gift_payout_hold', 'funcsrc', 'request_bank_payout',      'GIFT_ON_HOLD')
+    (69, '0069_restore_gift_payout_hold', 'funcsrc', 'request_bank_payout',      'GIFT_ON_HOLD'),
+    -- 会計用の残高集計。将来のインボイス用の列でも見られる
+    (70, '0070_accounting_reconciliation', 'column', 'host_settings',            'invoice_registration_number')
 ),
 checked as (
   select
@@ -138,7 +140,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 管理操作の記録漏れをふさいだ。通報の閲覧を記録するようになったかで見る
     (68, '0068_admin_read_audit',       'funcsrc', 'admin_reports',              'view_reports'),
     -- 0063で消えたギフトの7日換金保留を復活させた
-    (69, '0069_restore_gift_payout_hold', 'funcsrc', 'request_bank_payout',      'GIFT_ON_HOLD')
+    (69, '0069_restore_gift_payout_hold', 'funcsrc', 'request_bank_payout',      'GIFT_ON_HOLD'),
+    -- 会計用の残高集計。将来のインボイス用の列でも見られる
+    (70, '0070_accounting_reconciliation', 'column', 'host_settings',            'invoice_registration_number')
 ),
 checked as (
   select e.seq, e.migration,
