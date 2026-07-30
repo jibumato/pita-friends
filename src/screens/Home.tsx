@@ -590,14 +590,17 @@ function PickupCard({
   flow,
   host,
   isFav,
+  onOpen,
   onFavChanged,
 }: {
   flow: Flow
   host: DiscoverableHost
   isFav: boolean
+  /** カードを開く。未ログインならプロフィールへ行かず登録へ誘導する(openHost)。 */
+  onOpen: (id: string) => void
   onFavChanged: (on: boolean) => void
 }) {
-  const open = () => flow.openProfile(host.userId)
+  const open = () => onOpen(host.userId)
   const score = mannerScoreLabel(host.mannerScore, host.reviewCount)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -646,7 +649,14 @@ function PickupCard({
               </span>
             )}
             <div style={{ flex: 1 }} />
-            <FavoriteStar hostId={host.userId} initialOn={isFav} size={30} onChanged={onFavChanged} />
+            <FavoriteStar
+              hostId={host.userId}
+              initialOn={isFav}
+              size={30}
+              onChanged={onFavChanged}
+              // 未ログインだと保存できず失敗するだけなので、登録へ誘導する
+              onBlocked={() => flow.go('signUp')}
+            />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11.5, color: C.muted }}>
@@ -1171,6 +1181,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             flow={flow}
             host={pickup}
             isFav={favIds.has(pickup.userId)}
+            onOpen={openHost}
             onFavChanged={() => favRef.current?.()}
           />
         )}
