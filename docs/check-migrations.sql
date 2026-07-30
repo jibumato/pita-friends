@@ -63,7 +63,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- みまもり撤回に実際の効果を持たせた。メッセージ側のトリガで見る
     (74, '0074_monitoring_revoke_effect', 'trigger', 'messages',                  'messages_require_consent'),
     -- チャージバック中はコインを使えなくした(税理士 第2回Q14・リリース前必須)
-    (75, '0075_payment_dispute_freeze',  'table',   'payment_disputes',           null)
+    (75, '0075_payment_dispute_freeze',  'table',   'payment_disputes',           null),
+    -- 会計集計を税理士の第2回回答に合わせた。仮受金の行が出るかで見る
+    (76, '0076_accounting_round2',       'funcsrc', 'accounting_balances',        '仮受金(換金手数料)')
 ),
 checked as (
   select
@@ -167,7 +169,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- みまもり撤回に実際の効果を持たせた。メッセージ側のトリガで見る
     (74, '0074_monitoring_revoke_effect', 'trigger', 'messages',                  'messages_require_consent'),
     -- チャージバック中はコインを使えなくした(税理士 第2回Q14・リリース前必須)
-    (75, '0075_payment_dispute_freeze',  'table',   'payment_disputes',           null)
+    (75, '0075_payment_dispute_freeze',  'table',   'payment_disputes',           null),
+    -- 会計集計を税理士の第2回回答に合わせた。仮受金の行が出るかで見る
+    (76, '0076_accounting_round2',       'funcsrc', 'accounting_balances',        '仮受金(換金手数料)')
 ),
 checked as (
   select e.seq, e.migration,
