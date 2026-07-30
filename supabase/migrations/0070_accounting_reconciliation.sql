@@ -141,7 +141,7 @@ begin
     and f.created_at >= p_from and f.created_at < (p_to + 1)
 
   union all
-  -- あんしんサポート料(→改称検討中)。購入時に売上計上する(税理士 §1-4)
+  -- あんしんサポート料。購入時に売上計上する(税理士 §1-4)。0071で「あんしん保証料」から改称
   select '売上'::text, 'あんしんサポート料(購入時)'::text,
          coalesce(sum(cp.safety_fee_yen), 0)::bigint, '課税10%'::text
   from public.coin_purchases cp
