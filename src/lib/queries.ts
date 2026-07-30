@@ -2596,3 +2596,38 @@ export async function fetchAdminActions(): Promise<AdminAction[]> {
     at: a.at,
   }))
 }
+
+// ------------------------------------------------------------
+// 手数料の率(表示用)
+// ------------------------------------------------------------
+
+/**
+ * プラットフォーム利用料の率。
+ *
+ * **規約 第8条の2第3項で「具体的な率は本サービス上に表示します」と約束している。**
+ * 条文を外出しした以上、画面に出さないと守れない約束になる
+ * (docs/legal/terms-implementation-matrix.md G2)。
+ */
+export type FeeRates = {
+  /** 予約の段階制。upperBound が null の段は「それ以上」 */
+  bookingTiers: { upperBound: number | null; percent: number }[]
+  /** 同一ゲストからの2回目以降の引き下げ(pt) */
+  repeatDiscountPoints: number
+  /** 引き下げ後の下限(%) */
+  floorPercent: number
+  /** ありがとうギフトの一律の率(%) */
+  giftPercent: number
+}
+
+export async function fetchFeeRates(): Promise<FeeRates | null> {
+  const { data, error } = await requireSupabase().rpc('fee_rates')
+  if (error) throw error
+  const r = (data ?? null) as Partial<FeeRates> | null
+  if (!r || !Array.isArray(r.bookingTiers)) return null
+  return {
+    bookingTiers: r.bookingTiers,
+    repeatDiscountPoints: typeof r.repeatDiscountPoints === 'number' ? r.repeatDiscountPoints : 0,
+    floorPercent: typeof r.floorPercent === 'number' ? r.floorPercent : 0,
+    giftPercent: typeof r.giftPercent === 'number' ? r.giftPercent : 0,
+  }
+}

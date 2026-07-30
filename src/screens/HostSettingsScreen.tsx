@@ -22,6 +22,7 @@ import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import SignedOutPrompt from '../components/SignedOutPrompt'
 import { fetchBankAccount, saveBankAccount, normalizeKanaName, type BankAccount } from '../lib/queries'
+import { fetchFeeRates, type FeeRates } from '../lib/queries'
 
 const EMPTY_ACCOUNT: BankAccount = {
   bankName: '',
@@ -44,6 +45,95 @@ function validateAccount(a: BankAccount): string | null {
   if (!kana) return '口座名義(カナ)を入力してください'
   if (!/^[ァ-ヶー0-9A-Z()（）./\- 　]+$/.test(kana)) return '口座名義はカタカナで入力してください'
   return null
+}
+
+/**
+ * プラットフォーム利用料の率を出す。
+ *
+ * **規約 第8条の2第3項で「具体的な率は本サービス上に表示します」と約束している。**
+ * 弁護士の助言(Q22-a)で率の表を規約本文から外出しした結果、**画面に出さないと
+ * 守れない約束になる。** ここがその表示。
+ *
+ * 数値はDB(0073の fee_rates)から取る。コードに直書きすると、率を変えたときに
+ * 規約・実際の控除額・画面表示の3つがずれる。
+ */
+function FeeRatesSection() {
+  const [rates, setRates] = useState<FeeRates | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    let active = true
+    fetchFeeRates()
+      .then((r) => active && setRates(r))
+      .catch(() => active && setFailed(true))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  // 取れなかったときは黙って出さない。**古い数値を混ぜて出すほうが危ない**
+  // (画面の率と実際の控除額が食い違うと、それ自体が表示の問題になる)。
+  if (!isBackendConfigured || failed || !rates) return null
+
+  const yen = (n: number) => n.toLocaleString()
+
+  return (
+    <>
+      <span style={{ fontSize: 12, color: C.muted }}>プラットフォーム利用料</span>
+      <div
+        style={{
+          background: C.white,
+          border: `1.5px solid ${C.border}`,
+          borderRadius: 8,
+          padding: '13px 14px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 9,
+        }}
+      >
+        <span style={{ fontSize: 11, color: C.body, lineHeight: 1.7 }}>
+          受け取った対価から差し引かれる分です。予約は
+          <b style={{ color: C.ink }}>その月の累計額</b>に応じて下がります
+          （超えた分にだけ低い率がかかります）。
+        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {rates.bookingTiers.map((tier, i) => {
+            const prev = i === 0 ? 0 : rates.bookingTiers[i - 1].upperBound ?? 0
+            const label =
+              tier.upperBound === null
+                ? `${yen(prev)}コイン超`
+                : i === 0
+                  ? `${yen(tier.upperBound)}コインまで`
+                  : `${yen(prev)}〜${yen(tier.upperBound)}コイン`
+            return (
+              <div
+                key={i}
+                style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}
+              >
+                <span style={{ fontSize: 11, color: C.muted }}>{label}</span>
+                <span style={{ fontSize: 13, color: C.ink }}>{tier.percent}%</span>
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ borderTop: `1.5px solid ${C.divider}`, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <span style={{ fontSize: 10.5, color: C.body, lineHeight: 1.7 }}>
+            同じゲストからの<b style={{ color: C.ink }}>2回目以降</b>は
+            <b style={{ color: C.ink }}>{rates.repeatDiscountPoints}ポイント引き</b>
+            （下限{rates.floorPercent}%）。
+          </span>
+          <span style={{ fontSize: 10.5, color: C.body, lineHeight: 1.7 }}>
+            ありがとうギフトは一律<b style={{ color: C.ink }}>{rates.giftPercent}%</b>。
+          </span>
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+            直前のキャンセルで受け取る分には利用料はかかりません。
+            表示の率は消費税を含みます。
+          </span>
+        </div>
+      </div>
+    </>
+  )
 }
 
 /** 振込先口座の登録フォーム。振込エラー(名義相違等)を防ぐため入力時に検証する。 */
@@ -468,6 +558,8 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
             </div>
           )}
         </div>
+
+        <FeeRatesSection />
 
         <span style={{ fontSize: 12, color: C.muted }}>対応ゲーム</span>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
