@@ -10,7 +10,15 @@
 //   supabase functions deploy stripe-webhook --no-verify-jwt
 // (Stripe は Supabase の JWT を持たないため)
 //
-// Stripeダッシュボードで購読するイベント: checkout.session.completed
+// Stripeダッシュボードで購読するイベント:
+//   ・checkout.session.completed  … コインの付与
+//   ・charge.dispute.created      … **異議申立て。残高を凍結する**
+//   ・charge.dispute.closed       … 決着。won なら自動で解除、lost は運営が対応
+//
+// ⚠️ **dispute の2つを購読し忘れると凍結が働きません。**
+//    税理士の第2回回答Q14:「これがないと『チャージバックを申し立てながら、
+//    その間にコインを使い切る』という極めて単純な不正が通ります。」
+//    購読設定はダッシュボード側の設定なので、コードだけでは担保できません。
 // ============================================================
 import Stripe from 'https://esm.sh/stripe@14.25.0?target=deno&no-check'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
@@ -93,6 +101,43 @@ Deno.serve(async (req) => {
       // 失敗しても 200 を返す。ここで 5xx にすると Stripe がリトライし、
       // 付与済みなのに再送され続けることになる。
       if (feeErr) console.error('[stripe-webhook] safety fee record failed', feeErr)
+    }
+  }
+
+  // ------------------------------------------------------------
+  // 異議申立て(チャージバック)。残高の凍結・解除。
+  // created と closed で同じ関数を呼び、status だけを変える。
+  // record_payment_dispute は dispute id で冪等なので、再送されても安全。
+  // ------------------------------------------------------------
+  if (event.type === 'charge.dispute.created' || event.type === 'charge.dispute.closed') {
+    const d = event.data.object as Stripe.Dispute
+    // Stripe の dispute.status は複数の値をとる。当社が区別したいのは
+    // 「当社の主張が通った(won)」「返金が確定した(lost)」の2つだけで、
+    // 審査中の細かい状態は open として扱う(= 凍結を続ける)。
+    const status =
+      d.status === 'won'
+        ? 'won'
+        : d.status === 'lost'
+          ? 'lost'
+          : event.type === 'charge.dispute.closed'
+            ? 'closed'
+            : 'open'
+
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE)
+    const { error } = await admin.rpc('record_payment_dispute', {
+      p_stripe_dispute_id: d.id,
+      p_stripe_charge_id: (d.charge as string) ?? null,
+      p_stripe_payment_intent: (d.payment_intent as string) ?? null,
+      // Stripe の amount は最小通貨単位。日本円は最小単位が「円」なのでそのまま
+      p_amount_yen: typeof d.amount === 'number' ? d.amount : null,
+      p_reason: d.reason ?? null,
+      p_status: status,
+    })
+    if (error) {
+      // ここは 5xx を返して Stripe にリトライさせる。
+      // **記録できないまま 200 を返すと、凍結されないまま申立てが進む。**
+      console.error('[stripe-webhook] dispute record failed', error)
+      return new Response('dispute record failed', { status: 500 })
     }
   }
 

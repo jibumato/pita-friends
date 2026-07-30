@@ -810,6 +810,14 @@ export type Database = {
         Args: Record<string, never>
         Returns: unknown
       }
+      admin_open_disputes: {
+        Args: Record<string, never>
+        Returns: unknown[]
+      }
+      admin_resolve_dispute: {
+        Args: { p_id: string; p_note: string }
+        Returns: void
+      }
       host_ranking: {
         Args: { p_period?: string; p_limit?: number }
         Returns: {

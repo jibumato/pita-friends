@@ -61,7 +61,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 料率を画面に出すための読み取り口(規約 第8条の2第3項)
     (73, '0073_fee_rates_public',        'funcsrc', 'fee_rates',                  'bookingTiers'),
     -- みまもり撤回に実際の効果を持たせた。メッセージ側のトリガで見る
-    (74, '0074_monitoring_revoke_effect', 'trigger', 'messages',                  'messages_require_consent')
+    (74, '0074_monitoring_revoke_effect', 'trigger', 'messages',                  'messages_require_consent'),
+    -- チャージバック中はコインを使えなくした(税理士 第2回Q14・リリース前必須)
+    (75, '0075_payment_dispute_freeze',  'table',   'payment_disputes',           null)
 ),
 checked as (
   select
@@ -163,7 +165,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 料率を画面に出すための読み取り口(規約 第8条の2第3項)
     (73, '0073_fee_rates_public',        'funcsrc', 'fee_rates',                  'bookingTiers'),
     -- みまもり撤回に実際の効果を持たせた。メッセージ側のトリガで見る
-    (74, '0074_monitoring_revoke_effect', 'trigger', 'messages',                  'messages_require_consent')
+    (74, '0074_monitoring_revoke_effect', 'trigger', 'messages',                  'messages_require_consent'),
+    -- チャージバック中はコインを使えなくした(税理士 第2回Q14・リリース前必須)
+    (75, '0075_payment_dispute_freeze',  'table',   'payment_disputes',           null)
 ),
 checked as (
   select e.seq, e.migration,
