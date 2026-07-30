@@ -240,6 +240,13 @@ export default function Settings({ flow }: { flow: Flow }) {
           <>
             <SectionLabel>管理者メニュー</SectionLabel>
             <Card>
+              {/* 締切のある作業(保留の解除・換金・通報)はこちら。
+                  以前はすべて Supabase の SQL Editor でやっていた */}
+              <ListRow
+                label="運営コンソール"
+                sub="保留・通報・換金・請求・健全性・操作記録"
+                onClick={() => flow.go('adminConsole')}
+              />
               <ListRow
                 label="本人確認の審査"
                 sub="提出された書類・顔写真を確認して承認/却下"

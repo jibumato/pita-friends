@@ -83,6 +83,7 @@ import HostDashboard from './screens/HostDashboard'
 import Booking from './screens/Booking'
 import Ranking from './screens/Ranking'
 import AdminVerifications from './screens/AdminVerifications'
+import AdminConsole from './screens/AdminConsole'
 import BlockList from './screens/BlockList'
 import LegalDoc from './screens/LegalDoc'
 import Personality from './screens/Personality'
@@ -109,6 +110,7 @@ const DESKTOP_FULL_BLEED_SCREENS = new Set<ScreenKey>([
   'ranking',
   'blockList',
   'adminVerifications',
+  'adminConsole',
 ])
 const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
   'profile',
@@ -991,6 +993,7 @@ export default function App() {
         {state.screen === 'booking' && <Booking flow={flow} />}
         {state.screen === 'ranking' && <Ranking flow={flow} />}
         {state.screen === 'adminVerifications' && <AdminVerifications flow={flow} />}
+        {state.screen === 'adminConsole' && <AdminConsole flow={flow} />}
         {state.screen === 'blockList' && <BlockList flow={flow} />}
         {state.screen === 'legalDoc' && <LegalDoc flow={flow} />}
         {state.screen === 'personality' && <Personality flow={flow} />}

@@ -44,7 +44,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (63, '0063_align_payout_terms',     'funcsrc', 'request_bank_payout',         '5000'),
     (64, '0064_web_push',               'table',   'push_subscriptions',          null),
     -- 未ログインへの過剰なEXECUTEを閉じた。塞げたかは has_function_privilege で見る
-    (65, '0065_lock_down_function_grants', 'noexec', '_ledger_record_bypass(text, text, jsonb, jsonb)', null)
+    (65, '0065_lock_down_function_grants', 'noexec', '_ledger_record_bypass(text, text, jsonb, jsonb)', null),
+    (66, '0066_admin_console',          'table',   'admin_actions',               null)
 ),
 checked as (
   select
@@ -121,7 +122,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (63, '0063_align_payout_terms',     'funcsrc', 'request_bank_payout',         '5000'),
     (64, '0064_web_push',               'table',   'push_subscriptions',          null),
     -- 未ログインへの過剰なEXECUTEを閉じた。塞げたかは has_function_privilege で見る
-    (65, '0065_lock_down_function_grants', 'noexec', '_ledger_record_bypass(text, text, jsonb, jsonb)', null)
+    (65, '0065_lock_down_function_grants', 'noexec', '_ledger_record_bypass(text, text, jsonb, jsonb)', null),
+    (66, '0066_admin_console',          'table',   'admin_actions',               null)
 ),
 checked as (
   select e.seq, e.migration,

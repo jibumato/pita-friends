@@ -854,6 +854,139 @@ export type Database = {
         Args: { p_enabled: boolean; p_quiet_from?: number | null; p_quiet_to?: number | null }
         Returns: void
       }
+
+      // ---- 0066: 運営コンソール。すべて管理者判定つき(NOT_ADMINで落ちる) ----
+      /** 「今日やること」の件数。キーは日本語のまま返る。 */
+      admin_console_summary: {
+        Args: Record<string, never>
+        Returns: Record<string, number | null>
+      }
+      admin_reports: {
+        Args: { p_status?: string; p_limit?: number }
+        Returns: {
+          id: string
+          reporter_name: string
+          reported_id: string
+          reported_name: string
+          category: string
+          severity: string
+          message_snapshot: unknown
+          status: string
+          resolution: string | null
+          created_at: string
+          reported_manner: number | null
+          reported_report_count: number
+        }[]
+      }
+      admin_held_bookings: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          guest_id: string
+          guest_name: string
+          host_id: string
+          host_name: string
+          coins: number
+          paid_coins: number
+          duration_minutes: number
+          scheduled_at: string
+          held_at: string
+          held_days: number
+          hold_reason: string | null
+          report_count: number
+        }[]
+      }
+      /** ⚠️ 口座情報を返す。呼び出し自体が admin_actions に記録される。 */
+      admin_pending_payouts: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          user_id: string
+          nickname: string
+          coins: number
+          amount_yen: number
+          fee_yen: number
+          created_at: string
+          bank_name: string
+          bank_code: string
+          branch_name: string
+          branch_code: string
+          account_type: string
+          account_number: string
+          account_holder_kana: string
+          is_verified: boolean
+        }[]
+      }
+      admin_account_requests: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          user_id: string
+          nickname: string
+          type: string
+          status: string
+          created_at: string
+          waiting_days: number
+        }[]
+      }
+      /** 整合性チェック・台帳バックアップ・プッシュの状況。 */
+      admin_health: {
+        Args: Record<string, never>
+        Returns: {
+          integrity: {
+            check_name: string
+            severity: string
+            affected_count: number
+            total_gap: number | null
+            ran_at: string
+            detail: unknown
+          }[]
+          ledgerExport: { ran_at: string; ok: boolean; row_count: number; error: string | null } | null
+          push: { pending: number; givenUp: number; devices: number; disabled: number; lastError: string | null }
+        }
+      }
+      admin_recent_actions: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          actor_name: string
+          kind: string
+          target_id: string | null
+          note: string | null
+          at: string
+        }[]
+      }
+      /** 通報の処分。理由は必須。 */
+      admin_resolve_report: {
+        Args: {
+          p_report_id: string
+          p_resolution: string
+          p_status?: string
+          p_penalty_points?: number | null
+        }
+        Returns: void
+      }
+      admin_release_hold_complete: {
+        Args: { p_booking_id: string; p_note?: string | null }
+        Returns: void
+      }
+      admin_release_hold_refund: {
+        Args: { p_booking_id: string; p_refund_percent: number; p_note?: string | null }
+        Returns: void
+      }
+      /** ⚠️ 実際に振り込んだ後にだけ呼ぶ。取り消せない。 */
+      admin_mark_payout_paid: {
+        Args: { p_payout_id: string; p_note?: string | null }
+        Returns: void
+      }
+      admin_mark_payout_failed: {
+        Args: { p_payout_id: string; p_reason: string }
+        Returns: void
+      }
+      admin_set_account_request_status: {
+        Args: { p_request_id: string; p_status: string }
+        Returns: void
+      }
     }
   }
 }
