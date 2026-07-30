@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     }
     const totalCoins = pack.coins + pack.bonus_coins
 
-    // あんしん保証料。料率はDB(platform_pricing)が権威で、クライアントは関与しない。
+    // あんしんサポート料。料率はDB(platform_pricing)が権威で、クライアントは関与しない。
     const { data: feeYen, error: feeErr } = await admin.rpc('safety_fee_for', {
       p_price_yen: pack.price_yen,
     })
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
             },
           },
         },
-        // あんしん保証料は別明細にする。合算すると利用者から内訳が見えず、
+        // あんしんサポート料は別明細にする。合算すると利用者から内訳が見えず、
         // 特商法の「商品代金以外の必要料金」の表示としても弱くなるため。
         ...(safetyFee > 0
           ? [
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
                   currency: 'jpy',
                   unit_amount: safetyFee,
                   product_data: {
-                    name: 'あんしん保証料',
+                    name: 'あんしんサポート料',
                     description:
                       '本人確認・承認制・通報ブロック・トラブル時の対応にかかる費用です',
                   },

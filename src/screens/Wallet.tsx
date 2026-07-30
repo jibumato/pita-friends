@@ -92,14 +92,14 @@ function PackCard({
         </div>
         <span style={{ fontSize: 10.5, color: C.muted }}>1コイン ≒ 1円</span>
       </div>
-      {/* 保証料込みの総額を出す。ここでコイン価格だけを見せると、決済画面で
+      {/* サポート料込みの総額を出す。ここでコイン価格だけを見せると、決済画面で
           初めて総額を知ることになり、申込前の価格表示として不十分になる。 */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
         <span style={{ fontSize: 15, color: C.ink }}>
           ¥{(priceYen + safetyFeeYen(priceYen)).toLocaleString()}
         </span>
         <span style={{ fontSize: 9.5, color: C.muted }}>
-          コイン ¥{priceYen.toLocaleString()} + 保証料 ¥{safetyFeeYen(priceYen).toLocaleString()}
+          コイン ¥{priceYen.toLocaleString()} + サポート料 ¥{safetyFeeYen(priceYen).toLocaleString()}
         </span>
       </div>
     </div>
@@ -401,7 +401,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
             {error}
           </div>
         )}
-        {/* あんしん保証料が何の費用かを、申し込む前に金額と同じ画面で説明する。
+        {/* あんしんサポート料が何の費用かを、申し込む前に金額と同じ画面で説明する。
             金額だけ足されていると「よく分からない上乗せ」に見えるし、
             特商法の「商品代金以外に必要な費用」の表示としても、名目だけでは足りない。
             なお「保険」の語は使わない(保険業法。規約 第7条の3)。 */}
@@ -417,7 +417,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
           }}
         >
           <span style={{ fontSize: 11.5, color: C.ink }}>
-            🛡 あんしん保証料（コイン価格の{Math.round(SAFETY_FEE_RATE * 100)}%）について
+            🛡 あんしんサポート料（コイン価格の{Math.round(SAFETY_FEE_RATE * 100)}%）について
           </span>
           <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
             コインの価格に加えてお支払いいただく費用です。
@@ -431,7 +431,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
           </span>
           <span
             onClick={() => flow.openLegalDoc('terms')}
-            {...clickable(() => flow.openLegalDoc('terms'), '利用規約であんしん保証料の定めを見る')}
+            {...clickable(() => flow.openLegalDoc('terms'), '利用規約であんしんサポート料の定めを見る')}
             style={{ cursor: 'pointer', fontSize: 10.5, color: C.lavender, textDecoration: 'underline' }}
           >
             利用規約 第7条の3 で詳しく見る

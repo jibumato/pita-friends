@@ -8,7 +8,7 @@
  */
 export const SAFETY_FEE_RATE = 0.05
 
-/** コイン価格に対するあんしん保証料(円)。サーバ側の safety_fee_for と同じ丸め。 */
+/** コイン価格に対するあんしんサポート料(円)。サーバ側の safety_fee_for と同じ丸め。 */
 export function safetyFeeYen(priceYen: number): number {
   return Math.max(0, Math.round(priceYen * SAFETY_FEE_RATE))
 }

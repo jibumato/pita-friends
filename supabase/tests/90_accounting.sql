@@ -111,24 +111,24 @@ begin
 end $$;
 
 -- ------------------------------------------------------------
-\echo '=== 4. あんしん保証料が購入時の売上に出ること ==='
+\echo '=== 4. あんしんサポート料が購入時の売上に出ること ==='
 set test.uid = 'e0000000-0000-0000-0000-000000000009';
 do $$
 declare v_fee bigint; v_sales bigint;
 begin
   select 金額円 into v_fee from public.accounting_revenue(
     (now() - interval '1 day')::date, (now() + interval '1 day')::date)
-    where 科目 = 'あんしん保証料(購入時)';
+    where 科目 = 'あんしんサポート料(購入時)';
   select 金額円 into v_sales from public.accounting_revenue(
     (now() - interval '1 day')::date, (now() + interval '1 day')::date)
     where 科目 = 'コイン販売額(前受金の増加)';
   if v_fee <> 1000 then
-    raise exception 'FAIL: 保証料が売上に出ない(期待1000 / 実際%)', v_fee;
+    raise exception 'FAIL: サポート料が売上に出ない(期待1000 / 実際%)', v_fee;
   end if;
   if v_sales <> 20000 then
     raise exception 'FAIL: コイン販売額が参考表示されない(%)', v_sales;
   end if;
-  raise notice 'OK: 保証料%は売上 / コイン販売%は前受金(参考表示)', v_fee, v_sales;
+  raise notice 'OK: サポート料%は売上 / コイン販売%は前受金(参考表示)', v_fee, v_sales;
 end $$;
 
 -- ------------------------------------------------------------

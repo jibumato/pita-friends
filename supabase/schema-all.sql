@@ -6726,9 +6726,9 @@ grant execute on function public.host_dashboard(timestamptz) to authenticated;
 -- 0035_safety_fee_and_extension.sql
 -- ============================================================================
 -- ============================================================
--- 収益施策: (1) あんしん保証料  (3) 延長課金
+-- 収益施策: (1) あんしんサポート料  (3) 延長課金
 -- ------------------------------------------------------------
--- ■ あんしん保証料
+-- ■ あんしんサポート料
 --   コイン購入時に価格の一定率を上乗せして預かる。ホストの取り分には
 --   一切触れないため、既存ホストの手取りを下げずにテイクレートを上げられる。
 --   根拠は承認制・本人確認・通報ブロック・トラブル時の返金対応という
@@ -6757,14 +6757,14 @@ grant execute on function public.host_dashboard(timestamptz) to authenticated;
 -- ------------------------------------------------------------
 create table public.platform_pricing (
   id smallint primary key default 1 check (id = 1),
-  -- コイン購入時に上乗せする「あんしん保証料」の率
+  -- コイン購入時に上乗せする「あんしんサポート料」の率
   safety_fee_rate numeric(4, 3) not null default 0.050
     check (safety_fee_rate >= 0 and safety_fee_rate <= 0.5),
   updated_at timestamptz not null default now()
 );
 
 comment on table public.platform_pricing is
-  'プラットフォームの価格設定(1行のみ)。あんしん保証料の率など、改定しうる数値をここに集約する。';
+  'プラットフォームの価格設定(1行のみ)。あんしんサポート料の率など、改定しうる数値をここに集約する。';
 
 insert into public.platform_pricing (id) values (1);
 
@@ -6776,15 +6776,15 @@ create policy "platform_pricing_select_all"
   to authenticated
   using (true);
 
--- 購入履歴に、預かった保証料を残す
+-- 購入履歴に、預かったサポート料を残す
 alter table public.coin_purchases
   add column safety_fee_yen int not null default 0 check (safety_fee_yen >= 0);
 
 comment on column public.coin_purchases.safety_fee_yen is
-  'コイン代金に上乗せして預かったあんしん保証料(円)。price_yen はコイン本体の価格で、請求総額は price_yen + safety_fee_yen。';
+  'コイン代金に上乗せして預かったあんしんサポート料(円)。price_yen はコイン本体の価格で、請求総額は price_yen + safety_fee_yen。';
 
 -- ------------------------------------------------------------
--- safety_fee_for: 指定価格に対する保証料(円)。Edge Function から使う
+-- safety_fee_for: 指定価格に対するサポート料(円)。Edge Function から使う
 -- ------------------------------------------------------------
 create function public.safety_fee_for(p_price_yen int)
 returns int
@@ -6796,7 +6796,7 @@ as $$
 $$;
 
 comment on function public.safety_fee_for(int) is
-  'コイン価格に対するあんしん保証料(円)。料率は platform_pricing に持つ。';
+  'コイン価格に対するあんしんサポート料(円)。料率は platform_pricing に持つ。';
 
 -- ------------------------------------------------------------
 -- extend_booking: 進行中の予約に時間とコインを追加する
@@ -15166,8 +15166,8 @@ begin
     and f.created_at >= p_from and f.created_at < (p_to + 1)
 
   union all
-  -- あんしん保証料(→改称検討中)。購入時に売上計上する(税理士 §1-4)
-  select '売上'::text, 'あんしん保証料(購入時)'::text,
+  -- あんしんサポート料(→改称検討中)。購入時に売上計上する(税理士 §1-4)
+  select '売上'::text, 'あんしんサポート料(購入時)'::text,
          coalesce(sum(cp.safety_fee_yen), 0)::bigint, '課税10%'::text
   from public.coin_purchases cp
   where cp.created_at >= p_from and cp.created_at < (p_to + 1)
@@ -15281,3 +15281,48 @@ end $$;
 
 comment on column public.host_settings.invoice_registration_number is
   '適格請求書発行事業者の登録番号(T+13桁)。将来の媒介者交付特例に備えた予約列で、現時点では未使用・画面も無い。';
+
+
+-- ============================================================================
+-- 0071_safety_fee_rename.sql
+-- ============================================================================
+-- ============================================================
+-- 0071: 「あんしん保証料」→「あんしんサポート料」に改称
+-- ------------------------------------------------------------
+-- ■ なぜ変えるか(税理士・弁護士の**双方**から指摘)
+--
+--   税理士(2026-07-30 回答 §1-4):
+--     消費税法別表第二第3号・施行令10条3項により「**信用の保証**としての
+--     役務の提供」の対価(=保証料)は**非課税**とされている。当社が受け取る
+--     のは本人確認・みまもり・トラブル対応という**課税される役務**の対価
+--     なので、「保証料」という名称は**名称と実態が食い違い、税務調査で
+--     必ず論点になる。** 自ら誤って非課税処理をする事故も起こり得る。
+--
+--   弁護士(Q20-b):
+--     「保証」は**損害を補填する約束と誤認**されるおそれがある。
+--     実際には補償しないのに補償を期待させるため景表法の観点でも問題。
+--
+--   → 2026-07-30、利用者に見せる名称を「**あんしんサポート料**」に統一した。
+--
+-- ■ 変えないもの
+--   **料率(5%)・金額・計算・徴収のしかたは一切変えていない。**
+--   識別子(`safety_fee_rate` / `safety_fee_yen` / `safety_fee_for`)も
+--   そのままにする。英語の "safety fee" は「保証」の語義を持たないので
+--   今回の問題を含まず、列名・関数名を変えると Edge Function・型定義・
+--   既存データの参照まで波及して、得るものがない。
+--
+-- ■ ここで変えるのはDBのコメント(メタデータ)だけ
+--   0035 のファイル側も新名称に直してあるが、**すでに適用済みのDBには
+--   古い名称のコメントが残る。** 言葉のゆれは実装のゆれになるので、
+--   0067(推し→お気に入り)と同じやり方で当て直す。
+--   テーブル・関数・ポリシー・権限・数値には触れない。
+-- ============================================================
+
+comment on table public.platform_pricing is
+  'プラットフォームの価格設定(1行のみ)。あんしんサポート料の率など、改定しうる数値をここに集約する。';
+
+comment on column public.coin_purchases.safety_fee_yen is
+  'コイン代金に上乗せして預かったあんしんサポート料(円)。price_yen はコイン本体の価格で、請求総額は price_yen + safety_fee_yen。0071で「あんしん保証料」から改称(名称のみ。料率・計算は不変)。';
+
+comment on function public.safety_fee_for(int) is
+  'コイン価格に対するあんしんサポート料(円)。料率は platform_pricing に持つ。0071で「あんしん保証料」から改称。';

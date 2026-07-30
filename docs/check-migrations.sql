@@ -53,7 +53,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 0063で消えたギフトの7日換金保留を復活させた
     (69, '0069_restore_gift_payout_hold', 'funcsrc', 'request_bank_payout',      'GIFT_ON_HOLD'),
     -- 会計用の残高集計。将来のインボイス用の列でも見られる
-    (70, '0070_accounting_reconciliation', 'column', 'host_settings',            'invoice_registration_number')
+    (70, '0070_accounting_reconciliation', 'column', 'host_settings',            'invoice_registration_number'),
+    -- あんしん保証料→あんしんサポート料。コメントの文言で見る
+    (71, '0071_safety_fee_rename',       'tcomment', 'platform_pricing',          'あんしんサポート料の率')
 ),
 checked as (
   select
@@ -142,7 +144,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 0063で消えたギフトの7日換金保留を復活させた
     (69, '0069_restore_gift_payout_hold', 'funcsrc', 'request_bank_payout',      'GIFT_ON_HOLD'),
     -- 会計用の残高集計。将来のインボイス用の列でも見られる
-    (70, '0070_accounting_reconciliation', 'column', 'host_settings',            'invoice_registration_number')
+    (70, '0070_accounting_reconciliation', 'column', 'host_settings',            'invoice_registration_number'),
+    -- あんしん保証料→あんしんサポート料。コメントの文言で見る
+    (71, '0071_safety_fee_rename',       'tcomment', 'platform_pricing',          'あんしんサポート料の率')
 ),
 checked as (
   select e.seq, e.migration,
