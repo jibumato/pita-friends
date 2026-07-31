@@ -81,7 +81,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 購入ボーナスの廃止(事業判断。法務・税務・資金の3論点が同時に消える)
     (83, '0083_no_purchase_bonus',    'constraint', 'coin_packs',                'coin_packs_no_bonus_check'),
     -- 通知設定の行が無いユーザーの救済(設定画面のトグルが無反応だった)
-    (84, '0084_notification_prefs_selfheal', 'funcsrc', 'get_notification_prefs',  'on conflict (user_id) do nothing')
+    (84, '0084_notification_prefs_selfheal', 'funcsrc', 'get_notification_prefs',  'on conflict (user_id) do nothing'),
+    -- 無帰責の返還で消滅した分の金銭返金(規約第9条5の3・G8)
+    (85, '0085_cash_refund_lapsed',        'table', 'cash_refunds',              null)
 ),
 checked as (
   select
@@ -207,7 +209,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 購入ボーナスの廃止(事業判断。法務・税務・資金の3論点が同時に消える)
     (83, '0083_no_purchase_bonus',    'constraint', 'coin_packs',                'coin_packs_no_bonus_check'),
     -- 通知設定の行が無いユーザーの救済(設定画面のトグルが無反応だった)
-    (84, '0084_notification_prefs_selfheal', 'funcsrc', 'get_notification_prefs',  'on conflict (user_id) do nothing')
+    (84, '0084_notification_prefs_selfheal', 'funcsrc', 'get_notification_prefs',  'on conflict (user_id) do nothing'),
+    -- 無帰責の返還で消滅した分の金銭返金(規約第9条5の3・G8)
+    (85, '0085_cash_refund_lapsed',        'table', 'cash_refunds',              null)
 ),
 checked as (
   select e.seq, e.migration,
