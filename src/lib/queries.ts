@@ -303,6 +303,39 @@ export async function fetchCoinPacks(): Promise<CoinPack[]> {
 }
 
 /**
+ * Edge Function の失敗から、人が読める理由を組み立てる。
+ *
+ * **supabase-js は本文を読まずに `Edge Function returned a non-2xx status code`
+ * とだけ投げる。** どの Function がどう失敗しても文言が同じなので、
+ * 画面のスクリーンショットからは何も分からない。エラーは `context` に
+ * Response を持っているので、そこから本文と状態コードを取り出す。
+ *
+ * 末尾に `[500 internal_error]` の形で機械的な手掛かりも足す。
+ * **問い合わせのスクリーンショット1枚で切り分けられるようにするため。**
+ */
+async function functionErrorMessage(error: unknown, fallback: string): Promise<string> {
+  const ctx = (error as { context?: unknown } | null)?.context
+  if (!(ctx instanceof Response)) {
+    return error instanceof Error ? error.message : fallback
+  }
+  let code: string | null = null
+  try {
+    const body = (await ctx.clone().json()) as { error?: unknown }
+    if (typeof body.error === 'string') code = body.error
+  } catch {
+    /* 本文がJSONでないこともある。状態コードだけで返す */
+  }
+  const known: Record<string, string> = {
+    unauthorized: 'ログインの有効期限が切れています。ログインし直してください',
+    'pack not found': 'このコインパックは現在購入できません',
+    'pack_id required': '購入するパックが選ばれていません',
+    internal_error: '決済ページを準備できませんでした。時間をおいて試してください',
+  }
+  const head = (code && known[code]) || fallback
+  return `${head} [${ctx.status}${code ? ` ${code}` : ''}]`
+}
+
+/**
  * Stripe Checkout セッションを発行し、決済ページのURLを返す。
  * 呼び出し側はこのURLへ遷移する。付与は決済完了後にwebhookが行う。
  */
@@ -311,7 +344,7 @@ export async function createCheckoutSession(packId: string): Promise<string> {
     'create-checkout-session',
     { body: { packId } },
   )
-  if (error) throw error
+  if (error) throw new Error(await functionErrorMessage(error, '決済ページの準備に失敗しました'))
   if (!data?.url) throw new Error(data?.error || '決済ページの準備に失敗しました')
   return data.url
 }
