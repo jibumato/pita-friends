@@ -826,6 +826,18 @@ export type Database = {
         Args: Record<string, never>
         Returns: unknown[]
       }
+      admin_shared_cards: {
+        Args: Record<string, never>
+        Returns: unknown[]
+      }
+      declare_residency: {
+        Args: { p_declared_japan: boolean; p_version?: string }
+        Returns: void
+      }
+      my_residency_declaration: {
+        Args: Record<string, never>
+        Returns: unknown
+      }
       accounting_revenue: {
         Args: { p_from: string; p_to: string }
         Returns: unknown[]
@@ -951,6 +963,8 @@ export type Database = {
           account_number: string
           account_holder_kana: string
           is_verified: boolean
+          shared_card_count: number
+          flagged_gift_count: number
         }[]
       }
       admin_account_requests: {

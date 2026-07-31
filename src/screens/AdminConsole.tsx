@@ -771,7 +771,7 @@ function PayoutsTab({ onChanged }: { onChanged: () => void }) {
           </Note>
           <Btn onClick={download}>CSVをダウンロード</Btn>
           {items.map((p) => (
-            <Card key={p.id} alert={!p.isVerified}>
+            <Card key={p.id} alert={!p.isVerified || p.sharedCardCount > 0}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                 <span style={{ fontSize: 12.5, color: C.ink }}>{p.nickname}</span>
                 <span style={{ fontSize: 13, color: C.ink, flex: 'none', fontVariantNumeric: 'tabular-nums' }}>
@@ -781,6 +781,25 @@ function PayoutsTab({ onChanged }: { onChanged: () => void }) {
               {!p.isVerified && (
                 <span style={{ fontSize: 11, color: '#E5484D' }}>
                   ⚠️ 本人確認が未完了です。振り込まないでください。
+                </span>
+              )}
+              {/* 0080・E-9。**資金が出る瞬間に目に入る**のがこの表示の値打ち。
+                  遮断しないのは、家族カード・同一世帯で正当に一致しうるため */}
+              {p.sharedCardCount > 0 && (
+                <span style={{ fontSize: 11, color: '#E5484D', lineHeight: 1.7 }}>
+                  ⚠️ 他の{p.sharedCardCount}アカウントと
+                  <b>同じ決済カード</b>を使った履歴があります。
+                  <br />
+                  <span style={{ color: C.muted }}>
+                    家族カードでも一致するので、これだけで不正とは判断しないでください。
+                    自作自演（自分で買ったコインを別アカウントに送って換金）が疑われる場合は、
+                    先に事情を確認してから振り込んでください。
+                  </span>
+                </span>
+              )}
+              {p.flaggedGiftCount > 0 && (
+                <span style={{ fontSize: 11, color: C.body, lineHeight: 1.7 }}>
+                  受け取ったギフトのうち{p.flaggedGiftCount}件に、IPまたはカードの共有で印が付いています。
                 </span>
               )}
               <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.8 }}>

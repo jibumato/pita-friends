@@ -6,7 +6,66 @@ import StatusBar from '../components/StatusBar'
 import { ChevronLeft, Shield } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
-import { fetchLatestVerificationStatus, submitIdentityVerification } from '../lib/queries'
+import {
+  fetchLatestVerificationStatus,
+  submitIdentityVerification,
+  declareResidency,
+  fetchMyResidencyDeclaration,
+} from '../lib/queries'
+
+/**
+ * 居住地の自己申告(規約 第3条3項・突合表G4)。
+ *
+ * 条文には「日本国内に居住する個人に限る」と書いてあったのに、
+ * **申告欄も確認も無かった。** 弁護士は自己申告で足るとしたが、
+ * 「尋ねた」という事実が残らなければ利用条件として機能しない。
+ *
+ * ここに置いたのは、**本人確認と同じ場面で聞くのが自然**だから。
+ * 登録の入口に増やすと、何の話か分からないまま押す欄になる。
+ *
+ * ⚠️ 国籍は尋ねない。条文どおり居住地だけを扱う。
+ */
+function ResidencyCheck({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <label
+      style={{
+        display: 'flex',
+        gap: 9,
+        alignItems: 'flex-start',
+        cursor: 'pointer',
+        background: C.surface,
+        border: `1.5px solid ${C.border}`,
+        borderRadius: 10,
+        padding: '11px 13px',
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ marginTop: 2, flex: 'none' }}
+      />
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span style={{ fontSize: 11.5, color: C.ink, lineHeight: 1.6 }}>
+          <b>日本国内に住んでいます</b>
+        </span>
+        <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.75 }}>
+          ピタフレは日本国内にお住まいの方に限りご利用いただけます。
+          適用される法律・裁判所、本人確認のしかた、使えるお支払いと振込の方法が
+          国ごとに違うためで、
+          <b style={{ color: C.ink }}>国籍によるものではありません</b>。
+          旅行や出張で一時的に海外にいる間も、そのままお使いいただけます。
+        </span>
+      </span>
+    </label>
+  )
+}
 
 function StepRow({
   n,
@@ -152,6 +211,9 @@ export default function Verify({ flow }: { flow: Flow }) {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 規約 第3条3項の自己申告。バックエンド未接続のときは true にしておく
+  // (ハリボテ状態で押せないボタンを作らない)
+  const [residency, setResidency] = useState(!isBackendConfigured)
 
   useEffect(() => {
     if (!isBackendConfigured || !flow.userId) {
@@ -167,16 +229,25 @@ export default function Verify({ flow }: { flow: Flow }) {
       .finally(() => {
         if (active) setStatusChecked(true)
       })
+    // 再提出のときに、前回の申告を毎回入れ直させない
+    fetchMyResidencyDeclaration()
+      .then((d) => {
+        if (active && d.declaredJapan) setResidency(true)
+      })
+      .catch((err) => console.warn('[pita-friends] 居住地の申告の取得に失敗:', err))
     return () => {
       active = false
     }
   }, [flow.userId])
 
   async function handleSubmit() {
-    if (!documentFile || !selfieFile || !flow.userId) return
+    if (!documentFile || !selfieFile || !flow.userId || !residency) return
     setSubmitting(true)
     setError(null)
     try {
+      // **書類より先に申告を記録する。** 0081 のトリガが本人確認の
+      // INSERT を止めるので、順序を逆にすると画像だけが残る
+      await declareResidency(true)
       await submitIdentityVerification(flow.userId, documentFile, selfieFile)
       setSubmitted(true)
     } catch (e) {
@@ -187,7 +258,7 @@ export default function Verify({ flow }: { flow: Flow }) {
   }
 
   const showUploadForm = isBackendConfigured && statusChecked && !submitted && existingStatus !== 'pending' && existingStatus !== 'verified'
-  const canSubmit = !!documentFile && !!selfieFile && !submitting
+  const canSubmit = !!documentFile && !!selfieFile && residency && !submitting
 
   return (
     <Screen background={C.surface}>
@@ -270,6 +341,8 @@ export default function Verify({ flow }: { flow: Flow }) {
               capture="user"
               onPick={setSelfieFile}
             />
+            <div style={{ height: 1.5, background: C.divider }} />
+            <ResidencyCheck checked={residency} onChange={setResidency} />
             {existingStatus === 'rejected' && (
               <span style={{ fontSize: 10.5, color: C.avatarPink, lineHeight: 1.6 }}>
                 前回の申請は承認されませんでした。書類・写真を選び直して再提出してください。

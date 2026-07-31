@@ -71,7 +71,11 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 純額処理を選べるよう「PF利用料のうち無償コイン起因」を内数で出す(税理士 第4回)
     (78, '0078_bonus_origin_fee',        'funcsrc', 'accounting_revenue',         '無償コイン起因'),
     -- 会計ソフト取込用の仕訳を自動生成する(月次の締めをSQL Editorから外す)
-    (79, '0079_accounting_journal',      'funcsrc', 'accounting_journal',         '販売促進費')
+    (79, '0079_accounting_journal',      'funcsrc', 'accounting_journal',         '販売促進費'),
+    -- カード共有の検知(E-9)。端末0021・IP0022と揃えて3つ目
+    (80, '0080_card_fingerprint_monitoring', 'table', 'user_payment_cards',      null),
+    -- 居住地の自己申告(規約第3条3項・突合表G4)
+    (81, '0081_residency_declaration',   'trigger', 'identity_verifications',    'identity_verifications_require_residency')
 ),
 checked as (
   select
@@ -183,7 +187,11 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 純額処理を選べるよう「PF利用料のうち無償コイン起因」を内数で出す(税理士 第4回)
     (78, '0078_bonus_origin_fee',        'funcsrc', 'accounting_revenue',         '無償コイン起因'),
     -- 会計ソフト取込用の仕訳を自動生成する(月次の締めをSQL Editorから外す)
-    (79, '0079_accounting_journal',      'funcsrc', 'accounting_journal',         '販売促進費')
+    (79, '0079_accounting_journal',      'funcsrc', 'accounting_journal',         '販売促進費'),
+    -- カード共有の検知(E-9)。端末0021・IP0022と揃えて3つ目
+    (80, '0080_card_fingerprint_monitoring', 'table', 'user_payment_cards',      null),
+    -- 居住地の自己申告(規約第3条3項・突合表G4)
+    (81, '0081_residency_declaration',   'trigger', 'identity_verifications',    'identity_verifications_require_residency')
 ),
 checked as (
   select e.seq, e.migration,
