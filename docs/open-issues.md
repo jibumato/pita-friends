@@ -187,7 +187,7 @@ PLAYONE 注文40%・実効約50%)が高率なのは、IAPを載せるとそれ�
 | ✅ | Edge Function のデプロイ | avatar/voice/record-ip/Stripe系。「Verify JWT with legacy secret」はオフで運用 |
 | ⬜ | **メール確認(Confirm email)を ON に戻す** | テストでOFFにしている場合。公開前必須 |
 | ✅ | リダイレクトURLの登録 | 2026-07-26。Site URL / Redirect URLs とも `pitafure.com` |
-| ⬜ | `pg_cron` の有効確認 | プレイ完了の72時間自動確定・コイン失効の日次ジョブに使用 |
+| ⬜ | `pg_cron` / `pg_net` の有効確認 | **`docs/check-cron.sql`** で拡張・ジョブ9本・権限を一度に点検する |
 | ⬜ | **Pro プラン + PITR の有効化** | 取引データの復旧手段。**コインを売る前に必須**(`docs/data-integrity.md`) |
 | ⬜ | (推奨)ストレージポリシーの再確認 | |
 | ✅ | 取引データの整合性チェック・台帳の追記専用化・退会の匿名化 | `0043`〜`0046` |
@@ -515,9 +515,9 @@ E-1/E-2 の実装中に判明しました。**予約画面・トーク画面の�
 
 | 区分 | 作業 | ブロッカー |
 |---|---|---|
-| Stripe | **Edge Function を再デプロイ**(`create-checkout-session` / `stripe-webhook`)。**未デプロイだとあんしんサポート料が請求されず、表示額と請求額が食い違う** | **必須** |
+| Stripe | **Edge Function を再デプロイ**(`create-checkout-session` / `stripe-webhook`)。**未デプロイだとあんしんサポート料が請求されず、表示額と請求額が食い違う。**3DS2・チャージバック受信・カード記録も効かない。反映の確認手順は `payments-stripe-setup.md` §4-b | **必須** |
 | Stripe | 本番利用申請(事業内容は**非出会い系であることが伝わる説明**にする) | **必須** |
-| Supabase | **pg_cron / pg_net の有効確認**。72時間の自動確定・コイン失効・プッシュ送信が全部これに乗っている | **必須** |
+| Supabase | **pg_cron / pg_net の有効確認**。`docs/check-cron.sql` を貼るだけ。72時間の自動確定・コイン失効・無断欠席の処理が全部これに乗っている | **必須** |
 | Supabase | **Pro プラン($25/月)**。無料プランには保証されたバックアップが無い。**コインを売る前に** | **必須** |
 | Supabase | メール確認(Confirm email)を **ON** に戻す | **必須** |
 | Supabase | **`0080`・`0081` を SQL Editor で適用**(順序の依存なし) | **必須** |
