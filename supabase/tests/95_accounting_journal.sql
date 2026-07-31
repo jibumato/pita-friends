@@ -276,6 +276,9 @@ begin
   raise notice 'OK: 申請時は 振込予定%+仮受金% のみ。売上はまだ0', v_shinsei, v_karimae;
 end $$;
 
+-- 0088: 新規ユーザーの購入を原資とする換金は振込が保留される。
+-- ここで見たいのはそこではないので、保留だけ外してから進める
+update public.payouts set hold_until = null;
 select public.mark_payout_paid(:'po');
 set test.uid = 'f0000000-0000-0000-0000-000000000009';
 do $$

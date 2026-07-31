@@ -121,6 +121,9 @@ exception when others then
   raise notice 'OK 換金額のUPDATEは拒否された';
 end $$;
 
+-- 0088: 新規ユーザー原資の換金は振込が保留される。ここで見たいのは
+-- そこではないので、保留だけ外してから進める
+update public.payouts set hold_until = null;
 do $$
 begin
   update public.payouts set status = 'paid'
