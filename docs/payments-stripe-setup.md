@@ -99,6 +99,62 @@ supabase functions deploy record-ip
 > `SUPABASE_ANON_KEY` は自動注入されるので設定不要。未デプロイでもギフトは動く
 > (IP記録だけがスキップされる)。
 
+## 4-b. ⚠️ 再デプロイが必要な変更の履歴
+
+**Edge Function は `main` にマージしても自動では反映されません。**
+Cloudflare のフロントだけが自動デプロイで、Supabase の Function は
+`supabase functions deploy` を打つまで**古いコードが動き続けます。**
+
+これが厄介なのは、**フロントと Function が食い違っても画面はふつうに動く**
+ことです。下の1件目がまさにそれで、購入画面には 21,000円 と出るのに
+Stripe は 20,000円しか請求しません。**表示と請求の不一致**になります。
+
+| 日付 | 変更 | どちらの関数 | 反映しないと |
+|---|---|---|---|
+| 2026-07-2x | **あんしんサポート料を明細に追加**(コイン価格と2行に分けて請求) | `create-checkout-session` / `stripe-webhook` | **画面は21,000円、請求は20,000円。** サポート料が1円も入らない |
+| 2026-07-30 | チャージバックの受信(`charge.dispute.*` の処理) | `stripe-webhook` | 異議申立てを受けても**コインの凍結が働かない** |
+| 2026-07-30 | **EMV 3-Dセキュア(3DS2)** の要求 | `create-checkout-session` | 不正利用型チャージバックの責任が移らない(§5-b) |
+| 2026-07-31 | 決済カードのフィンガープリント記録(E-9) | `stripe-webhook` | 自作自演の検知が端末とIPだけになる |
+
+つまり **`create-checkout-session` と `stripe-webhook` の両方**を
+デプロイし直す必要があります。
+
+```bash
+supabase functions deploy create-checkout-session
+supabase functions deploy stripe-webhook --no-verify-jwt
+```
+
+### 反映されたことの確かめかた
+
+**「デプロイした」だけでは確認になりません。** 実際に1件通してください。
+
+1. **テストモードで ¥300 のパックを購入する**
+2. Stripe の Checkout 画面に **明細が2行**（コイン代金＋あんしんサポート料）
+   出ていること ← ここが1行なら `create-checkout-session` が古いままです
+3. 購入後、SQL Editor で次を実行する
+
+```sql
+-- 直近の購入が、新しいコードで処理されたかを見る
+select
+  cp.created_at,
+  cp.price_yen                        as "コイン代金",
+  cp.safety_fee_yen                   as "サポート料",
+  case when cp.safety_fee_yen is null or cp.safety_fee_yen = 0
+       then '❌ stripe-webhook が古い(サポート料を記録していない)'
+       else '✅' end                   as "webhook",
+  case when exists (
+         select 1 from public.user_payment_cards c where c.user_id = cp.user_id)
+       then '✅' else '❌ カードのフィンガープリントが未記録(0080が未反映)' end
+                                       as "カード記録"
+from public.coin_purchases cp
+order by cp.created_at desc
+limit 5;
+```
+
+> **カード記録が ❌ でも、決済手段がカードでない場合**（PayPay 等）は正常です。
+> カードで買ったのに ❌ なら、`stripe-webhook` が古いか、
+> `record_payment_card` の権限が落ちています（`docs/check-cron.sql` の「権限」で確認）。
+
 ## 5. Stripe Webhook を登録
 
 1. Stripe ダッシュボード **開発者 → Webhook → エンドポイントを追加**
