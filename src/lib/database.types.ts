@@ -735,6 +735,33 @@ export type Database = {
         Args: { p_host_id: string }
         Returns: { hours: number | null; eligible: boolean }
       }
+      /** 0086: 退会の画面に出す材料(消えるコイン数・換金の期限)。 */
+      withdrawal_preview: {
+        Args: Record<string, never>
+        Returns: {
+          withdrawn_at: string | null
+          blocking_bookings: number
+          can_withdraw: boolean
+          expiring_paid: number
+          expiring_bonus: number
+          earned_balance: number
+          payout_days: number
+          payout_deadline: string
+          verified: boolean
+          has_bank_account: boolean
+        }
+      }
+      /** 0086: 退会する(規約第6条の2)。取り消せない。 */
+      withdraw_account: {
+        Args: { p_reason?: string | null }
+        Returns: {
+          withdrawn_at: string
+          expired_paid: number
+          expired_bonus: number
+          earned_balance: number
+          payout_deadline: string
+        }
+      }
       /** 0084: 自分の通知設定。行が無ければ既定値で作ってから返す。 */
       get_notification_prefs: {
         Args: Record<string, never>

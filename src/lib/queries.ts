@@ -1236,6 +1236,64 @@ export async function updateNotificationPrefs(
   return toPrefs(data)
 }
 
+/* ============================================================
+ * 退会(規約 第6条の2)。schema: 0086_account_withdrawal。
+ * ============================================================ */
+
+export type WithdrawalPreview = {
+  /** 退会済みならその日時。null は在籍中。 */
+  withdrawnAt: string | null
+  /** 履行もキャンセルも済んでいない予約の件数(あると退会できない) */
+  blockingBookings: number
+  canWithdraw: boolean
+  /** 退会で消滅するコイン。**画面に出すことを規約第6条の2第3項で約束している** */
+  expiringPaid: number
+  expiringBonus: number
+  /** 退会後も換金できる報酬コインと、その期限 */
+  earnedBalance: number
+  payoutDays: number
+  payoutDeadline: string
+  verified: boolean
+  hasBankAccount: boolean
+}
+
+function toWithdrawalPreview(row: unknown): WithdrawalPreview {
+  const r = (row ?? {}) as Record<string, unknown>
+  const n = (v: unknown) => (typeof v === 'number' ? v : Number(v ?? 0))
+  return {
+    withdrawnAt: (r.withdrawn_at as string | null) ?? null,
+    blockingBookings: n(r.blocking_bookings),
+    canWithdraw: Boolean(r.can_withdraw),
+    expiringPaid: n(r.expiring_paid),
+    expiringBonus: n(r.expiring_bonus),
+    earnedBalance: n(r.earned_balance),
+    payoutDays: n(r.payout_days),
+    payoutDeadline: String(r.payout_deadline ?? ''),
+    verified: Boolean(r.verified),
+    hasBankAccount: Boolean(r.has_bank_account),
+  }
+}
+
+/** 退会の画面に出す材料。消えるコインの数と、換金できる期限。 */
+export async function fetchWithdrawalPreview(): Promise<WithdrawalPreview> {
+  const { data, error } = await requireSupabase().rpc('withdrawal_preview')
+  if (error) throw error
+  return toWithdrawalPreview(data)
+}
+
+/**
+ * 退会する。有償・無償コインは消滅し、報酬コインは90日だけ残る。
+ * **取り消せない。** 呼ぶ前に必ず確認を取ること。
+ */
+export async function withdrawAccount(reason: string | null): Promise<WithdrawalPreview> {
+  const { data, error } = await requireSupabase().rpc('withdraw_account', {
+    p_reason: reason,
+  })
+  if (error) throw error
+  // 実行後の戻り値は退会の結果。画面はこれを見て完了を出す
+  return toWithdrawalPreview(data)
+}
+
 /** アカウント削除・データダウンロードの請求を記録する(運営が手動で対応)。 */
 export async function submitAccountRequest(type: AccountRequestType): Promise<void> {
   const sb = requireSupabase()

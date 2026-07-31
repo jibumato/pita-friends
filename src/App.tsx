@@ -85,6 +85,7 @@ import Ranking from './screens/Ranking'
 import AdminVerifications from './screens/AdminVerifications'
 import AdminConsole from './screens/AdminConsole'
 import BlockList from './screens/BlockList'
+import Withdraw from './screens/Withdraw'
 import LegalDoc from './screens/LegalDoc'
 import Personality from './screens/Personality'
 
@@ -117,6 +118,7 @@ const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
   'mypage',
   'talkList',
   'settings',
+  'withdraw',
   'safety',
   'safetyPrefs',
   'wallet',
@@ -995,6 +997,7 @@ export default function App() {
         {state.screen === 'adminVerifications' && <AdminVerifications flow={flow} />}
         {state.screen === 'adminConsole' && <AdminConsole flow={flow} />}
         {state.screen === 'blockList' && <BlockList flow={flow} />}
+        {state.screen === 'withdraw' && <Withdraw flow={flow} />}
         {state.screen === 'legalDoc' && <LegalDoc flow={flow} />}
         {state.screen === 'personality' && <Personality flow={flow} />}
         {flow.reportTarget && <ReportSheet flow={flow} />}

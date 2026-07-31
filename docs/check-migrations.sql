@@ -83,7 +83,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 通知設定の行が無いユーザーの救済(設定画面のトグルが無反応だった)
     (84, '0084_notification_prefs_selfheal', 'funcsrc', 'get_notification_prefs',  'on conflict (user_id) do nothing'),
     -- 無帰責の返還で消滅した分の金銭返金(規約第9条5の3・G8)
-    (85, '0085_cash_refund_lapsed',        'table', 'cash_refunds',              null)
+    (85, '0085_cash_refund_lapsed',        'table', 'cash_refunds',              null),
+    -- 退会(規約第6条の2・G6)。退会後90日は報酬コインの換金だけができる
+    (86, '0086_account_withdrawal',        'column', 'profiles',                  'withdrawn_at')
 ),
 checked as (
   select
@@ -211,7 +213,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 通知設定の行が無いユーザーの救済(設定画面のトグルが無反応だった)
     (84, '0084_notification_prefs_selfheal', 'funcsrc', 'get_notification_prefs',  'on conflict (user_id) do nothing'),
     -- 無帰責の返還で消滅した分の金銭返金(規約第9条5の3・G8)
-    (85, '0085_cash_refund_lapsed',        'table', 'cash_refunds',              null)
+    (85, '0085_cash_refund_lapsed',        'table', 'cash_refunds',              null),
+    -- 退会(規約第6条の2・G6)。退会後90日は報酬コインの換金だけができる
+    (86, '0086_account_withdrawal',        'column', 'profiles',                  'withdrawn_at')
 ),
 checked as (
   select e.seq, e.migration,

@@ -39,6 +39,7 @@ export type ScreenKey =
   | 'adminVerifications'
   | 'adminConsole'
   | 'blockList'
+  | 'withdraw'
   | 'legalDoc'
   | 'personality'
 
@@ -78,6 +79,7 @@ export const screenNames: Record<ScreenKey, string> = {
   adminVerifications: '本人確認の審査(管理)',
   adminConsole: '運営コンソール(管理)',
   blockList: 'ブロックリスト',
+  withdraw: '退会',
   legalDoc: '規約・ポリシー',
   personality: 'ゲーム相性診断',
 }
@@ -296,6 +298,7 @@ export const stepOf: Record<ScreenKey, number> = {
   adminVerifications: -1,
   adminConsole: -1,
   blockList: -1,
+  withdraw: -1,
   legalDoc: -1,
   personality: -1,
 }
@@ -334,6 +337,7 @@ export function activeTabOf(screen: ScreenKey): TabKey | null {
     case 'hostSettings':
     case 'hostDashboard':
     case 'blockList':
+    case 'withdraw':
     case 'legalDoc':
     case 'personality':
       return 'mypage'
