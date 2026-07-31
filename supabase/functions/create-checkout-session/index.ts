@@ -73,6 +73,42 @@ Deno.serve(async (req) => {
       return json({ error: 'pack not found' }, 404)
     }
 
+    // ------------------------------------------------------------
+    // 新規ユーザーの購入上限(規約 第8条の6第5項1号・0087)
+    //
+    // **決済が終わってから弾かない。** 代金を受け取ってコインを付けない
+    // のは、この上限で防ごうとしている損失より重い事故になる。
+    // だから Checkout セッションを作る**前**に判定する。
+    // ------------------------------------------------------------
+    const { data: limit, error: limitErr } = await admin.rpc('check_purchase_allowed', {
+      p_user_id: user.id,
+      p_price_yen: pack.price_yen,
+    })
+    if (limitErr) {
+      console.error('[create-checkout-session] check_purchase_allowed', limitErr.message)
+      return json({ error: 'internal_error' }, 500)
+    }
+    const lim = (limit ?? {}) as {
+      allowed?: boolean
+      code?: string
+      limit_yen?: number
+      remaining_yen?: number
+      period_days?: number
+    }
+    if (lim.allowed === false) {
+      // 画面が理由を出せるように、金額まで返す。
+      // **「買えません」だけだと、いつ買えるようになるのか分からない**
+      return json(
+        {
+          error: lim.code ?? 'purchase_limit',
+          limit_yen: lim.limit_yen ?? null,
+          remaining_yen: lim.remaining_yen ?? null,
+          period_days: lim.period_days ?? null,
+        },
+        403,
+      )
+    }
+
     // あんしんサポート料。料率はDB(platform_pricing)が権威で、クライアントは関与しない。
     const { data: feeYen, error: feeErr } = await admin.rpc('safety_fee_for', {
       p_price_yen: pack.price_yen,

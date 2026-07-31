@@ -85,7 +85,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 無帰責の返還で消滅した分の金銭返金(規約第9条5の3・G8)
     (85, '0085_cash_refund_lapsed',        'table', 'cash_refunds',              null),
     -- 退会(規約第6条の2・G6)。退会後90日は報酬コインの換金だけができる
-    (86, '0086_account_withdrawal',        'column', 'profiles',                  'withdrawn_at')
+    (86, '0086_account_withdrawal',        'column', 'profiles',                  'withdrawn_at'),
+    -- 新規ユーザーの購入上限とコインの出所(規約第8条の6第5項1号・G11前半)
+    (87, '0087_new_user_purchase_limit',   'column', 'coin_lots',                 'purchase_id')
 ),
 checked as (
   select
@@ -215,7 +217,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 無帰責の返還で消滅した分の金銭返金(規約第9条5の3・G8)
     (85, '0085_cash_refund_lapsed',        'table', 'cash_refunds',              null),
     -- 退会(規約第6条の2・G6)。退会後90日は報酬コインの換金だけができる
-    (86, '0086_account_withdrawal',        'column', 'profiles',                  'withdrawn_at')
+    (86, '0086_account_withdrawal',        'column', 'profiles',                  'withdrawn_at'),
+    -- 新規ユーザーの購入上限とコインの出所(規約第8条の6第5項1号・G11前半)
+    (87, '0087_new_user_purchase_limit',   'column', 'coin_lots',                 'purchase_id')
 ),
 checked as (
   select e.seq, e.migration,
