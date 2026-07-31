@@ -5,7 +5,7 @@ import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader } from '../components/Ui'
 import { Coin, Shield } from '../components/Icon'
-import { COIN_PACKS, packBonusLabel, type CoinPack } from '../flow'
+import { COIN_PACKS, type CoinPack } from '../flow'
 import { safetyFeeYen, SAFETY_FEE_RATE } from '../content/pricing'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
@@ -25,16 +25,15 @@ import {
   type PayoutRecord,
 } from '../lib/queries'
 
+// 0083で購入ボーナスを廃止したため、おまけの表示は無い
 function PackCard({
   coins,
   priceYen,
-  bonus,
   disabled,
   onBuy,
 }: {
   coins: number
   priceYen: number
-  bonus?: string
   disabled?: boolean
   onBuy: () => void
 }) {
@@ -73,23 +72,7 @@ function PackCard({
         <Coin size={22} />
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ fontSize: 16, color: C.ink }}>{coins.toLocaleString()} コイン</span>
-          {bonus && (
-            <span
-              style={{
-                fontSize: 9.5,
-                color: C.ink,
-                background: C.surfaceLavender,
-                border: `1.5px solid ${C.lavender}`,
-                padding: '1px 6px',
-                borderRadius: 4,
-              }}
-            >
-              {bonus}
-            </span>
-          )}
-        </div>
+        <span style={{ fontSize: 16, color: C.ink }}>{coins.toLocaleString()} コイン</span>
         <span style={{ fontSize: 10.5, color: C.muted }}>1コイン ≒ 1円</span>
       </div>
       {/* サポート料込みの総額を出す。ここでコイン価格だけを見せると、決済画面で
@@ -286,7 +269,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
   const buy = async (pack: CoinPack) => {
     if (redirecting) return
     if (!isBackendConfigured) {
-      const total = pack.coins + pack.bonusCoins
+      const total = pack.coins
       flow.buyCoins(total)
       setJustBought(total)
       setTimeout(() => setJustBought(null), 1800)
@@ -444,7 +427,6 @@ export default function Wallet({ flow }: { flow: Flow }) {
               key={p.id}
               coins={p.coins}
               priceYen={p.priceYen}
-              bonus={packBonusLabel(p)}
               disabled={redirecting}
               onBuy={() => buy(p)}
             />

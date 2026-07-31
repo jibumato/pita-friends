@@ -141,14 +141,14 @@ export type CoinPack = {
   /** Stripe/DB連携用の安定ID。サーバー(coin_packs)がこのIDで価格・付与数を確定する。 */
   id: string
   coins: number
-  /** おまけコイン。付与総数 = coins + bonusCoins。 */
+  /**
+   * おまけコイン。**0083で購入ボーナスを廃止したため、常に0。**
+   * 型と列を残しているのは、台帳が追記専用で過去の行を消せないことと、
+   * 再開する判断があったときに器を作り直さずに済むため。
+   * DB側は `coin_packs_no_bonus_check` で 0 以外を入れられない。
+   */
   bonusCoins: number
   priceYen: number
-}
-
-/** 表示用のボーナス文言(例: "+50コイン")。0なら空。 */
-export function packBonusLabel(pack: CoinPack): string {
-  return pack.bonusCoins > 0 ? `+${pack.bonusCoins}コイン` : ''
 }
 
 /**
@@ -161,8 +161,8 @@ export const COIN_PACKS: CoinPack[] = [
   { id: 'pack_3000', coins: 3000, bonusCoins: 0, priceYen: 3000 },
   { id: 'pack_5000', coins: 5000, bonusCoins: 0, priceYen: 5000 },
   { id: 'pack_10000', coins: 10000, bonusCoins: 0, priceYen: 10000 },
-  { id: 'pack_20000', coins: 20000, bonusCoins: 100, priceYen: 20000 },
-  { id: 'pack_50000', coins: 50000, bonusCoins: 500, priceYen: 50000 },
+  { id: 'pack_20000', coins: 20000, bonusCoins: 0, priceYen: 20000 },
+  { id: 'pack_50000', coins: 50000, bonusCoins: 0, priceYen: 50000 },
 ]
 
 /** ピタメイト設定(一緒に遊ぶ時間を時給コインで提供する)。 */

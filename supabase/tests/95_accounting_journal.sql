@@ -39,11 +39,21 @@ values ('f0000000-0000-0000-0000-000000000002','テスト銀行','0001','本店'
         '普通','1234567','ピタメイト')
 on conflict (user_id) do nothing;
 
--- 購入も関数経由で作る。有償12000(=12,000円) + 無償6000、サポート料600。
--- 無償を大きめに取っているのは、**無償コインだけで予約が成立する状態**を
--- 作るため(既存パックのボーナス率では小さすぎて経路を通らない)。
+-- 購入は関数経由で作る。有償12000(=12,000円)、サポート料600。
 select public.credit_coins_for_purchase(
-  'f0000000-0000-0000-0000-000000000001', null, 12000, 6000, 12000, 'sess_journal_1');
+  'f0000000-0000-0000-0000-000000000001', null, 12000, 0, 12000, 'sess_journal_1');
+
+-- 無償コイン6000を**直接**足す。
+--   0083 で購入ボーナスを廃止したため、credit_coins_for_purchase からは
+--   無償コインが生まれなくなった。それでもこの検証を残しているのは、
+--   **廃止前に付与された無償コインが残っている口座はありうる**ため。
+--   仕訳の側が「無償分」を正しく扱えることは、引き続き固定しておく。
+--   (廃止後に無償が発生しないこと自体は 98_no_purchase_bonus.sql が見る)
+insert into public.coin_lots (user_id, kind, remaining, expires_at)
+  values ('f0000000-0000-0000-0000-000000000001', 'bonus', 6000,
+          public.coin_expiry_from(now()));
+update public.coin_wallets set bonus_balance = bonus_balance + 6000
+  where user_id = 'f0000000-0000-0000-0000-000000000001';
 -- サポート料は credit_coins_for_purchase の引数に無い(Webhook 側が
 -- 別途書き込む)。coin_purchases は追記専用なので、0044 の逃がし弁を使う。
 begin;
