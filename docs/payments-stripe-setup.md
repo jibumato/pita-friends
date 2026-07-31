@@ -87,6 +87,40 @@ supabase secrets set APP_URL=http://localhost:5173     # 本番は https://あ�
 
 ## 4. Edge Function をデプロイ
 
+### 前提: **リポジトリのあるフォルダで打つこと**
+
+`supabase functions deploy` は、**いま居るフォルダの
+`supabase/functions/<関数名>/index.ts` を読んで送ります。**
+`C:\Users\自分` のようなフォルダで打つと、こう出ます。
+
+```
+WARN: failed to read file: open supabase/functions/create-checkout-session/index.ts:
+      no such file or directory
+unexpected deploy status 400: {"message":"Entrypoint path does not exist - ...}
+```
+
+**「ファイルが無い」= フォルダが違う**という意味です。ソースを PC に置いてから
+そこへ移動して打ちます。
+
+```powershell
+cd $HOME
+git clone https://github.com/jibumato/pita-friends.git
+cd pita-friends
+supabase link --project-ref ここにプロジェクトRef
+```
+
+> - `git` が無ければ GitHub の緑の **Code → Download ZIP** で落として展開し、
+>   展開先のフォルダへ `cd` しても同じです。
+> - **`<...>` を付けたまま打たない。** PowerShell では `<` `>` が予約語なので
+>   `演算子 '<' は、今後の使用のために予約されています。` で止まります。
+>   山かっこを消して、Ref そのものだけを書きます。
+> - `supabase link` でデータベースのパスワードを聞かれたら、**空のまま Enter**
+>   で構いません(Function のデプロイに DB 接続は不要です)。
+> - **`WARNING: Docker is not running` は無視してよい**警告です。いまの CLI は
+>   Function をクラウド側でビルドするので、Docker は要りません。
+> - 更新を反映するときは、次から `cd pita-friends` して `git pull` してから
+>   デプロイします(**古いソースを送っても CLI は何も警告しません**)。
+
 ```bash
 supabase functions deploy create-checkout-session
 supabase functions deploy stripe-webhook --no-verify-jwt
