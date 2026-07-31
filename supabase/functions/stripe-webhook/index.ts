@@ -63,7 +63,16 @@ Deno.serve(async (req) => {
     const userId = m.user_id
     const packId = m.pack_id ?? null
     const coins = parseInt(m.coins ?? '0', 10)
-    const bonusCoins = parseInt(m.bonus_coins ?? '0', 10)
+    // 0083で購入ボーナスを廃止した。**廃止をまたいだ決済**(メタデータに
+    // 古い bonus_coins が残っているもの)が届く可能性があるので読み取りは
+    // 残すが、付与には使わない。DB側(credit_coins_for_purchase)でも無視する。
+    const staleBonus = parseInt(m.bonus_coins ?? '0', 10)
+    if (staleBonus > 0) {
+      console.warn('[stripe-webhook] 廃止済みの購入ボーナスを無視しました', {
+        session: session.id,
+        bonus: staleBonus,
+      })
+    }
     const priceYen = parseInt(m.price_yen ?? '0', 10)
 
     if (!userId || !coins) {
@@ -76,7 +85,7 @@ Deno.serve(async (req) => {
       p_user_id: userId,
       p_pack_id: packId,
       p_coins: coins,
-      p_bonus_coins: bonusCoins,
+      p_bonus_coins: 0,
       p_price_yen: priceYen,
       p_session_id: session.id,
       p_payment_intent: (session.payment_intent as string) ?? null,

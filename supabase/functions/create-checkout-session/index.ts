@@ -66,13 +66,12 @@ Deno.serve(async (req) => {
 
     const { data: pack, error: packErr } = await admin
       .from('coin_packs')
-      .select('id, coins, bonus_coins, price_yen, active')
+      .select('id, coins, price_yen, active')
       .eq('id', packId)
       .single()
     if (packErr || !pack || !pack.active) {
       return json({ error: 'pack not found' }, 404)
     }
-    const totalCoins = pack.coins + pack.bonus_coins
 
     // あんしんサポート料。料率はDB(platform_pricing)が権威で、クライアントは関与しない。
     const { data: feeYen, error: feeErr } = await admin.rpc('safety_fee_for', {
@@ -95,11 +94,9 @@ Deno.serve(async (req) => {
             currency: 'jpy',
             unit_amount: pack.price_yen,
             product_data: {
-              name: `ピタフレ コイン ${totalCoins}枚`,
-              description:
-                pack.bonus_coins > 0
-                  ? `${pack.coins} + ボーナス${pack.bonus_coins}コイン`
-                  : `${pack.coins}コイン`,
+              // 0083で購入ボーナスを廃止したので、付与数＝購入数
+              name: `ピタフレ コイン ${pack.coins}枚`,
+              description: `${pack.coins}コイン`,
             },
           },
         },
@@ -156,7 +153,6 @@ Deno.serve(async (req) => {
         user_id: user.id,
         pack_id: pack.id,
         coins: String(pack.coins),
-        bonus_coins: String(pack.bonus_coins),
         price_yen: String(pack.price_yen),
         safety_fee_yen: String(safetyFee),
       },

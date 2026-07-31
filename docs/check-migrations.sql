@@ -77,7 +77,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 居住地の自己申告(規約第3条3項・突合表G4)
     (81, '0081_residency_declaration',   'trigger', 'identity_verifications',    'identity_verifications_require_residency'),
     -- コインの消費順序を期限優先に(弁護士 第3回回答 論点4)
-    (82, '0082_consume_by_expiry',       'funcsrc', 'create_booking',            '_split_coins_by_expiry')
+    (82, '0082_consume_by_expiry',       'funcsrc', 'create_booking',            '_split_coins_by_expiry'),
+    -- 購入ボーナスの廃止(事業判断。法務・税務・資金の3論点が同時に消える)
+    (83, '0083_no_purchase_bonus',    'constraint', 'coin_packs',                'coin_packs_no_bonus_check')
 ),
 checked as (
   select
@@ -101,6 +103,10 @@ checked as (
           and pg_get_functiondef(p.oid) like '%' || e.needle || '%')
       -- 「未ログインから呼べなくなっていること」を確認する種別
       when 'noexec' then not has_function_privilege('anon', 'public.' || e.obj, 'execute')
+      -- 表に検査制約が付いているか(obj=表名, needle=制約名)
+      when 'constraint' then exists (
+        select 1 from pg_constraint c
+        where c.conrelid = ('public.' || e.obj)::regclass and c.conname = e.needle)
       -- 表のコメント(説明文)が期待どおりに書き換わっているか
       when 'tcomment' then coalesce(
         obj_description(('public.' || e.obj)::regclass) like '%' || e.needle || '%', false)
@@ -195,7 +201,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 居住地の自己申告(規約第3条3項・突合表G4)
     (81, '0081_residency_declaration',   'trigger', 'identity_verifications',    'identity_verifications_require_residency'),
     -- コインの消費順序を期限優先に(弁護士 第3回回答 論点4)
-    (82, '0082_consume_by_expiry',       'funcsrc', 'create_booking',            '_split_coins_by_expiry')
+    (82, '0082_consume_by_expiry',       'funcsrc', 'create_booking',            '_split_coins_by_expiry'),
+    -- 購入ボーナスの廃止(事業判断。法務・税務・資金の3論点が同時に消える)
+    (83, '0083_no_purchase_bonus',    'constraint', 'coin_packs',                'coin_packs_no_bonus_check')
 ),
 checked as (
   select e.seq, e.migration,
@@ -212,6 +220,10 @@ checked as (
         where n.nspname = 'public' and p.proname = e.obj
           and pg_get_functiondef(p.oid) like '%' || e.needle || '%')
       when 'noexec' then not has_function_privilege('anon', 'public.' || e.obj, 'execute')
+      -- 表に検査制約が付いているか(obj=表名, needle=制約名)
+      when 'constraint' then exists (
+        select 1 from pg_constraint c
+        where c.conrelid = ('public.' || e.obj)::regclass and c.conname = e.needle)
       -- 表のコメント(説明文)が期待どおりに書き換わっているか
       when 'tcomment' then coalesce(
         obj_description(('public.' || e.obj)::regclass) like '%' || e.needle || '%', false)

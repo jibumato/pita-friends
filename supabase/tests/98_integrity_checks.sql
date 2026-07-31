@@ -139,10 +139,13 @@ update public.coin_wallets set balance = balance - 1000
 \echo '=== 6. 履歴を消すと検知される(台帳の改ざん・欠落を想定) ==='
 -- 0044の保護があるので、破損を模すには明示的な解除が要る
 -- (裏を返せば、うっかりでは起きなくなっている)
+-- 0083で購入ボーナスを廃止したため、'bonus' の行はもう作られない。
+-- 欠落を模す対象を 'purchase' の行に変えた(C4は purchase と bonus の
+-- 合計を見るので、どちらが欠けても検知できるのが正しい)
 set app.ledger_override = 'on';
 delete from public.coin_transactions
   where user_id = 'd0000000-0000-0000-0000-0000000000e2'::uuid
-    and type = 'bonus' and note = 'stripe:sess_integrity_1';
+    and type = 'purchase' and note = 'stripe:sess_integrity_1';
 reset app.ledger_override;
 do $$
 declare v_purchase text; v_ledger text;
@@ -156,7 +159,7 @@ begin
 end $$;
 -- 元に戻す
 insert into public.coin_transactions (user_id, amount, type, note)
-  values ('d0000000-0000-0000-0000-0000000000e2'::uuid, 500, 'bonus', 'stripe:sess_integrity_1');
+  values ('d0000000-0000-0000-0000-0000000000e2'::uuid, 30000, 'purchase', 'stripe:sess_integrity_1');
 
 \echo '=== 7. 換金申請と履歴のズレを検知すること ==='
 set app.ledger_override = 'on';
