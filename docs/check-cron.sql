@@ -63,7 +63,10 @@ jobs(seq, jobname, schedule, purpose, blocker) as (values
       '来なかった相手に満額が渡る'),
   (9, 'auto-resolve-no-show',          '13 * * * *',
       '無断欠席の確定処理(0050)',
-      '保留のまま放置される')
+      '保留のまま放置される'),
+  (10, 'expire-withdrawn-earned',      '31 3 * * *',
+      '退会から90日を過ぎた報酬コインの消滅(0086)',
+      '規約第6条の2第4項の期限が効かない')
 ),
 
 -- ------------------------------------------------------------
@@ -174,6 +177,7 @@ order by sec, seq;
 --   select cron.schedule('prune-ledger-exports',          '47 4 * * 0',  'select public.prune_ledger_exports()');
 --   select cron.schedule('auto-hold-no-show',             '*/5 * * * *', 'select public.auto_hold_no_show_bookings()');
 --   select cron.schedule('auto-resolve-no-show',          '13 * * * *',  'select public.auto_resolve_no_show_bookings()');
+--   select cron.schedule('expire-withdrawn-earned',       '31 3 * * *',  'select public.expire_withdrawn_earned()');
 --
 --   ※ 時刻はUTCではなくDBのタイムゾーン(Supabaseの既定はUTC)で解釈されます。
 --     夜間に寄せているのは、失敗しても翌朝に気づける時間帯にするためです。

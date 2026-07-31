@@ -435,6 +435,16 @@ export default function Settings({ flow }: { flow: Flow }) {
             right={<></>}
           />
           {isBackendConfigured && <ListRow label="ログアウト" onClick={flow.signOut} />}
+          {/* 退会(規約 第6条の2)。**削除の請求とは別物。**
+              退会は契約を終わらせる手続で、報酬コインの換金は90日残る。
+              削除は記録そのものを消す請求なので、下の行に分けてある */}
+          {isBackendConfigured && (
+            <ListRow
+              label="退会する"
+              sub="コインは消滅します。報酬コインの換金は退会後90日まで"
+              onClick={() => flow.go('withdraw')}
+            />
+          )}
           <ListRow
             label={confirmingDelete ? 'もう一度タップで削除を請求' : 'アカウントを削除'}
             danger
