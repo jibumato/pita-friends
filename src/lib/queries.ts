@@ -2125,6 +2125,43 @@ function fileExtension(file: File): string {
  * 判定はできない。画像は審査完了まで一時的に保持され、審査後は運営が
  * 手動で削除する(docs/manual-verification-review.md参照)。
  */
+/**
+ * 居住地の自己申告(規約 第3条3項・突合表G4)。
+ *
+ * 弁護士の整理では**自己申告で足り、実質的な審査は求められない**。
+ * ただし E-4(みまもり同意)と同じ失敗を繰り返さないよう、
+ * **申告を求めた事実と回答を記録する**。画面のチェックだけでは、
+ * 「利用条件として提示した」ことの証跡が残らない。
+ *
+ * ⚠️ 国籍は尋ねない。条文どおり居住地だけを扱う。
+ */
+export const RESIDENCY_VERSION = 'v1'
+
+export async function declareResidency(declaredJapan: boolean): Promise<void> {
+  const { error } = await requireSupabase().rpc('declare_residency', {
+    p_declared_japan: declaredJapan,
+    p_version: RESIDENCY_VERSION,
+  })
+  if (error) throw error
+}
+
+export type ResidencyDeclaration = {
+  declaredJapan: boolean | null
+  version: string | null
+  declaredAt: string | null
+}
+
+export async function fetchMyResidencyDeclaration(): Promise<ResidencyDeclaration> {
+  const { data, error } = await requireSupabase().rpc('my_residency_declaration')
+  if (error) throw error
+  const d = (data ?? {}) as Partial<ResidencyDeclaration>
+  return {
+    declaredJapan: d.declaredJapan ?? null,
+    version: d.version ?? null,
+    declaredAt: d.declaredAt ?? null,
+  }
+}
+
 export async function submitIdentityVerification(
   userId: string,
   documentFile: File,
@@ -2148,7 +2185,16 @@ export async function submitIdentityVerification(
     document_path: documentPath,
     selfie_path: selfiePath,
   })
-  if (error) throw error
+  if (!error) return
+  // 0081 のトリガ。画面側でチェックを必須にしているので通常は出ないが、
+  // 未申告と「いいえ」で文言を変える(前者は操作の案内、後者は利用条件の説明)
+  if (/RESIDENCY_NOT_DECLARED/.test(error.message)) {
+    throw new Error('お住まいの確認にチェックを入れてください')
+  }
+  if (/RESIDENCY_OUTSIDE_JAPAN/.test(error.message)) {
+    throw new Error('ピタフレは日本国内にお住まいの方に限りご利用いただけます')
+  }
+  throw error
 }
 
 export type VerificationStatusInfo = { status: 'pending' | 'verified' | 'rejected'; rejectedReason: string | null } | null
@@ -2554,6 +2600,10 @@ export type AdminPayout = {
   accountNumber: string
   accountHolderKana: string
   isVerified: boolean
+  /** このピタメイトと決済カードを共有している**他の**アカウントの数(0080・E-9) */
+  sharedCardCount: number
+  /** 受け取ったギフトのうち、IPまたはカードの共有で印が付いた件数 */
+  flaggedGiftCount: number
 }
 
 /**
@@ -2578,6 +2628,8 @@ export async function fetchAdminPendingPayouts(): Promise<AdminPayout[]> {
     accountNumber: p.account_number,
     accountHolderKana: p.account_holder_kana,
     isVerified: p.is_verified,
+    sharedCardCount: Number(p.shared_card_count ?? 0),
+    flaggedGiftCount: Number(p.flagged_gift_count ?? 0),
   }))
 }
 

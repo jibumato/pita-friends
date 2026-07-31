@@ -102,6 +102,42 @@ Deno.serve(async (req) => {
       // 付与済みなのに再送され続けることになる。
       if (feeErr) console.error('[stripe-webhook] safety fee record failed', feeErr)
     }
+
+    // ----------------------------------------------------------
+    // 決済カードのフィンガープリントを記録する(0080・E-9)
+    //
+    // 端末IDは消せる、IPは変わる。**カードは同じ実カードである限り
+    // 変わらない**ので、自作自演(自分のカードで買ったコインを別アカウントの
+    // 自分にギフトして換金する)の検知としては最も強い。
+    //
+    // カード番号そのものは受け取らない。Stripe が返す不可逆な
+    // フィンガープリントと、ブランド・下4桁だけを保存する。
+    //
+    // **失敗しても 200 を返す。** ここで 5xx にすると、付与は済んでいるのに
+    // Stripe が再送し続ける。記録が1件欠けるより、そちらのほうが重い。
+    // PayPay 等カード以外の決済では fingerprint が無いので何もしない。
+    // ----------------------------------------------------------
+    try {
+      const piId = session.payment_intent as string | null
+      if (piId) {
+        const pi = await stripe.paymentIntents.retrieve(piId, {
+          expand: ['latest_charge'],
+        })
+        const charge = pi.latest_charge as Stripe.Charge | null
+        const card = charge?.payment_method_details?.card
+        if (card?.fingerprint) {
+          const { error: cardErr } = await admin.rpc('record_payment_card', {
+            p_user_id: userId,
+            p_fingerprint: card.fingerprint,
+            p_brand: card.brand ?? null,
+            p_last4: card.last4 ?? null,
+          })
+          if (cardErr) console.error('[stripe-webhook] card record failed', cardErr)
+        }
+      }
+    } catch (e) {
+      console.error('[stripe-webhook] card fingerprint lookup failed', e)
+    }
   }
 
   // ------------------------------------------------------------
