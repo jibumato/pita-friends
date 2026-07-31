@@ -319,8 +319,9 @@ async function functionErrorMessage(error: unknown, fallback: string): Promise<s
     return error instanceof Error ? error.message : fallback
   }
   let code: string | null = null
+  let body: Record<string, unknown> = {}
   try {
-    const body = (await ctx.clone().json()) as { error?: unknown }
+    body = (await ctx.clone().json()) as Record<string, unknown>
     if (typeof body.error === 'string') code = body.error
   } catch {
     /* 本文がJSONでないこともある。状態コードだけで返す */
@@ -330,6 +331,15 @@ async function functionErrorMessage(error: unknown, fallback: string): Promise<s
     'pack not found': 'このコインパックは現在購入できません',
     'pack_id required': '購入するパックが選ばれていません',
     internal_error: '決済ページを準備できませんでした。時間をおいて試してください',
+  }
+  // 購入上限(規約 第8条の6第5項1号)。**金額を必ず出す。**
+  // 「買えません」だけだと、いくらなら買えるのかが分からない
+  if (code === 'PURCHASE_LIMIT_PER' || code === 'PURCHASE_LIMIT_PERIOD') {
+    const b = body as { limit_yen?: number; remaining_yen?: number; period_days?: number }
+    const yen = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString()}円` : '—')
+    return code === 'PURCHASE_LIMIT_PER'
+      ? `安全のため、ご登録から間もないあいだは1回あたり${yen(b.limit_yen)}までの購入に制限しています（本人確認を済ませると解除されます）`
+      : `安全のため、直近${b.period_days ?? 30}日間の購入は${yen(b.limit_yen)}までに制限しています。あと${yen(b.remaining_yen)}まで購入できます`
   }
   const head = (code && known[code]) || fallback
   return `${head} [${ctx.status}${code ? ` ${code}` : ''}]`
