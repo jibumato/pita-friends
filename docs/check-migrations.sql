@@ -75,7 +75,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- カード共有の検知(E-9)。端末0021・IP0022と揃えて3つ目
     (80, '0080_card_fingerprint_monitoring', 'table', 'user_payment_cards',      null),
     -- 居住地の自己申告(規約第3条3項・突合表G4)
-    (81, '0081_residency_declaration',   'trigger', 'identity_verifications',    'identity_verifications_require_residency')
+    (81, '0081_residency_declaration',   'trigger', 'identity_verifications',    'identity_verifications_require_residency'),
+    -- コインの消費順序を期限優先に(弁護士 第3回回答 論点4)
+    (82, '0082_consume_by_expiry',       'funcsrc', 'create_booking',            '_split_coins_by_expiry')
 ),
 checked as (
   select
@@ -191,7 +193,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- カード共有の検知(E-9)。端末0021・IP0022と揃えて3つ目
     (80, '0080_card_fingerprint_monitoring', 'table', 'user_payment_cards',      null),
     -- 居住地の自己申告(規約第3条3項・突合表G4)
-    (81, '0081_residency_declaration',   'trigger', 'identity_verifications',    'identity_verifications_require_residency')
+    (81, '0081_residency_declaration',   'trigger', 'identity_verifications',    'identity_verifications_require_residency'),
+    -- コインの消費順序を期限優先に(弁護士 第3回回答 論点4)
+    (82, '0082_consume_by_expiry',       'funcsrc', 'create_booking',            '_split_coins_by_expiry')
 ),
 checked as (
   select e.seq, e.migration,
