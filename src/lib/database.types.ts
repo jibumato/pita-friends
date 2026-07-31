@@ -735,6 +735,28 @@ export type Database = {
         Args: { p_host_id: string }
         Returns: { hours: number | null; eligible: boolean }
       }
+      /** 0084: 自分の通知設定。行が無ければ既定値で作ってから返す。 */
+      get_notification_prefs: {
+        Args: Record<string, never>
+        Returns: {
+          notify_invites: boolean
+          notify_online_friends: boolean
+          notify_recommendations: boolean
+        }
+      }
+      /** 0084: 通知設定の変更。null の項目は変更しない。保存後の値を返す。 */
+      set_notification_prefs: {
+        Args: {
+          p_invites?: boolean | null
+          p_online_friends?: boolean | null
+          p_recommendations?: boolean | null
+        }
+        Returns: {
+          notify_invites: boolean
+          notify_online_friends: boolean
+          notify_recommendations: boolean
+        }
+      }
       /** 0056: 自分の「ひとこと」を書き換える。空文字で消える。 */
       set_host_status: {
         Args: { p_text: string }

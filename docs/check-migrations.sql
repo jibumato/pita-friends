@@ -79,7 +79,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- コインの消費順序を期限優先に(弁護士 第3回回答 論点4)
     (82, '0082_consume_by_expiry',       'funcsrc', 'create_booking',            '_split_coins_by_expiry'),
     -- 購入ボーナスの廃止(事業判断。法務・税務・資金の3論点が同時に消える)
-    (83, '0083_no_purchase_bonus',    'constraint', 'coin_packs',                'coin_packs_no_bonus_check')
+    (83, '0083_no_purchase_bonus',    'constraint', 'coin_packs',                'coin_packs_no_bonus_check'),
+    -- 通知設定の行が無いユーザーの救済(設定画面のトグルが無反応だった)
+    (84, '0084_notification_prefs_selfheal', 'funcsrc', 'get_notification_prefs',  'on conflict (user_id) do nothing')
 ),
 checked as (
   select
@@ -203,7 +205,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- コインの消費順序を期限優先に(弁護士 第3回回答 論点4)
     (82, '0082_consume_by_expiry',       'funcsrc', 'create_booking',            '_split_coins_by_expiry'),
     -- 購入ボーナスの廃止(事業判断。法務・税務・資金の3論点が同時に消える)
-    (83, '0083_no_purchase_bonus',    'constraint', 'coin_packs',                'coin_packs_no_bonus_check')
+    (83, '0083_no_purchase_bonus',    'constraint', 'coin_packs',                'coin_packs_no_bonus_check'),
+    -- 通知設定の行が無いユーザーの救済(設定画面のトグルが無反応だった)
+    (84, '0084_notification_prefs_selfheal', 'funcsrc', 'get_notification_prefs',  'on conflict (user_id) do nothing')
 ),
 checked as (
   select e.seq, e.migration,
