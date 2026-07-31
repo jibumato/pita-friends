@@ -87,7 +87,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 退会(規約第6条の2・G6)。退会後90日は報酬コインの換金だけができる
     (86, '0086_account_withdrawal',        'column', 'profiles',                  'withdrawn_at'),
     -- 新規ユーザーの購入上限とコインの出所(規約第8条の6第5項1号・G11前半)
-    (87, '0087_new_user_purchase_limit',   'column', 'coin_lots',                 'purchase_id')
+    (87, '0087_new_user_purchase_limit',   'column', 'coin_lots',                 'purchase_id'),
+    -- チャージバック清算の相殺と、新規原資の換金保留(規約第8条の6・G11後半)
+    (88, '0088_chargeback_offset',          'table', 'chargeback_offsets',        null)
 ),
 checked as (
   select
@@ -219,7 +221,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 退会(規約第6条の2・G6)。退会後90日は報酬コインの換金だけができる
     (86, '0086_account_withdrawal',        'column', 'profiles',                  'withdrawn_at'),
     -- 新規ユーザーの購入上限とコインの出所(規約第8条の6第5項1号・G11前半)
-    (87, '0087_new_user_purchase_limit',   'column', 'coin_lots',                 'purchase_id')
+    (87, '0087_new_user_purchase_limit',   'column', 'coin_lots',                 'purchase_id'),
+    -- チャージバック清算の相殺と、新規原資の換金保留(規約第8条の6・G11後半)
+    (88, '0088_chargeback_offset',          'table', 'chargeback_offsets',        null)
 ),
 checked as (
   select e.seq, e.migration,
