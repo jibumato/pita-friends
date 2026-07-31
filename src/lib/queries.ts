@@ -1153,40 +1153,54 @@ export type NotificationPrefs = {
   notifyRecommendations: boolean
 }
 
-/** 通知の受け取り設定を取得する。 */
-export async function fetchNotificationPrefs(): Promise<NotificationPrefs> {
-  const sb = requireSupabase()
-  const { data: auth } = await sb.auth.getUser()
-  const me = auth.user?.id
-  if (!me) throw new Error('ログインが必要です')
-  const { data, error } = await sb
-    .from('notification_prefs')
-    .select('notify_invites, notify_online_friends, notify_recommendations')
-    .eq('user_id', me)
-    .single()
-  if (error) throw error
+type PrefsRow = {
+  notify_invites?: boolean
+  notify_online_friends?: boolean
+  notify_recommendations?: boolean
+}
+
+function toPrefs(row: unknown): NotificationPrefs {
+  const r = (row ?? {}) as PrefsRow
   return {
-    notifyInvites: data.notify_invites,
-    notifyOnlineFriends: data.notify_online_friends,
-    notifyRecommendations: data.notify_recommendations,
+    notifyInvites: r.notify_invites ?? true,
+    notifyOnlineFriends: r.notify_online_friends ?? true,
+    notifyRecommendations: r.notify_recommendations ?? false,
   }
 }
 
-/** 通知の受け取り設定を更新する。 */
-export async function updateNotificationPrefs(patch: Partial<NotificationPrefs>): Promise<void> {
+/**
+ * 通知の受け取り設定を取得する。
+ *
+ * **表を直接読まない。** notification_prefs の行は 0012 のトリガでしか
+ * 作られないので、0012より前に登録したユーザーには行が無く、
+ * .single() が失敗して設定画面が丸ごと死ぬ。0084 の関数は
+ * 「無ければ作ってから返す」ので、行の有無を画面が気にしなくてよい。
+ */
+export async function fetchNotificationPrefs(): Promise<NotificationPrefs> {
   const sb = requireSupabase()
-  const { data: auth } = await sb.auth.getUser()
-  const me = auth.user?.id
-  if (!me) throw new Error('ログインが必要です')
-  const { error } = await sb
-    .from('notification_prefs')
-    .update({
-      notify_invites: patch.notifyInvites,
-      notify_online_friends: patch.notifyOnlineFriends,
-      notify_recommendations: patch.notifyRecommendations,
-    })
-    .eq('user_id', me)
+  const { data, error } = await sb.rpc('get_notification_prefs')
   if (error) throw error
+  return toPrefs(data)
+}
+
+/**
+ * 通知の受け取り設定を更新する。
+ *
+ * 触ったトグルだけを送る(未指定は変更しない)。3つまとめて送ると、
+ * 別の端末で先に変えた設定を上書きしてしまう。
+ * 戻り値は**保存後の値**なので、画面はこれで状態を作り直す。
+ */
+export async function updateNotificationPrefs(
+  patch: Partial<NotificationPrefs>,
+): Promise<NotificationPrefs> {
+  const sb = requireSupabase()
+  const { data, error } = await sb.rpc('set_notification_prefs', {
+    p_invites: patch.notifyInvites ?? null,
+    p_online_friends: patch.notifyOnlineFriends ?? null,
+    p_recommendations: patch.notifyRecommendations ?? null,
+  })
+  if (error) throw error
+  return toPrefs(data)
 }
 
 /** アカウント削除・データダウンロードの請求を記録する(運営が手動で対応)。 */

@@ -181,10 +181,28 @@ function MonitoringConsentRows() {
   )
 }
 
+/**
+ * 例外からユーザー向けの文言を取り出す。
+ *
+ * **Supabase のエラーは Error のインスタンスではない**(PostgrestError は
+ * ただのオブジェクト)。`e instanceof Error ? e.message : '…'` と書くと、
+ * サーバーが返した理由が全部この既定文言に潰れる。実際、通知設定の不具合は
+ * 「取得に失敗しました」としか出ず、原因(行が無い)が画面から分からなかった。
+ */
+function errText(e: unknown, fallback: string): string {
+  if (e instanceof Error) return e.message
+  if (e && typeof e === 'object' && 'message' in e) {
+    const m = (e as { message?: unknown }).message
+    if (typeof m === 'string' && m) return m
+  }
+  return fallback
+}
+
 export default function Settings({ flow }: { flow: Flow }) {
   const [email, setEmail] = useState<string | null>(null)
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null)
   const [prefsError, setPrefsError] = useState<string | null>(null)
+  const [prefsReloadKey, setPrefsReloadKey] = useState(0)
   const [requestBusy, setRequestBusy] = useState<'data_export' | 'account_deletion' | null>(null)
   const [requestMessage, setRequestMessage] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -196,22 +214,33 @@ export default function Settings({ flow }: { flow: Flow }) {
       if (active) setEmail(data.user?.email ?? null)
     })
     fetchNotificationPrefs()
-      .then((p) => active && setPrefs(p))
-      .catch((e) => active && setPrefsError(e instanceof Error ? e.message : '取得に失敗しました'))
+      .then((p) => {
+        if (!active) return
+        setPrefs(p)
+        setPrefsError(null)
+      })
+      .catch((e) => active && setPrefsError(errText(e, '取得に失敗しました')))
     return () => {
       active = false
     }
-  }, [])
+  }, [prefsReloadKey])
 
   async function togglePref(key: keyof NotificationPrefs) {
-    if (!prefs) return
+    // 読み込めていないときに黙って何もしないと、**押しても無反応**にしか
+    // 見えない。何が起きているかを画面に出す
+    if (!prefs) {
+      setPrefsError('通知設定を読み込めていません。「再読み込み」を押してください')
+      return
+    }
     const next = { ...prefs, [key]: !prefs[key] }
     setPrefs(next)
+    setPrefsError(null)
     try {
-      await updateNotificationPrefs({ [key]: next[key] })
+      // 保存後の値で作り直す(送った値と保存された値をずらさない)
+      setPrefs(await updateNotificationPrefs({ [key]: next[key] }))
     } catch (e) {
       setPrefs(prefs) // 失敗したら元に戻す
-      setPrefsError(e instanceof Error ? e.message : '更新に失敗しました')
+      setPrefsError(errText(e, '更新に失敗しました'))
     }
   }
 
@@ -328,7 +357,33 @@ export default function Settings({ flow }: { flow: Flow }) {
             }
           />
         </Card>
-        {prefsError && <span style={{ fontSize: 10.5, color: C.avatarPink, marginTop: -8 }}>{prefsError}</span>}
+        {prefsError && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: -8,
+            }}
+          >
+            <span style={{ fontSize: 10.5, color: C.avatarPink }}>{prefsError}</span>
+            {/* **やり直す手段を必ず置く。** 通信の失敗は起きる。
+                画面を閉じて開き直す以外に手が無いのは不具合と区別がつかない */}
+            <span
+              style={{
+                fontSize: 11,
+                color: C.lavenderText,
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+              }}
+              onClick={() => setPrefsReloadKey((k) => k + 1)}
+              {...clickable(() => setPrefsReloadKey((k) => k + 1), '通知設定を再読み込み')}
+            >
+              再読み込み
+            </span>
+          </div>
+        )}
 
         <SectionLabel>プライバシー・安全</SectionLabel>
         <Card>
