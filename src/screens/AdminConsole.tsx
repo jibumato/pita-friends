@@ -51,6 +51,9 @@ import {
   fetchAdminChargebackOffsets,
   executeChargebackOffset,
   cancelChargebackOffset,
+  fetchAdminRecentPurchases,
+  voidPurchase,
+  type AdminPurchase,
   type AdminCashRefund,
   type AdminOffsetablePurchase,
   type AdminChargebackOffset,
@@ -1055,7 +1058,16 @@ function RefundsTab({ onChanged }: { onChanged: () => void }) {
 
   if (error) return <ErrorBox>{error}</ErrorBox>
   if (!items) return <Note>読み込み中…</Note>
-  if (items.length === 0) return <Note>未払いの返金はありません。</Note>
+  // **0件でも早期returnしない。** 購入の取消しはここからしか行えないので、
+  // 返金が0件のときに導線ごと消えると運用できなくなる
+  if (items.length === 0)
+    return (
+      <>
+        <Note>未払いの返金はありません。</Note>
+        <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>購入の取消し</span>
+        <VoidPurchaseSection onChanged={onChanged} />
+      </>
+    )
 
   return (
     <>
@@ -1101,6 +1113,114 @@ function RefundsTab({ onChanged }: { onChanged: () => void }) {
               却下する
             </Btn>
           </div>
+        </Card>
+      ))}
+      <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>購入の取消し</span>
+      <VoidPurchaseSection onChanged={onChanged} />
+    </>
+  )
+}
+
+/**
+ * 購入の取消し(規約 第7条の3第5項・税理士 第2回回答 Q14(c))。
+ *
+ * 未成年者取消しの申出や誤課金など、**当社が自ら購入を取り消す**場面。
+ * チャージバックはカード会社が決済ごと戻すので、ここには出しません
+ * （出すと二重返金になります）。
+ */
+function VoidPurchaseSection({ onChanged }: { onChanged: () => void }) {
+  const { items, error, reload } = useList<AdminPurchase>(
+    () => fetchAdminRecentPurchases(20),
+    [],
+  )
+  const [reason, setReason] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  async function run(id: string) {
+    if (busy) return
+    setBusy(true)
+    setErr(null)
+    setMsg(null)
+    try {
+      const r = await voidPurchase(id, reason[id] ?? '')
+      setReason((x) => ({ ...x, [id]: '' }))
+      setMsg(
+        `取り消しました。未使用${r.voidedCoins.toLocaleString()}コインを消し、` +
+          `¥${r.refundYen.toLocaleString()}（うちサポート料 ¥${r.feeYen.toLocaleString()}）を返金債務に立てました`,
+      )
+      reload()
+      onChanged()
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : ''
+      setErr(
+        {
+          REASON_REQUIRED: '取消しの理由は必須です',
+          ALREADY_VOIDED: 'すでに取り消されています',
+          HAS_DISPUTE:
+            'この購入は異議申立て（チャージバック）があります。カード会社が決済ごと戻すため、ここで取り消すと二重返金になります',
+        }[raw] ?? raw ?? '取消しに失敗しました',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (error) return <ErrorBox>{error}</ErrorBox>
+  if (!items) return <Note>読み込み中…</Note>
+
+  const targets = items.filter((p) => !p.voidedAt)
+  if (targets.length === 0) return <Note>取り消せる購入はありません。</Note>
+
+  return (
+    <>
+      <Note>
+        <b style={{ color: C.ink }}>未成年者取消しの申出・誤課金</b>
+        など、当社から購入を取り消す場合はここから行います。
+        <br />
+        取り消すと、<b style={{ color: C.ink }}>未使用コインが消え</b>、
+        <b style={{ color: C.ink }}>コイン代金とあんしんサポート料の両方</b>
+        が上の返金一覧に入ります（利用規約 第7条の3第5項）。
+        <br />
+        ⚠️ チャージバックがある購入は<b style={{ color: C.ink }}>二重返金</b>
+        になるため取り消せません。
+      </Note>
+      {err && <ErrorBox>{err}</ErrorBox>}
+      {msg && <Note>{msg}</Note>}
+      {targets.map((p) => (
+        <Card key={p.purchaseId} alert={p.hasDispute}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontSize: 12.5, color: C.ink }}>{p.nickname ?? '(名前なし)'}</span>
+            <span style={{ fontSize: 12, color: C.muted, flex: 'none' }}>
+              ¥{(p.priceYen + p.safetyFeeYen).toLocaleString()}
+            </span>
+          </div>
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+            {p.coins.toLocaleString()}コイン（未使用 {p.unusedCoins.toLocaleString()}） /{' '}
+            コイン代金 ¥{p.priceYen.toLocaleString()} / サポート料 ¥
+            {p.safetyFeeYen.toLocaleString()}
+            <br />
+            {jst(p.createdAt)}
+            {p.hasDispute && (
+              <>
+                <br />
+                <b style={{ color: '#E5484D' }}>異議申立てあり（取り消せません）</b>
+              </>
+            )}
+          </span>
+          {!p.hasDispute && (
+            <>
+              <Field
+                value={reason[p.purchaseId] ?? ''}
+                onChange={(v) => setReason((x) => ({ ...x, [p.purchaseId]: v }))}
+                placeholder="取消しの理由（必須）例: 未成年者取消しの申出を受領"
+              />
+              <Btn disabled={busy} onClick={() => void run(p.purchaseId)}>
+                この購入を取り消す
+              </Btn>
+            </>
+          )}
         </Card>
       ))}
     </>

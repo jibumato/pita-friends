@@ -91,7 +91,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- チャージバック清算の相殺と、新規原資の換金保留(規約第8条の6・G11後半)
     (88, '0088_chargeback_offset',          'table', 'chargeback_offsets',        null),
     -- 失効の事前通知・期限の表示(G7)と申出の期間制限(G9)
-    (89, '0089_expiry_notice_and_claim_window', 'column', 'coin_lots',            'expiry_notified_at')
+    (89, '0089_expiry_notice_and_claim_window', 'column', 'coin_lots',            'expiry_notified_at'),
+    -- 購入の取消しとサポート料の返還(規約第7条の3第5項・税理士Q14(c)・G5)
+    (90, '0090_void_purchase_refund',        'table', 'purchase_voids',           null)
 ),
 checked as (
   select
@@ -227,7 +229,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- チャージバック清算の相殺と、新規原資の換金保留(規約第8条の6・G11後半)
     (88, '0088_chargeback_offset',          'table', 'chargeback_offsets',        null),
     -- 失効の事前通知・期限の表示(G7)と申出の期間制限(G9)
-    (89, '0089_expiry_notice_and_claim_window', 'column', 'coin_lots',            'expiry_notified_at')
+    (89, '0089_expiry_notice_and_claim_window', 'column', 'coin_lots',            'expiry_notified_at'),
+    -- 購入の取消しとサポート料の返還(規約第7条の3第5項・税理士Q14(c)・G5)
+    (90, '0090_void_purchase_refund',        'table', 'purchase_voids',           null)
 ),
 checked as (
   select e.seq, e.migration,

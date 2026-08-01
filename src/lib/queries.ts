@@ -3244,3 +3244,61 @@ export async function fetchMyCoinExpiry(): Promise<CoinExpiry[]> {
     daysLeft: Number(r.days_left ?? 0),
   }))
 }
+
+/* ============================================================
+ * 運営: 購入の取消し(規約 第7条の3第5項)。schema: 0090。
+ * ============================================================ */
+
+export type AdminPurchase = {
+  purchaseId: string
+  userId: string
+  nickname: string | null
+  coins: number
+  priceYen: number
+  safetyFeeYen: number
+  createdAt: string
+  voidedAt: string | null
+  hasDispute: boolean
+  unusedCoins: number
+}
+
+export async function fetchAdminRecentPurchases(limit = 30): Promise<AdminPurchase[]> {
+  const { data, error } = await requireSupabase().rpc('admin_recent_purchases', {
+    p_limit: limit,
+  })
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((p) => ({
+    purchaseId: String(p.purchase_id),
+    userId: String(p.user_id),
+    nickname: (p.nickname as string) ?? null,
+    coins: Number(p.coins ?? 0),
+    priceYen: Number(p.price_yen ?? 0),
+    safetyFeeYen: Number(p.safety_fee_yen ?? 0),
+    createdAt: String(p.created_at),
+    voidedAt: (p.voided_at as string) ?? null,
+    hasDispute: Boolean(p.has_dispute),
+    unusedCoins: Number(p.unused_coins ?? 0),
+  }))
+}
+
+/**
+ * 購入を取り消す。未使用コインが消え、**コイン代金とあんしんサポート料**が
+ * 金銭返金の債務になる(規約 第7条の3第5項・税理士Q14(c))。
+ * チャージバックがある購入は二重返金になるので拒否される。
+ */
+export async function voidPurchase(
+  purchaseId: string,
+  reason: string,
+): Promise<{ voidedCoins: number; refundYen: number; feeYen: number }> {
+  const { data, error } = await requireSupabase().rpc('admin_void_purchase', {
+    p_purchase_id: purchaseId,
+    p_reason: reason,
+  })
+  if (error) throw error
+  const r = (data ?? {}) as Record<string, unknown>
+  return {
+    voidedCoins: Number(r.voided_coins ?? 0),
+    refundYen: Number(r.refund_yen ?? 0),
+    feeYen: Number(r.fee_yen ?? 0),
+  }
+}
