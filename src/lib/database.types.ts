@@ -735,6 +735,13 @@ export type Database = {
         Args: { p_host_id: string }
         Returns: { hours: number | null; eligible: boolean }
       }
+      /** 0090: 直近の購入(運営)。 */
+      admin_recent_purchases: { Args: { p_limit?: number }; Returns: unknown }
+      /** 0090: 購入を取り消し、代金とサポート料を返金債務にする(運営)。 */
+      admin_void_purchase: {
+        Args: { p_purchase_id: string; p_reason: string }
+        Returns: { voided_coins: number; refund_yen: number; fee_yen: number }
+      }
       /** 0085: 未払いの金銭返金の一覧(運営)。 */
       admin_pending_cash_refunds: { Args: Record<string, never>; Returns: unknown }
       /** 0085: 金銭返金を支払済み/却下にする(運営)。 */
