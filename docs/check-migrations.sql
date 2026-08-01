@@ -89,7 +89,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 新規ユーザーの購入上限とコインの出所(規約第8条の6第5項1号・G11前半)
     (87, '0087_new_user_purchase_limit',   'column', 'coin_lots',                 'purchase_id'),
     -- チャージバック清算の相殺と、新規原資の換金保留(規約第8条の6・G11後半)
-    (88, '0088_chargeback_offset',          'table', 'chargeback_offsets',        null)
+    (88, '0088_chargeback_offset',          'table', 'chargeback_offsets',        null),
+    -- 失効の事前通知・期限の表示(G7)と申出の期間制限(G9)
+    (89, '0089_expiry_notice_and_claim_window', 'column', 'coin_lots',            'expiry_notified_at')
 ),
 checked as (
   select
@@ -223,7 +225,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 新規ユーザーの購入上限とコインの出所(規約第8条の6第5項1号・G11前半)
     (87, '0087_new_user_purchase_limit',   'column', 'coin_lots',                 'purchase_id'),
     -- チャージバック清算の相殺と、新規原資の換金保留(規約第8条の6・G11後半)
-    (88, '0088_chargeback_offset',          'table', 'chargeback_offsets',        null)
+    (88, '0088_chargeback_offset',          'table', 'chargeback_offsets',        null),
+    -- 失効の事前通知・期限の表示(G7)と申出の期間制限(G9)
+    (89, '0089_expiry_notice_and_claim_window', 'column', 'coin_lots',            'expiry_notified_at')
 ),
 checked as (
   select e.seq, e.migration,

@@ -44,6 +44,16 @@ import {
   type AdminHealth,
   type AdminAction,
   fetchAdminDisputes,
+  fetchAdminCashRefunds,
+  resolveCashRefund,
+  fetchAdminOffsetablePurchases,
+  notifyChargebackOffset,
+  fetchAdminChargebackOffsets,
+  executeChargebackOffset,
+  cancelChargebackOffset,
+  type AdminCashRefund,
+  type AdminOffsetablePurchase,
+  type AdminChargebackOffset,
   resolveDispute,
   type AdminDispute,
   fetchAccountingBalances,
@@ -65,6 +75,8 @@ type Tab =
   | 'payouts'
   | 'requests'
   | 'disputes'
+  | 'refunds'
+  | 'offsets'
   | 'accounting'
   | 'health'
   | 'log'
@@ -76,6 +88,8 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'payouts', label: '換金' },
   { key: 'requests', label: '請求' },
   { key: 'disputes', label: '異議申立て' },
+  { key: 'refunds', label: '返金' },
+  { key: 'offsets', label: '相殺' },
   { key: 'accounting', label: '会計' },
   { key: 'health', label: '健全性' },
   { key: 'log', label: '操作記録' },
@@ -165,6 +179,8 @@ export default function AdminConsole({ flow }: { flow: Flow }) {
         {tab === 'payouts' && <PayoutsTab onChanged={loadSummary} />}
         {tab === 'requests' && <RequestsTab onChanged={loadSummary} />}
         {tab === 'disputes' && <DisputesTab />}
+        {tab === 'refunds' && <RefundsTab onChanged={loadSummary} />}
+        {tab === 'offsets' && <OffsetsTab onChanged={loadSummary} />}
         {tab === 'accounting' && <AccountingTab />}
         {tab === 'health' && <HealthTab />}
         {tab === 'log' && <LogTab />}
@@ -1009,9 +1025,278 @@ function DisputesTab() {
   )
 }
 
+
+// ------------------------------------------------------------
+// 返金(規約 第9条5の3・0085)
+// ------------------------------------------------------------
+
+function RefundsTab({ onChanged }: { onChanged: () => void }) {
+  const { items, error, reload } = useList<AdminCashRefund>(fetchAdminCashRefunds, [])
+  const [note, setNote] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function run(id: string, status: 'paid' | 'rejected') {
+    if (busy) return
+    setBusy(true)
+    setErr(null)
+    try {
+      await resolveCashRefund(id, status, note[id] ?? '')
+      setNote((n) => ({ ...n, [id]: '' }))
+      reload()
+      onChanged()
+    } catch (e) {
+      const m = e instanceof Error ? e.message : ''
+      setErr(m === 'NOTE_REQUIRED' ? '却下するときは理由が必須です' : m || '処理に失敗しました')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (error) return <ErrorBox>{error}</ErrorBox>
+  if (!items) return <Note>読み込み中…</Note>
+  if (items.length === 0) return <Note>未払いの返金はありません。</Note>
+
+  return (
+    <>
+      <Note>
+        <b style={{ color: C.ink }}>お客様に落ち度のないキャンセル</b>
+        で、有効期限切れによりコインをお戻しできなかった分です（利用規約 第9条5の3）。
+        <br />
+        1コイン = 1円で、<b style={{ color: C.ink }}>お振込みは手作業</b>です。
+        振り込んでから「支払済みにする」を押してください。
+        <br />
+        却下は理由が必須です（後から説明を求められる操作のため）。
+      </Note>
+      {err && <ErrorBox>{err}</ErrorBox>}
+      {items.map((r) => (
+        <Card key={r.id}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontSize: 12.5, color: C.ink }}>{r.nickname ?? '(名前なし)'}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.ink, flex: 'none' }}>
+              ¥{r.amountYen.toLocaleString()}
+            </span>
+          </div>
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+            {r.coins.toLocaleString()}コインが失効 / 事由: {causeLabel(r.cause)} / {jst(r.createdAt)}
+            <br />
+            ユーザーID: {r.userId}
+            {r.bookingId && (
+              <>
+                <br />
+                予約: {r.bookingId}
+              </>
+            )}
+          </span>
+          <Field
+            value={note[r.id] ?? ''}
+            onChange={(v) => setNote((n) => ({ ...n, [r.id]: v }))}
+            placeholder="メモ 例: 2026-08-05 ゆうちょ宛に振込 / 却下の場合は理由（必須）"
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn disabled={busy} onClick={() => void run(r.id, 'paid')}>
+              支払済みにする
+            </Btn>
+            <Btn disabled={busy} onClick={() => void run(r.id, 'rejected')}>
+              却下する
+            </Btn>
+          </div>
+        </Card>
+      ))}
+    </>
+  )
+}
+
+function causeLabel(cause: string): string {
+  return (
+    {
+      host_fault: 'ピタメイト都合',
+      host_no_show: '無断欠席',
+      support: '申出対応',
+      system: 'システム障害',
+    }[cause] ?? cause
+  )
+}
+
+// ------------------------------------------------------------
+// 相殺(規約 第8条の6・0088)
+// ------------------------------------------------------------
+
+function OffsetsTab({ onChanged }: { onChanged: () => void }) {
+  const purchases = useList<AdminOffsetablePurchase>(fetchAdminOffsetablePurchases, [])
+  const offsets = useList<AdminChargebackOffset>(fetchAdminChargebackOffsets, [])
+  const [note, setNote] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  function reloadAll() {
+    purchases.reload()
+    offsets.reload()
+    onChanged()
+  }
+
+  async function act(fn: () => Promise<string | null>) {
+    if (busy) return
+    setBusy(true)
+    setErr(null)
+    setMsg(null)
+    try {
+      const m = await fn()
+      if (m) setMsg(m)
+      reloadAll()
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : ''
+      setErr(
+        {
+          PURCHASE_NOT_LOST: 'この購入は異議が成立していません（当社が損失を負担していない取引は対象外です）',
+          OBJECTION_PERIOD_OPEN: '異議を述べる期間がまだ終わっていません',
+          NOTE_REQUIRED_AFTER_OBJECTION: '異議が出ています。判断の理由を書いてください',
+          NOTE_REQUIRED: '理由は必須です',
+          NOT_PENDING: 'すでに処理済みです',
+        }[raw] ?? raw ?? '処理に失敗しました',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (purchases.error) return <ErrorBox>{purchases.error}</ErrorBox>
+
+  return (
+    <>
+      <Note>
+        カード決済の<b style={{ color: C.ink }}>異議申立てが成立した（lost）</b>
+        購入について、その決済で支払われた分をピタメイトの
+        <b style={{ color: C.ink }}>未払の報酬コインから控除</b>できます（利用規約 第8条の6）。
+        <br />
+        手順は3段です。<b style={{ color: C.ink }}>①予告 → ②異議の機会（7日） → ③実行</b>。
+        予告の時点では1コインも引きません。
+        <br />
+        ⚠️ 引けるのは<b style={{ color: C.ink }}>未払の分だけ</b>です。振込済みの金銭は請求しません。
+      </Note>
+      {err && <ErrorBox>{err}</ErrorBox>}
+      {msg && <Note>{msg}</Note>}
+
+      <span style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>① 予告する</span>
+      {!purchases.items ? (
+        <Note>読み込み中…</Note>
+      ) : purchases.items.length === 0 ? (
+        <Note>異議が成立した購入はありません。</Note>
+      ) : (
+        purchases.items.map((p) => (
+          <Card key={p.purchaseId}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12.5, color: C.ink }}>{p.nickname ?? '(名前なし)'}</span>
+              <span style={{ fontSize: 12, color: C.muted, flex: 'none' }}>
+                ¥{p.priceYen.toLocaleString()}
+              </span>
+            </div>
+            <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+              異議の成立: {jst(p.disputedAt)}
+              <br />
+              控除できる取引: {p.candidateCount}件 / 合計{p.candidateCoins.toLocaleString()}コイン
+              {p.notifiedCount > 0 && <> ／ 予告済み {p.notifiedCount}件</>}
+            </span>
+            <Btn
+              disabled={busy || p.candidateCount === 0 || p.candidateCount === p.notifiedCount}
+              onClick={() =>
+                void act(async () => {
+                  const n = await notifyChargebackOffset(p.purchaseId)
+                  return `${n}件に控除を予告しました（実行は7日後から）`
+                })
+              }
+            >
+              {p.candidateCount === 0
+                ? '控除できる取引がありません'
+                : p.candidateCount === p.notifiedCount
+                  ? '予告済み'
+                  : '控除を予告する'}
+            </Btn>
+          </Card>
+        ))
+      )}
+
+      <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>②③ 予告した控除</span>
+      {!offsets.items ? (
+        <Note>読み込み中…</Note>
+      ) : offsets.items.length === 0 ? (
+        <Note>予告した控除はありません。</Note>
+      ) : (
+        offsets.items.map((o) => {
+          const open = new Date(o.objectionDeadline).getTime() > Date.now()
+          return (
+            <Card key={o.id} alert={o.objectedAt != null && o.status === 'notified'}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ fontSize: 12.5, color: C.ink }}>{o.nickname ?? '(名前なし)'}</span>
+                <span style={{ fontSize: 11, color: C.muted, flex: 'none' }}>
+                  {o.status === 'executed' ? '控除済み' : open ? '異議期間中' : '実行できます'}
+                </span>
+              </div>
+              <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+                対象 {o.coins.toLocaleString()}コイン / 未払の報酬{' '}
+                {o.unpaidEarned.toLocaleString()}コイン
+                {o.status === 'executed' && (
+                  <> ／ 実際に控除 {(o.executedCoins ?? 0).toLocaleString()}コイン</>
+                )}
+                <br />
+                予告 {jst(o.notifiedAt)} / 異議の期限 {jst(o.objectionDeadline)}
+                {o.objectedAt && (
+                  <>
+                    <br />
+                    <b style={{ color: '#E5484D' }}>
+                      異議あり（{jst(o.objectedAt)}）: {o.objectionNote}
+                    </b>
+                  </>
+                )}
+              </span>
+              {o.status === 'notified' && (
+                <>
+                  <Field
+                    value={note[o.id] ?? ''}
+                    onChange={(v) => setNote((n) => ({ ...n, [o.id]: v }))}
+                    placeholder="判断の理由（異議が出ている場合は必須）"
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Btn
+                      disabled={busy || open}
+                      onClick={() =>
+                        void act(async () => {
+                          const n = await executeChargebackOffset(o.id, note[o.id] ?? '')
+                          setNote((x) => ({ ...x, [o.id]: '' }))
+                          return `${n}コインを控除しました`
+                        })
+                      }
+                    >
+                      控除を実行する
+                    </Btn>
+                    <Btn
+                      disabled={busy}
+                      onClick={() =>
+                        void act(async () => {
+                          await cancelChargebackOffset(o.id, note[o.id] ?? '')
+                          setNote((x) => ({ ...x, [o.id]: '' }))
+                          return '控除を取りやめました'
+                        })
+                      }
+                    >
+                      取りやめる
+                    </Btn>
+                  </div>
+                </>
+              )}
+            </Card>
+          )
+        })
+      )}
+    </>
+  )
+}
+
 // ------------------------------------------------------------
 // 健全性
 // ------------------------------------------------------------
+
 
 function HealthTab() {
   const [h, setH] = useState<AdminHealth | null>(null)

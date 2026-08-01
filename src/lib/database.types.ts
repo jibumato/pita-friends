@@ -735,6 +735,34 @@ export type Database = {
         Args: { p_host_id: string }
         Returns: { hours: number | null; eligible: boolean }
       }
+      /** 0085: 未払いの金銭返金の一覧(運営)。 */
+      admin_pending_cash_refunds: { Args: Record<string, never>; Returns: unknown }
+      /** 0085: 金銭返金を支払済み/却下にする(運営)。 */
+      admin_resolve_cash_refund: {
+        Args: { p_id: string; p_status: string; p_note?: string | null }
+        Returns: undefined
+      }
+      /** 0089: 相殺を起こせる購入(異議が成立したもの)。 */
+      admin_offsetable_purchases: { Args: Record<string, never>; Returns: unknown }
+      /** 0089: 予告済み・実行済みの相殺の一覧。 */
+      admin_chargeback_offsets: { Args: Record<string, never>; Returns: unknown }
+      /** 0088: 控除を予告する(引かない)。 */
+      chargeback_offset_notify: {
+        Args: { p_purchase_id: string; p_objection_days?: number }
+        Returns: number
+      }
+      /** 0088: 控除を実行する。戻り値は実際に引けた枚数。 */
+      chargeback_offset_execute: {
+        Args: { p_id: string; p_note?: string | null }
+        Returns: number
+      }
+      /** 0088: 控除を取りやめる。 */
+      chargeback_offset_cancel: { Args: { p_id: string; p_note: string }; Returns: undefined }
+      /** 0089: 自分のコインを有効期限ごとに。 */
+      my_coin_expiry: {
+        Args: Record<string, never>
+        Returns: { expires_at: string; kind: string; coins: number; days_left: number }
+      }
       /** 0086: 退会の画面に出す材料(消えるコイン数・換金の期限)。 */
       withdrawal_preview: {
         Args: Record<string, never>
