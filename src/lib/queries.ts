@@ -3302,3 +3302,61 @@ export async function voidPurchase(
     feeYen: Number(r.fee_yen ?? 0),
   }
 }
+
+/* ============================================================
+ * 運営: 料率の変更(規約 第8条の2第4項・5項)。schema: 0091。
+ * ============================================================ */
+
+export type FeeTier = { upperBound: number | null; percent: number }
+
+export type AdminFeeSchedule = {
+  effectiveFrom: string
+  isCurrent: boolean
+  isFuture: boolean
+  reason: string | null
+  announcedAt: string | null
+  notifiedHosts: number | null
+  bookingTiers: FeeTier[]
+  giftPercent: number | null
+}
+
+export async function fetchAdminFeeSchedules(): Promise<AdminFeeSchedule[]> {
+  const { data, error } = await requireSupabase().rpc('admin_fee_schedules', {})
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((s) => ({
+    effectiveFrom: String(s.effective_from),
+    isCurrent: Boolean(s.is_current),
+    isFuture: Boolean(s.is_future),
+    reason: (s.reason as string) ?? null,
+    announcedAt: (s.announced_at as string) ?? null,
+    notifiedHosts: (s.notified_hosts as number) ?? null,
+    bookingTiers: (s.booking_tiers as FeeTier[]) ?? [],
+    giftPercent: (s.gift_percent as number) ?? null,
+  }))
+}
+
+/**
+ * 料率の変更を予約する(規約 第8条の2第4項)。
+ * **30日以上先の日付でしか登録できず**、登録と同時にピタメイト全員へ
+ * 個別通知が飛ぶ。変更前に成立した予約には旧料率が適用される(5項)。
+ */
+export async function scheduleFeeChange(
+  effectiveFrom: string,
+  reason: string,
+  bookingTiers: FeeTier[],
+  giftPercent: number,
+): Promise<{ effectiveFrom: string; tiers: number; notifiedHosts: number }> {
+  const { data, error } = await requireSupabase().rpc('admin_schedule_fee_change', {
+    p_effective_from: effectiveFrom,
+    p_reason: reason,
+    p_booking_tiers: bookingTiers,
+    p_gift_percent: giftPercent,
+  })
+  if (error) throw error
+  const r = (data ?? {}) as Record<string, unknown>
+  return {
+    effectiveFrom: String(r.effective_from ?? effectiveFrom),
+    tiers: Number(r.tiers ?? 0),
+    notifiedHosts: Number(r.notified_hosts ?? 0),
+  }
+}

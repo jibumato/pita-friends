@@ -735,6 +735,18 @@ export type Database = {
         Args: { p_host_id: string }
         Returns: { hours: number | null; eligible: boolean }
       }
+      /** 0091: 料率の予定表(運営)。 */
+      admin_fee_schedules: { Args: Record<string, never>; Returns: unknown }
+      /** 0091: 料率の変更を予約する(運営)。30日以上先のみ。 */
+      admin_schedule_fee_change: {
+        Args: {
+          p_effective_from: string
+          p_reason: string
+          p_booking_tiers: unknown
+          p_gift_percent: number
+        }
+        Returns: { effective_from: string; tiers: number; notified_hosts: number }
+      }
       /** 0090: 直近の購入(運営)。 */
       admin_recent_purchases: { Args: { p_limit?: number }; Returns: unknown }
       /** 0090: 購入を取り消し、代金とサポート料を返金債務にする(運営)。 */
