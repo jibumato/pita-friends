@@ -37,13 +37,18 @@ begin
            least(greatest(round(1000 * 0.35)::int, 0), 1000) as fee_coins,
            0.35::numeric as applied_rate
   ) t;
-  -- 実装側の定数を関数定義から読み取って照合する
-  if pg_get_functiondef('public._apply_gift_fee()'::regprocedure) not like '%0.35%' then
-    raise exception 'FAIL: ギフト手数料が0.35でない';
+  -- 0091: 定数から表(gift_fee_rates)に移した。**関数の中身ではなく
+  -- 実際に適用される値**を見る。こちらのほうが本当に確かめたいこと
+  if public.gift_fee_rate(now()) <> 0.350 then
+    raise exception 'FAIL: ギフト手数料が0.35でない(%)', public.gift_fee_rate(now());
   end if;
-  if pg_get_functiondef('public._apply_gift_fee()'::regprocedure) like '%0.30%' then
-    raise exception 'FAIL: 旧料率(0.30)が残っている';
-  end if;
+  -- 規約 第8条の2第3の2項の上限(40%)を越えられないこと
+  begin
+    insert into public.gift_fee_rates (effective_from, rate) values ('2031-01-01', 0.450);
+    raise exception 'FAIL: ギフトの率が40%%を越えられる';
+  exception when check_violation then
+    null;
+  end;
 end $$;
 
 \echo '=== 2. 最低換金額は5,000コイン ==='

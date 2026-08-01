@@ -52,6 +52,10 @@ import {
   executeChargebackOffset,
   cancelChargebackOffset,
   fetchAdminRecentPurchases,
+  fetchAdminFeeSchedules,
+  scheduleFeeChange,
+  type AdminFeeSchedule,
+  type FeeTier,
   voidPurchase,
   type AdminPurchase,
   type AdminCashRefund,
@@ -80,6 +84,7 @@ type Tab =
   | 'disputes'
   | 'refunds'
   | 'offsets'
+  | 'fees'
   | 'accounting'
   | 'health'
   | 'log'
@@ -93,6 +98,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'disputes', label: '異議申立て' },
   { key: 'refunds', label: '返金' },
   { key: 'offsets', label: '相殺' },
+  { key: 'fees', label: '料率' },
   { key: 'accounting', label: '会計' },
   { key: 'health', label: '健全性' },
   { key: 'log', label: '操作記録' },
@@ -184,6 +190,7 @@ export default function AdminConsole({ flow }: { flow: Flow }) {
         {tab === 'disputes' && <DisputesTab />}
         {tab === 'refunds' && <RefundsTab onChanged={loadSummary} />}
         {tab === 'offsets' && <OffsetsTab onChanged={loadSummary} />}
+        {tab === 'fees' && <FeesTab />}
         {tab === 'accounting' && <AccountingTab />}
         {tab === 'health' && <HealthTab />}
         {tab === 'log' && <LogTab />}
@@ -1413,9 +1420,170 @@ function OffsetsTab({ onChanged }: { onChanged: () => void }) {
   )
 }
 
+
+// ------------------------------------------------------------
+// 料率(規約 第8条の2)
+// ------------------------------------------------------------
+
+/**
+ * 料率の変更は**30日以上先の日付でしか予約できません**（第4項）。
+ * 変更前に成立した予約・ギフトには旧料率が適用されます（第5項）ので、
+ * 「いつからの率か」を持たせた予定表として扱います。
+ */
+function FeesTab() {
+  const { items, error, reload } = useList<AdminFeeSchedule>(fetchAdminFeeSchedules, [])
+  const [date, setDate] = useState('')
+  const [reason, setReason] = useState('')
+  const [tiersText, setTiersText] = useState('')
+  const [giftText, setGiftText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  const current = items?.find((s) => s.isCurrent)
+
+  function tiersLabel(t: FeeTier[]): string {
+    return t
+      .map((x) => `${x.upperBound ? `〜${x.upperBound.toLocaleString()}` : 'それ以上'}: ${x.percent}%`)
+      .join(' / ')
+  }
+
+  async function run() {
+    if (busy) return
+    setBusy(true)
+    setErr(null)
+    setMsg(null)
+    try {
+      // 「〜30000:25, それ以上:20」のような入力を素直に受ける。
+      // **段の数は変えられるべき**なので、固定のフォームにしない
+      const tiers: FeeTier[] = tiersText
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => {
+          const [bound, pct] = s.split(':').map((x) => x.trim())
+          return {
+            upperBound: /^\d+$/.test(bound) ? Number(bound) : null,
+            percent: Number(pct),
+          }
+        })
+      if (tiers.length === 0 || tiers.some((t) => !Number.isFinite(t.percent))) {
+        throw new Error('段の書き方が違います。例: 30000:25, -:20')
+      }
+      const r = await scheduleFeeChange(
+        new Date(date).toISOString(),
+        reason,
+        tiers,
+        Number(giftText),
+      )
+      setMsg(
+        `${new Date(r.effectiveFrom).toLocaleDateString('ja-JP')}からの変更を予約し、` +
+          `${r.notifiedHosts}名のピタメイトへ個別に通知しました`,
+      )
+      setDate('')
+      setReason('')
+      setTiersText('')
+      setGiftText('')
+      reload()
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : ''
+      setErr(
+        {
+          NOTICE_PERIOD_TOO_SHORT: '変更は30日以上先の日付でしか予約できません（規約 第8条の2第4項）',
+          REASON_REQUIRED: '変更の理由は必須です（第4項が「理由を明らかにして」と定めています）',
+          BOOKING_RATE_OVER_CAP: '予約の率は30%を超えられません（第3の2項）',
+          GIFT_RATE_OVER_CAP: 'ギフトの率は40%を超えられません（第3の2項）',
+          ALREADY_SCHEDULED: 'その施行日はすでに登録されています',
+          TIERS_REQUIRED: '段を1つ以上入れてください',
+        }[raw] ?? raw ?? '登録に失敗しました',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (error) return <ErrorBox>{error}</ErrorBox>
+  if (!items) return <Note>読み込み中…</Note>
+
+  return (
+    <>
+      <Note>
+        料率の変更は<b style={{ color: C.ink }}>30日以上先の日付でしか予約できません</b>
+        （利用規約 第8条の2第4項）。登録すると、
+        <b style={{ color: C.ink }}>ピタメイト全員へ個別に通知</b>が飛びます。
+        <br />
+        <b style={{ color: C.ink }}>変更前に成立した予約・ギフトには旧料率がそのまま適用されます</b>
+        （第5項）。過去の組は消さないでください。
+        <br />
+        上限は予約30% / ギフト40%（第3の2項）。これはDBの制約でも止まります。
+      </Note>
+      {err && <ErrorBox>{err}</ErrorBox>}
+      {msg && <Note>{msg}</Note>}
+
+      <span style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>変更を予約する</span>
+      <Card>
+        <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+          施行日（30日以上先）。例: 2026-10-01
+        </span>
+        <Field value={date} onChange={setDate} placeholder="2026-10-01" />
+        <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+          予約の段（カンマ区切り。「上限:率」。上限なしは -）
+          <br />
+          例: 30000:20, 100000:17, 300000:14, -:12
+          {current && <> ／ 現在: {tiersLabel(current.bookingTiers)}</>}
+        </span>
+        <Field
+          value={tiersText}
+          onChange={setTiersText}
+          placeholder="30000:20, 100000:17, 300000:14, -:12"
+        />
+        <span style={{ fontSize: 10.5, color: C.muted }}>
+          ギフトの率（%）{current?.giftPercent != null && <> ／ 現在: {current.giftPercent}%</>}
+        </span>
+        <Field value={giftText} onChange={setGiftText} placeholder="35" />
+        <span style={{ fontSize: 10.5, color: C.muted }}>変更の理由（必須・通知にそのまま載ります）</span>
+        <Field value={reason} onChange={setReason} placeholder="例: 決済手数料の上昇のため" />
+        <Btn disabled={busy} onClick={() => void run()}>
+          この内容で予約し、全ピタメイトへ通知する
+        </Btn>
+      </Card>
+
+      <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>料率の予定表</span>
+      {items.map((s) => (
+        <Card key={s.effectiveFrom} alert={s.isFuture}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontSize: 12.5, color: C.ink }}>
+              {new Date(s.effectiveFrom).getFullYear() <= 2000
+                ? '当初'
+                : new Date(s.effectiveFrom).toLocaleDateString('ja-JP')}
+              から
+            </span>
+            <span style={{ fontSize: 11, color: C.muted, flex: 'none' }}>
+              {s.isCurrent ? '現行' : s.isFuture ? '予告中' : '過去'}
+            </span>
+          </div>
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+            予約: {tiersLabel(s.bookingTiers)}
+            <br />
+            ギフト: {s.giftPercent ?? '—'}%
+            {s.reason && (
+              <>
+                <br />
+                理由: {s.reason}
+                {s.notifiedHosts != null && <> ／ {s.notifiedHosts}名へ通知済み</>}
+              </>
+            )}
+          </span>
+        </Card>
+      ))}
+    </>
+  )
+}
+
 // ------------------------------------------------------------
 // 健全性
 // ------------------------------------------------------------
+
 
 
 function HealthTab() {
