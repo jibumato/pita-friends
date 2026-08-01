@@ -66,7 +66,10 @@ jobs(seq, jobname, schedule, purpose, blocker) as (values
       '保留のまま放置される'),
   (10, 'expire-withdrawn-earned',      '31 3 * * *',
       '退会から90日を過ぎた報酬コインの消滅(0086)',
-      '規約第6条の2第4項の期限が効かない')
+      '規約第6条の2第4項の期限が効かない'),
+  (11, 'notify-expiring-coins',        '9 9 * * *',
+      '有効期限が近いコインの事前通知(0089)',
+      '★規約第7条5の3の「事前に通知します」を守れない')
 ),
 
 -- ------------------------------------------------------------
@@ -178,6 +181,7 @@ order by sec, seq;
 --   select cron.schedule('auto-hold-no-show',             '*/5 * * * *', 'select public.auto_hold_no_show_bookings()');
 --   select cron.schedule('auto-resolve-no-show',          '13 * * * *',  'select public.auto_resolve_no_show_bookings()');
 --   select cron.schedule('expire-withdrawn-earned',       '31 3 * * *',  'select public.expire_withdrawn_earned()');
+--   select cron.schedule('notify-expiring-coins',         '9 9 * * *',   'select public.notify_expiring_coins()');
 --
 --   ※ 時刻はUTCではなくDBのタイムゾーン(Supabaseの既定はUTC)で解釈されます。
 --     夜間に寄せているのは、失敗しても翌朝に気づける時間帯にするためです。

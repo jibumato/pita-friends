@@ -3082,3 +3082,165 @@ export async function fetchFeeRates(): Promise<FeeRates | null> {
     giftPercent: typeof r.giftPercent === 'number' ? r.giftPercent : 0,
   }
 }
+
+/* ============================================================
+ * 運営: 金銭返金(0085)と、チャージバック清算の相殺(0088)。
+ *
+ * **どちらも SQL Editor を開かずに完結できること。**
+ * 台帳を動かす操作が画面から見えないと、運用が属人化する。
+ * ============================================================ */
+
+export type AdminCashRefund = {
+  id: string
+  userId: string
+  nickname: string | null
+  bookingId: string | null
+  coins: number
+  amountYen: number
+  cause: string
+  createdAt: string
+}
+
+/** 規約第9条5の3。未払いの金銭返金の一覧。 */
+export async function fetchAdminCashRefunds(): Promise<AdminCashRefund[]> {
+  const { data, error } = await requireSupabase().rpc('admin_pending_cash_refunds', {})
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    userId: String(r.user_id),
+    nickname: (r.nickname as string) ?? null,
+    bookingId: (r.booking_id as string) ?? null,
+    coins: Number(r.coins ?? 0),
+    amountYen: Number(r.amount_yen ?? 0),
+    cause: String(r.cause ?? ''),
+    createdAt: String(r.created_at),
+  }))
+}
+
+/** 支払済み/却下にする。却下は理由が必須(DB側でも拒否される)。 */
+export async function resolveCashRefund(
+  id: string,
+  status: 'paid' | 'rejected',
+  note: string,
+): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_resolve_cash_refund', {
+    p_id: id,
+    p_status: status,
+    p_note: note || null,
+  })
+  if (error) throw error
+}
+
+export type AdminOffsetablePurchase = {
+  purchaseId: string
+  userId: string
+  nickname: string | null
+  priceYen: number
+  disputedAt: string
+  candidateCount: number
+  candidateCoins: number
+  notifiedCount: number
+}
+
+/** 相殺を起こせる購入(異議が成立したもの)。 */
+export async function fetchAdminOffsetablePurchases(): Promise<AdminOffsetablePurchase[]> {
+  const { data, error } = await requireSupabase().rpc('admin_offsetable_purchases', {})
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((p) => ({
+    purchaseId: String(p.purchase_id),
+    userId: String(p.user_id),
+    nickname: (p.nickname as string) ?? null,
+    priceYen: Number(p.price_yen ?? 0),
+    disputedAt: String(p.disputed_at),
+    candidateCount: Number(p.candidate_count ?? 0),
+    candidateCoins: Number(p.candidate_coins ?? 0),
+    notifiedCount: Number(p.notified_count ?? 0),
+  }))
+}
+
+/** 控除を予告する(まだ1コインも引かない)。戻り値は予告した件数。 */
+export async function notifyChargebackOffset(purchaseId: string): Promise<number> {
+  const { data, error } = await requireSupabase().rpc('chargeback_offset_notify', {
+    p_purchase_id: purchaseId,
+  })
+  if (error) throw error
+  return Number(data ?? 0)
+}
+
+export type AdminChargebackOffset = {
+  id: string
+  hostId: string
+  nickname: string | null
+  bookingId: string | null
+  giftId: string | null
+  coins: number
+  status: 'notified' | 'executed'
+  notifiedAt: string
+  objectionDeadline: string
+  objectedAt: string | null
+  objectionNote: string | null
+  executedCoins: number | null
+  unpaidEarned: number
+}
+
+export async function fetchAdminChargebackOffsets(): Promise<AdminChargebackOffset[]> {
+  const { data, error } = await requireSupabase().rpc('admin_chargeback_offsets', {})
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((o) => ({
+    id: String(o.id),
+    hostId: String(o.host_id),
+    nickname: (o.nickname as string) ?? null,
+    bookingId: (o.booking_id as string) ?? null,
+    giftId: (o.gift_id as string) ?? null,
+    coins: Number(o.coins ?? 0),
+    status: o.status as AdminChargebackOffset['status'],
+    notifiedAt: String(o.notified_at),
+    objectionDeadline: String(o.objection_deadline),
+    objectedAt: (o.objected_at as string) ?? null,
+    objectionNote: (o.objection_note as string) ?? null,
+    executedCoins: (o.executed_coins as number) ?? null,
+    unpaidEarned: Number(o.unpaid_earned ?? 0),
+  }))
+}
+
+/** 控除を実行する。戻り値は実際に引けた枚数(未払が足りなければ少なくなる)。 */
+export async function executeChargebackOffset(id: string, note: string): Promise<number> {
+  const { data, error } = await requireSupabase().rpc('chargeback_offset_execute', {
+    p_id: id,
+    p_note: note || null,
+  })
+  if (error) throw error
+  return Number(data ?? 0)
+}
+
+/** 控除を取りやめる。理由は必須。 */
+export async function cancelChargebackOffset(id: string, note: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('chargeback_offset_cancel', {
+    p_id: id,
+    p_note: note,
+  })
+  if (error) throw error
+}
+
+/* ============================================================
+ * コインの有効期限(規約 第7条5の3)。schema: 0089。
+ * ============================================================ */
+
+export type CoinExpiry = {
+  expiresAt: string
+  kind: 'paid' | 'bonus'
+  coins: number
+  daysLeft: number
+}
+
+/** 自分のコインを有効期限ごとに。**合計だけでは使い切る判断ができない。** */
+export async function fetchMyCoinExpiry(): Promise<CoinExpiry[]> {
+  const { data, error } = await requireSupabase().rpc('my_coin_expiry', {})
+  if (error) throw error
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+    expiresAt: String(r.expires_at),
+    kind: r.kind as CoinExpiry['kind'],
+    coins: Number(r.coins ?? 0),
+    daysLeft: Number(r.days_left ?? 0),
+  }))
+}

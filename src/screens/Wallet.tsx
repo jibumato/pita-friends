@@ -13,6 +13,8 @@ import { isBackendConfigured } from '../lib/supabase'
 import SignedOutPrompt from '../components/SignedOutPrompt'
 import {
   createCheckoutSession,
+  fetchMyCoinExpiry,
+  type CoinExpiry,
   fetchCoinPacks,
   fetchEarnings,
   fetchBankAccount,
@@ -93,6 +95,71 @@ function statusLabel(s: PayoutRecord['status']): string {
   if (s === 'paid') return '振込済み'
   if (s === 'failed') return '失敗'
   return '振込待ち'
+}
+
+/**
+ * コインの残高を有効期限ごとに出す(規約 第7条5の3 後段:
+ * 「ユーザーは、本サービス上でコインの残高および有効期限を確認できます」)。
+ *
+ * **合計だけでは足りない。**「いつ何枚消えるか」が分からないと、
+ * 期限内に使い切る判断ができない。有効期限を6か月未満にしているのは
+ * 資金決済法の適用除外を採るための事業判断なので、
+ * その分の不利益は見えるようにしておく必要がある。
+ */
+function CoinExpirySection() {
+  const [rows, setRows] = useState<CoinExpiry[] | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetchMyCoinExpiry()
+      .then((r) => active && setRows(r))
+      .catch(() => {
+        /* 取得できなくても購入は続けられる。ここだけ黙って畳む */
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  if (!rows || rows.length === 0) return null
+
+  return (
+    <div
+      style={{
+        background: C.white,
+        border: `1.5px solid ${C.border}`,
+        borderRadius: 10,
+        padding: '10px 12px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+      }}
+    >
+      <span style={{ fontSize: 11, color: C.muted }}>有効期限ごとの残高</span>
+      {rows.map((r) => (
+        <div
+          key={`${r.expiresAt}-${r.kind}`}
+          style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}
+        >
+          <span style={{ fontSize: 11.5, color: r.daysLeft <= 14 ? C.avatarPink : C.body }}>
+            {new Date(r.expiresAt).toLocaleDateString('ja-JP')} まで
+            {r.daysLeft <= 14 && <>（あと{r.daysLeft}日）</>}
+          </span>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: C.ink,
+              fontVariantNumeric: 'tabular-nums',
+              flex: 'none',
+            }}
+          >
+            {r.coins.toLocaleString()}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 /** ピタメイトとしての収益・換金セクション(報酬コインは購入コインとは別会計)。 */
@@ -352,6 +419,8 @@ export default function Wallet({ flow }: { flow: Flow }) {
             コインの有効期限は取得日から6か月未満です。期限を過ぎたコインは失効します(報酬コインは対象外)。
           </span>
         )}
+
+        {isBackendConfigured && <CoinExpirySection />}
 
         {isBackendConfigured && <EarningsSection />}
 
