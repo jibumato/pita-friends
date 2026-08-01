@@ -132,6 +132,31 @@ begin
   raise notice 'OK: 有償2000は消滅 / 報酬6000は残る / 掲載は停止';
 end $$;
 
+\echo '--- 投稿等の表示が止まっていること(規約 第10条の2第4項・0092) ---'
+-- **条文で「退会後は将来に向かって終了する」と約束した以上、
+--   自己紹介・音声・アバターへの参照は落ちていなければならない。**
+-- ニックネームとレビューは残す(第10条の2第4項1号の例外)
+do $$
+declare v_bio text; v_voice text; v_avatar text; v_nick text; v_games text[];
+begin
+  select bio, voice_path, avatar_path, nickname, favorite_games
+    into v_bio, v_voice, v_avatar, v_nick, v_games
+  from public.profiles where id = 'e1000000-0000-0000-0000-000000000001';
+
+  if coalesce(v_bio, '') <> '' or v_voice is not null or v_avatar is not null then
+    raise exception
+      'FAIL: 退会後も投稿物が残っている(bio=% / voice=% / avatar=%)', v_bio, v_voice, v_avatar;
+  end if;
+  if coalesce(array_length(v_games, 1), 0) <> 0 then
+    raise exception 'FAIL: 好きなゲームが残っている(%)', v_games;
+  end if;
+  -- **ニックネームは消さない。**消すと相手側の取引履歴が読めなくなる
+  if coalesce(v_nick, '') = '' then
+    raise exception 'FAIL: ニックネームまで消した(相手の履歴が読めなくなる)';
+  end if;
+  raise notice 'OK: 自己紹介・音声・アバターは参照ごと落ち、名前は残る';
+end $$;
+
 \echo '--- 期限を本人に伝えているか ---'
 do $$
 begin
