@@ -95,7 +95,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 購入の取消しとサポート料の返還(規約第7条の3第5項・税理士Q14(c)・G5)
     (90, '0090_void_purchase_refund',        'table', 'purchase_voids',           null),
     -- 料率の遡及適用の防止(規約第8条の2第4項・5項・G3)
-    (91, '0091_fee_rate_grandfathering',    'column', 'host_fee_tiers',           'effective_from')
+    (91, '0091_fee_rate_grandfathering',    'column', 'host_fee_tiers',           'effective_from'),
+    -- 退会で投稿等の表示を止める(規約第10条の2第4項)
+    (92, '0092_withdraw_clears_posts',    'funcsrc', 'withdraw_account',          'voice_path = null')
 ),
 checked as (
   select
@@ -235,7 +237,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 購入の取消しとサポート料の返還(規約第7条の3第5項・税理士Q14(c)・G5)
     (90, '0090_void_purchase_refund',        'table', 'purchase_voids',           null),
     -- 料率の遡及適用の防止(規約第8条の2第4項・5項・G3)
-    (91, '0091_fee_rate_grandfathering',    'column', 'host_fee_tiers',           'effective_from')
+    (91, '0091_fee_rate_grandfathering',    'column', 'host_fee_tiers',           'effective_from'),
+    -- 退会で投稿等の表示を止める(規約第10条の2第4項)
+    (92, '0092_withdraw_clears_posts',    'funcsrc', 'withdraw_account',          'voice_path = null')
 ),
 checked as (
   select e.seq, e.migration,
