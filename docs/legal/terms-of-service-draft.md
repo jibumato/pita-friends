@@ -9,6 +9,7 @@
 > | | |
 > |---|---|
 > | `terms-implementation-matrix.md` | 条文と実装の突合表。**条文が実装より進んだ状態は、施行後は債務不履行になります** |
+> | `word/*.docx` | 人に渡すWord版。`node tools/terms-to-docx.cjs docs/legal/terms-of-service-draft.md docs/legal/word` で再生成（[word/README.md](word/README.md)）。**古いWordを弁護士に送るほうが、送らないより事故になります** |
 > | 送付済みの照会書の別紙 | ⚠️ **更新しないこと。** `lawyer-brief-2026-07-31.md` の別紙1は「先生が実際にレビューした時点の条文」で、記録です。**次に照会するときは新しい写しを取ってください** |
 
 ---
