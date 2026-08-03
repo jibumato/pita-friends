@@ -7,7 +7,7 @@
 import termsRaw from '../../docs/legal/terms-of-service-draft.md?raw'
 import privacyRaw from '../../docs/legal/privacy-policy-draft.md?raw'
 import tokushohoRaw from '../../docs/legal/tokushoho-draft.md?raw'
-import { BUSINESS, ADDRESS_DISCLOSURE } from './businessInfo'
+import { BUSINESS, ADDRESS_DISCLOSURE, TERMS_PARTY_NAME } from './businessInfo'
 
 export type LegalDocKey = 'terms' | 'privacy' | 'tokushoho' | 'shikin' | 'mimamori'
 
@@ -29,6 +29,8 @@ const ON_REQUEST = 'ご請求があれば遅滞なく開示します（下記の
 function fillBusiness(md: string): string {
   const open = ADDRESS_DISCLOSURE === 'public'
   const pairs: [string, string][] = [
+    // 規約 第1条だけは屋号を前に出す（当事者を名乗る箇所なので、個人名も残す）
+    ['【事業者名（屋号）：公開前に記入】', TERMS_PARTY_NAME],
     ['【氏名（個人事業主本人）：公開前に記入】', BUSINESS.name],
     ['【氏名（個人事業主）：公開前に記入】', BUSINESS.name],
     ['【サービス専用の問い合わせ用メールアドレス：公開前に記入】', BUSINESS.email],
