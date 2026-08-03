@@ -97,7 +97,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 料率の遡及適用の防止(規約第8条の2第4項・5項・G3)
     (91, '0091_fee_rate_grandfathering',    'column', 'host_fee_tiers',           'effective_from'),
     -- 退会で投稿等の表示を止める(規約第10条の2第4項)
-    (92, '0092_withdraw_clears_posts',    'funcsrc', 'withdraw_account',          'voice_path = null')
+    (92, '0092_withdraw_clears_posts',    'funcsrc', 'withdraw_account',          'voice_path = null'),
+    -- 0065の当て漏れの回収。0091が作り直して開き直した穴も同時に閉じる
+    (93, '0093_relock_function_grants',  'noexec',  'host_progressive_fee(int, timestamptz)', null)
 ),
 checked as (
   select
@@ -239,7 +241,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 料率の遡及適用の防止(規約第8条の2第4項・5項・G3)
     (91, '0091_fee_rate_grandfathering',    'column', 'host_fee_tiers',           'effective_from'),
     -- 退会で投稿等の表示を止める(規約第10条の2第4項)
-    (92, '0092_withdraw_clears_posts',    'funcsrc', 'withdraw_account',          'voice_path = null')
+    (92, '0092_withdraw_clears_posts',    'funcsrc', 'withdraw_account',          'voice_path = null'),
+    -- 0065の当て漏れの回収。0091が作り直して開き直した穴も同時に閉じる
+    (93, '0093_relock_function_grants',  'noexec',  'host_progressive_fee(int, timestamptz)', null)
 ),
 checked as (
   select e.seq, e.migration,
