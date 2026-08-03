@@ -938,6 +938,16 @@ function PayoutsTab({ onChanged }: { onChanged: () => void }) {
                   </span>
                 </span>
               )}
+              {/* 0096。カード共有の判定ができない購入があることを、
+                  **sharedCardCount が 0 のときこそ**知らせる。
+                  「調べた結果シロ」と「調べようがなかった」は別の事実 */}
+              {p.nonCardPurchaseCount > 0 && (
+                <span style={{ fontSize: 11, color: C.body, lineHeight: 1.7 }}>
+                  このピタメイトの購入のうち{p.nonCardPurchaseCount}件はPayPay等で、
+                  <b style={{ color: C.ink }}>カードの共有では判定できません</b>。
+                  上のカード共有の件数だけで安全とは言えない相手です。
+                </span>
+              )}
               {p.flaggedGiftCount > 0 && (
                 <span style={{ fontSize: 11, color: C.body, lineHeight: 1.7 }}>
                   受け取ったギフトのうち{p.flaggedGiftCount}件に、IPまたはカードの共有で印が付いています。
