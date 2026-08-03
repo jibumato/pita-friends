@@ -13,7 +13,9 @@
 
 ```bash
 npm i --no-save docx
-node tools/terms-to-docx.cjs docs/legal/terms-of-service-draft.md docs/legal/word
+node tools/md-to-docx.cjs docs/legal/terms-of-service-draft.md docs/legal/word \
+  --name ピタフレ利用規約_全文 --variants both --title 'ピタフレ 利用規約' \
+  --require 第16条の6,第10条の2,第3条の2,第11条,改定履歴
 ```
 
 **Word 側を直さないでください。** 次の生成で消えます。条文を直すときは Markdown を直して再生成します。
