@@ -254,6 +254,81 @@ limit 5;
    - Stripe → Webhook → 該当エンドポイントの「送信済みイベント」が 200 を返しているか
    - `coin_purchases` に行が入っているか / `coin_transactions` に `purchase` が記録されているか
 
+## 6-b. ⚠️ 「決済ページの準備に失敗しました [401]」——Stripeではなく Supabase の署名鍵
+
+2026-08-04、この 401 に半日を溶かした。**Stripe側の設定はすべて正しく、一度もやり直していない。**
+同じ疑いに入る人のために、切り分けの順序ごと残す。
+
+### 症状
+
+- 購入ボタンで `決済ページの準備に失敗しました [401]`
+- **画面の他の部分はふつうに動く。** プロフィールも通知もトークも読める
+- OPTIONS(プリフライト)は 200。落ちるのは POST だけ
+
+### 見るべき1か所
+
+F12 → Network → `create-checkout-session` の **POST の行**(OPTIONSの行ではない) → Response。
+
+| 本文 | 意味 | 対処 |
+|---|---|---|
+| `{"error":"unauthorized"}` | 関数の中まで届いている。`getUser()` が失敗 | ログインし直す |
+| `{"code":"UNAUTHORIZED_LEGACY_JWT",...}` | **ゲートウェイが弾いている。関数は走っていない** | 下記 |
+
+画面のメッセージだけでは区別できない。`unauthorized` なら
+「ログインの有効期限が切れています」と出るように書いてある(`src/lib/queries.ts:330`)。
+**コード名の無い裸の `[401]` が出たら、それは Supabase 側からの応答**だと読む。
+
+### UNAUTHORIZED_LEGACY_JWT の正体
+
+Edge Functions のゲートウェイは、プロジェクトの**公開鍵(JWKS)でJWTを検証する。**
+署名鍵が `HS256 (Shared Secret)` = 共通鍵だと、公開鍵の相方が存在しないので検証しようがなく、
+「レガシー」として拒否される。**エラー名に反して、古い鍵かどうかは関係ない。**
+対称鍵で署名されたJWTは、たとえ現行鍵でも通らない。
+
+**Settings → JWT Keys** で CURRENT KEY の TYPE を見る。
+`HS256 (Shared Secret)` なら、これが原因。
+
+### 直し方
+
+1. **CREATE STANDBY KEY** → **ES256 (ECC)** を選ぶ(RECOMMENDED。HS256は選ばない)
+2. STANDBY として一覧に出て、数分待つ
+3. **Rotate signing key**。確認ダイアログの3つ目に
+   「The following Edge Functions may stop functioning ... : `create-checkout-session`」
+   と名指しが出る。**これが出れば原因の確定**
+4. **Edge Function を再デプロイする**(新しい検証方法を拾わせるため)
+5. アプリで **ログアウト → ログイン**。強制リロードでは駄目。セッションが作り直されない
+
+確認は、pitafure.com のコンソールで:
+
+```js
+(() => {
+  const k = Object.keys(localStorage).find(x => x.includes('auth-token'));
+  console.log(JSON.parse(atob(JSON.parse(localStorage[k]).access_token.split('.')[0])));
+})()
+```
+
+`alg` が `ES256` になっていれば切り替わっている。`HS256` のままなら、まだ古いセッション。
+
+> **Revoke は押さないこと。** 古い鍵は「Previously used keys」に残したまま検証に使われる。
+> まだ有効なトークンを持つ利用者がいる段階で取り消すと、その人たちは強制ログアウトになる。
+
+### 公開キーも新形式にしておく
+
+`.env.production` の `VITE_SUPABASE_ANON_KEY` は、`Settings → API Keys` の
+**Publishable key**(`sb_publishable_...`)を使う。レガシーの anon キー(`eyJ...`)は、
+いずれ同じところで弾かれる。
+
+### なぜ切り分けに時間がかかったか
+
+**PostgREST(テーブルの読み書き)は同じトークンで通っていた。** 画面がふつうに動くので、
+「決済まわりだけが壊れている」= Stripeの設定を疑う、という方向に引っ張られた。
+実際にはこの署名鍵は**10日前**に ECC → HS256 へローテートされており、その時点から
+Edge Functions は誰が呼んでも通らない状態だった。今日はじめて決済を通そうとしたので、
+今日壊れたように見えただけだった。
+
+**教訓: Edge Function だけが落ちるときは、まず Response の本文を見る。**
+`Sb-Error-Code` ヘッダーに答えが書いてある。
+
 ## 7. ホストへの報酬振込(②・自社銀行振込)を有効にする
 
 **冒頭⚠️の法務レビューが済んでから**進めてください。Stripe側の追加設定は**不要**です
