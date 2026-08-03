@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
     }
 
     // ----------------------------------------------------------
-    // 決済カードのフィンガープリントを記録する(0080・E-9)
+    // 決済手段の記録(0096)と、カードのフィンガープリント(0080・E-9)
     //
     // 端末IDは消せる、IPは変わる。**カードは同じ実カードである限り
     // 変わらない**ので、自作自演(自分のカードで買ったコインを別アカウントの
@@ -122,9 +122,13 @@ Deno.serve(async (req) => {
     // カード番号そのものは受け取らない。Stripe が返す不可逆な
     // フィンガープリントと、ブランド・下4桁だけを保存する。
     //
+    // **PayPay 等カード以外の決済では fingerprint が無い。** その場合は
+    // カード記録を作らないが、**決済手段そのものは必ず残す。**
+    // 残さないと、換金画面の「カード共有 0件」が
+    // 「調べた結果シロ」なのか「調べようがなかった」のか区別できない(0096)。
+    //
     // **失敗しても 200 を返す。** ここで 5xx にすると、付与は済んでいるのに
     // Stripe が再送し続ける。記録が1件欠けるより、そちらのほうが重い。
-    // PayPay 等カード以外の決済では fingerprint が無いので何もしない。
     // ----------------------------------------------------------
     try {
       const piId = session.payment_intent as string | null
@@ -133,7 +137,19 @@ Deno.serve(async (req) => {
           expand: ['latest_charge'],
         })
         const charge = pi.latest_charge as Stripe.Charge | null
-        const card = charge?.payment_method_details?.card
+        const details = charge?.payment_method_details
+
+        // 実際に使われた決済手段('card' / 'paypay' など)。
+        // session.payment_method_types は**提示した候補**なので使わない。
+        if (details?.type) {
+          const { error: pmErr } = await admin
+            .from('coin_purchases')
+            .update({ payment_method: details.type })
+            .eq('stripe_session_id', session.id)
+          if (pmErr) console.error('[stripe-webhook] payment method record failed', pmErr)
+        }
+
+        const card = details?.card
         if (card?.fingerprint) {
           const { error: cardErr } = await admin.rpc('record_payment_card', {
             p_user_id: userId,
@@ -145,7 +161,7 @@ Deno.serve(async (req) => {
         }
       }
     } catch (e) {
-      console.error('[stripe-webhook] card fingerprint lookup failed', e)
+      console.error('[stripe-webhook] payment method / card lookup failed', e)
     }
   }
 

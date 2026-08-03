@@ -272,6 +272,10 @@ export type Database = {
           price_yen: number
           stripe_session_id: string
           stripe_payment_intent: string | null
+          /** 0035: あんしんサポート料。not null・既定0。stripe-webhook が決済成立後に書き込む */
+          safety_fee_yen: number
+          /** 0096: 実際に使われた決済手段('card' / 'paypay' 等)。0096以前の購入は null */
+          payment_method: string | null
           created_at: string
         }
         Insert: Record<string, never>
@@ -1061,6 +1065,8 @@ export type Database = {
           is_verified: boolean
           shared_card_count: number
           flagged_gift_count: number
+          /** カードで判定できない購入(PayPay等)の件数。0096 */
+          non_card_purchase_count: number
         }[]
       }
       admin_account_requests: {

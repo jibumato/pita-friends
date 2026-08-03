@@ -2719,6 +2719,12 @@ export type AdminPayout = {
   sharedCardCount: number
   /** 受け取ったギフトのうち、IPまたはカードの共有で印が付いた件数 */
   flaggedGiftCount: number
+  /**
+   * カードのフィンガープリントで判定できない購入(PayPay等)の件数(0096)。
+   * **`sharedCardCount` が 0 でも安心材料にならない**ことを示すために使う。
+   * 「調べた結果シロ」と「調べようがなかった」は別の事実。
+   */
+  nonCardPurchaseCount: number
 }
 
 /**
@@ -2745,6 +2751,7 @@ export async function fetchAdminPendingPayouts(): Promise<AdminPayout[]> {
     isVerified: p.is_verified,
     sharedCardCount: Number(p.shared_card_count ?? 0),
     flaggedGiftCount: Number(p.flagged_gift_count ?? 0),
+    nonCardPurchaseCount: Number(p.non_card_purchase_count ?? 0),
   }))
 }
 
