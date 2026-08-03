@@ -47,5 +47,14 @@ export const BUSINESS = {
  */
 export const ADDRESS_DISCLOSURE: 'public' | 'onRequest' = 'public'
 
+/**
+ * 利用規約 第1条で名乗る当事者名。**屋号を前に出しつつ、個人名も残す。**
+ *
+ * 規約は「誰と誰の契約か」を定める文書なので、屋号だけだと相手方を特定できない
+ * （屋号に法人格は無く、権利義務の帰属先は個人）。特定商取引法に基づく表記と
+ * プライバシーポリシーでは、従前どおり**個人名**を販売事業者として表示する。
+ */
+export const TERMS_PARTY_NAME = `${BUSINESS.tradeName}（屋号。運営者：${BUSINESS.name}）`
+
 /** 未記入の【】が1つでも残っていれば false。画面側で警告を出すために使う */
 export const businessInfoReady = !Object.values(BUSINESS).some((v) => v.includes('【'))
