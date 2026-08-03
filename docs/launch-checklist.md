@@ -76,14 +76,20 @@
    > **`0065` をそのまま流すと失敗します。** `0091` が
    > `host_progressive_fee` の引数を変えたため、`0065` の古い署名と
    > 食い違って `function ... does not exist` で止まります。
-   > 代わりに **`0093_relock_function_grants.sql` を当ててください。**
-   > 同じことを関数名で行うので署名の変更に強く、何度流しても同じです。
+   > 代わりに **`0093` と `0094` を当ててください。**
    > `0065` は当てなくて構いません(`0093` が内容を含みます)。
+   >
+   > ⚠️ **さらに `0093` だけでは足りません。** Supabase は public スキーマの
+   > 関数を **anon / authenticated へ「直接」GRANT する既定権限**を持っており、
+   > `revoke ... from public` では外れません。本番では **163本**が
+   > 「PUBLIC からは閉じているのに anon からは呼べる」状態でした。
+   > **`0094` が本命です。**
 
    適用後に見ておくもの:
-   - ☐ **`0093` を当てる**（上記）。**SQL Editor は `NOTICE` を表示しない**ので、
-     効いたかどうかは `docs/check-0093.sql` を貼って確かめます
-   - ☐ `docs/check-migrations.sql` を実行して**57項目すべて OK**・
+   - ☐ **`0093` と `0094` を当てる**（上記）。**SQL Editor は `NOTICE` も
+     `WARNING` も表示しない**ので、効いたかどうかは
+     `docs/check-function-grants.sql` を貼って確かめます
+   - ☐ `docs/check-migrations.sql` を実行して**58項目すべて OK**・
      「順番の飛びはありません」
    - ☐ `docs/check-cron.sql` を実行して定期ジョブが**11件**
      (`0086` の `expire-withdrawn-earned` と `0089` の
@@ -134,6 +140,7 @@
    → `0091_fee_rate_grandfathering`(**料率の遡及適用の防止。規約第8条の2第4項・5項・G3**)
    → `0092_withdraw_clears_posts`(**退会で投稿等の表示を止める。規約第10条の2第4項**)
    → `0093_relock_function_grants`(**0065の当て漏れの回収。セキュリティ修正**)
+   → `0094_close_anon_function_grants`(**未ログインに開いていた163本を5本に絞る。セキュリティ修正**)
 
    ⚠️ **同じ関数を作り直すもの**(逆順に当てると新しい修正が打ち消されます):
 
