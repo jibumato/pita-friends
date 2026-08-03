@@ -138,9 +138,17 @@ GRANT する既定権限を持っている。** 直接の付与は `revoke ... f
 - 対応: `0094_close_anon_function_grants.sql`。未ログインに開くのは5本だけ、
   内部用（`_` 始まり・トリガー）と運営/サーバ専用はログイン済みからも閉じる。
   既定権限そのものも止めるので、今後作る関数が自動で開くことはない
-- ☐ **ご本人の作業**: 本番で `0093` → `0094` の順に実行し、
-  `docs/check-function-grants.sql` で確認する
-- 未公開のため、外部の利用者による悪用は生じていない
+- **さらに `0094` のあと、`check-cron.sql` が1件を赤にした。**
+  `credit_coins_for_purchase`（コインの付与）が `authenticated` に開いていた。
+  **security definer なのに中に権限チェックが無く、引数で「誰に」「何コイン」を
+  渡せる。** 0094 は「`_` 始まり・トリガー・テストが名指しした運営用」を
+  閉じる方式だったので、この関数はどれにも当てはまらなかった。
+  → `0095_close_server_only_functions.sql`。Edge Function だけが呼ぶ4本
+  （`credit_coins_for_purchase` / `check_purchase_allowed` /
+  `safety_fee_for` / `record_ip`）を閉じ、`74_anon_surface` に固定した
+- ✅ **本番へ `0093` → `0094` → `0095` を適用済み**（2026-08-03）
+- 未公開のため、外部の利用者による悪用は生じていない。
+  ただし **`coin_purchases` に身に覚えのない行が無いことは一度確認する**
 
 ## いま全体を止めているもの
 
