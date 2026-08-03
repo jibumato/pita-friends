@@ -26,12 +26,7 @@ main に push
 4. Account Resources / Zone Resources を自分のアカウント・`pitafure.com` に絞る
 5. 作成後に表示される文字列を控える。**この画面を閉じると二度と見られません**
 
-### (b) アカウントIDを控える
-
-Cloudflare ダッシュボードの Workers & Pages の画面、または URL の
-`dash.cloudflare.com/<ここがアカウントID>/workers/...` の部分。
-
-### (c) GitHub に登録する
+### (b) GitHub に登録する
 
 `https://github.com/jibumato/pita-friends` →
 **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
@@ -39,12 +34,16 @@ Cloudflare ダッシュボードの Workers & Pages の画面、または URL �
 | Name | Secret |
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | (a) のトークン |
-| `CLOUDFLARE_ACCOUNT_ID` | (b) のアカウントID |
+
+**アカウントIDは登録しません。** トークンが1つのアカウントに限定されていれば、
+wrangler が自分で判別します。32桁の英数字を手で書き写すのは、
+**1文字ずれても「object identifier is invalid」としか出ない**ので、
+やらないほうが安全です。
 
 > ⚠️ **名前は一字一句このとおりに。** 違うと、ジョブは動くのに認証だけ落ちます。
 > 値はリポジトリには入りません。GitHubのシークレットにだけ置きます。
 
-### (d) Cloudflare 側の自動ビルドを止める
+### (c) Cloudflare 側の自動ビルドを止める
 
 Actions が通ることを確認してから、Cloudflare の
 `pita-friends` → 設定 → ビルド → **接続を解除** を実行してください。
@@ -66,7 +65,8 @@ Actions が通ることを確認してから、Cloudflare の
 |---|---|
 | Actions に何も出ない | ワークフローが `main` にあるか。Actions が無効化されていないか |
 | `npm ci` で落ちる | `package-lock.json` が `package.json` とずれている。手元で `npm ci` を試す |
-| デプロイの手順で落ちる | シークレット2つの名前と値。トークンの権限（Workers Scripts: Edit） |
+| デプロイの手順で落ちる | シークレットの名前と値。トークンの権限（Workers Scripts: Edit） |
+| `object identifier is invalid [7003]` | アカウントIDが違う。**渡さないのが正解**（上記(b)の注記） |
 | `Missing entry-point` | wrangler が古く `wrangler.jsonc` を読めていない。**wrangler は `devDependencies` に固定してある**ので、`npm ci` が効いているか確認する |
 | 「反映の確認」だけ落ちる | デプロイ自体は成功している。Cloudflare のルーティング・独自ドメインの設定・キャッシュ |
 
