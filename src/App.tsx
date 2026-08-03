@@ -1073,7 +1073,9 @@ export default function App() {
               flex: 1,
               display: 'flex',
               justifyContent: 'center',
-              padding: fullBleed ? 0 : '28px 24px 60px',
+              // 全幅の画面(ホーム・さがす等)も**下だけは空ける。**
+              // 0 にすると中身がフッターの罫線に接する
+              padding: fullBleed ? '0 0 32px' : '28px 24px 60px',
               boxSizing: 'border-box',
             }}
           >

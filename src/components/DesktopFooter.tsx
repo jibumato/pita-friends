@@ -20,7 +20,8 @@ export default function DesktopFooter({ flow }: { flow: Flow }) {
       }}
     >
       <span style={{ fontSize: 11, color: C.muted }}>
-        © 2026 ピタフレ — ゲーム仲間マッチングサービス　
+        {/* 行末の全角スペースは JSX が落とすので、式として書いて残す */}
+        © 2026 ピタフレ — ゲーム仲間マッチングサービス{'　'}
         <span style={{ opacity: 0.7 }}>build {__BUILD_ID__}</span>
       </span>
       <LegalLinks flow={flow} align="flex-end" size={11.5} gap="6px 18px" />
