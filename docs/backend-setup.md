@@ -9,9 +9,15 @@
 ## 1. Supabaseプロジェクトを作成する
 
 1. [supabase.com](https://supabase.com/) でアカウントを作成し、新規プロジェクトを作成
-2. プロジェクトの `Settings > API` から以下をコントロールしまう:
+2. プロジェクトの `Settings > API Keys` から以下を控える:
    - `Project URL`
-   - `anon public` キー
+   - **Publishable key**(`sb_publishable_...`)
+
+   > ⚠️ 同じ画面にある **Legacy anon キー**(`eyJ...` で始まるJWT)は使わないでください。
+   > Edge Functions のゲートウェイが
+   > `401 {"code":"UNAUTHORIZED_LEGACY_JWT"}` で拒否します。
+   > 下の Secret keys(`sb_secret_...`)は service_role 相当なので、
+   > **フロントにも `.env` にも絶対に入れないこと。**
 
 ## 2. マイグレーションを適用する
 
@@ -38,7 +44,7 @@ cp .env.example .env.local
 
 ```
 VITE_SUPABASE_URL=https://xxxxxxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+VITE_SUPABASE_ANON_KEY=sb_publishable_xxxxxxxxxxxxxxxxxxxx
 ```
 
 `.env.local` は `.gitignore` 対象なのでコミットされません。
