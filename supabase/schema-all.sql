@@ -23664,6 +23664,7 @@ declare
   ];
   r record;
   n int := 0;
+  v_left text;
 begin
   for r in
     select p.oid::regprocedure as sig
@@ -23683,6 +23684,30 @@ begin
   if n = 0 then
     raise exception '0093: 対象の関数が1つも見つかりません。関数名の一覧を確認してください';
   end if;
+
+  -- ------------------------------------------------------------
+  -- ★ここが本体。**revoke が通ったかを、結果で確かめる。**
+  -- ------------------------------------------------------------
+  -- 関数の所有者でない役割が revoke すると、PostgreSQL は
+  -- 「WARNING: no privileges could be revoked」を出すだけで**成功扱い**にする。
+  -- Supabase の SQL Editor は NOTICE も WARNING も表示しないので、
+  -- 「成功と出たのに穴が開いたまま」になりうる（2026-08-03 に実際に起きた）。
+  -- 取りこぼしがあれば、ここで止める。
+  select string_agg(p.oid::regprocedure::text, ', ' order by p.oid::regprocedure::text)
+    into v_left
+    from pg_proc p
+    join pg_namespace ns on ns.oid = p.pronamespace
+   where ns.nspname = 'public'
+     and p.proname = any (v_names)
+     and has_function_privilege('public', p.oid, 'execute');
+
+  if v_left is not null then
+    raise exception E'0093: 取り上げられなかった関数があります。\n'
+      '関数の所有者を確認してください（所有者でないと revoke は警告だけで何もしません）。\n'
+      '残り: %', v_left;
+  end if;
+
+  raise notice '0093: 取りこぼしなし。すべて閉じました';
 end $$;
 
 
