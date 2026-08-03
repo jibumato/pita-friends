@@ -43,6 +43,15 @@ jobs:
       # ここで環境変数を渡す必要はない。**秘密の値はここに増やさないこと。**
       - run: npm run build
 
+      # 何が配信されているかを、**コミットで**言えるようにする。
+      # アセット名(index-XXXX.js)は同じコミットでもビルドのたびに変わるので、
+      # 「反映されたか」の判定には使えない(2026-08-03に判定を誤った)。
+      - name: 版の目印を置く
+        run: |
+          printf '{"commit":"%s","builtAt":"%s","ref":"%s"}\n' \
+            "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$GITHUB_REF_NAME" > dist/version.json
+          cat dist/version.json
+
       # cloudflare/wrangler-action は使わない。**wrangler 3.90.0 を勝手に入れる**ため。
       # 3.90.0 は wrangler.jsonc(JSONC形式の設定)を読めず、設定が正しいのに
       # 「Missing entry-point」で落ちる(2026-08-03)。
@@ -65,12 +74,11 @@ jobs:
         env:
           WORKERS_DEV: https://pita-friends.sunny-rainy1115.workers.dev
         run: |
-          ASSET=$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html | head -1)
-          echo "配信されるはずのアセット: $ASSET"
+          echo "配信されるはずのコミット: $GITHUB_SHA"
 
           for i in 1 2 3 4 5 6; do
-            if curl -sf https://pitafure.com/ | grep -q "$ASSET"; then
-              echo "OK: 本番が $ASSET を返している"
+            if curl -sf "https://pitafure.com/version.json?cb=$GITHUB_RUN_ID$i" | grep -q "$GITHUB_SHA"; then
+              echo "OK: 本番が $GITHUB_SHA を返している"
               exit 0
             fi
             echo "まだ切り替わっていない。10秒待って再確認 ($i/6)"
@@ -78,27 +86,10 @@ jobs:
           done
 
           echo "--- 切り分け ---"
-          # ①ワーカー自体は新しいか(独自ドメインを通らない経路で見る)
-          if curl -sf "$WORKERS_DEV/" | grep -q "$ASSET"; then
-            WORKER=新しい
-          else
-            WORKER=古い
-          fi
-          # ②キャッシュを迂回すると新しいか
-          if curl -sf "https://pitafure.com/?cb=$GITHUB_RUN_ID" | grep -q "$ASSET"; then
-            BYPASS=新しい
-          else
-            BYPASS=古い
-          fi
-          echo "workers.dev: $WORKER / キャッシュ迂回: $BYPASS"
+          echo "pitafure.com  : $(curl -sf "https://pitafure.com/version.json?cb=$GITHUB_RUN_ID" || echo '(取得できず)')"
+          echo "workers.dev   : $(curl -sf "$WORKERS_DEV/version.json?cb=$GITHUB_RUN_ID" || echo '(取得できず)')"
           echo "pitafure.com のヘッダ:"
           curl -sSI https://pitafure.com/ | grep -iE '^(cf-cache-status|age|cache-control|server|cf-ray):' || true
 
-          if [ "$WORKER" = 古い ]; then
-            echo "::error::ワーカー自体が古い。デプロイは通っているのに反映されていないので、Cloudflare のバージョン(段階的デプロイ)を確認すること"
-          elif [ "$BYPASS" = 新しい ]; then
-            echo "::error::**エッジキャッシュが古い応答を保持している。** Cloudflare の pitafure.com → キャッシュ → 「すべてをパージ」を実行すること"
-          else
-            echo "::error::独自ドメイン pitafure.com がこのワーカーに向いていない。Cloudflare の pita-friends → ドメイン を確認すること"
-          fi
+          echo "::error::デプロイは成功したが、本番が $GITHUB_SHA を返さない。上の2行を見て、別の配信経路(Cloudflare 側の Git 連携)が上書きしていないか確認すること"
           exit 1
