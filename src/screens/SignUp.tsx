@@ -6,6 +6,13 @@ import StatusBar from '../components/StatusBar'
 import { ChevronLeft } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { signUpWithEmail, authErrorMessage, byteLength, PASSWORD_MAX_BYTES, PASSWORD_MIN_LENGTH } from '../lib/auth'
+import type { LegalDocKey } from '../content/legalDocs'
+
+const LEGAL_LINKS: { label: string; key: LegalDocKey }[] = [
+  { label: '利用規約', key: 'terms' },
+  { label: 'プライバシーポリシー', key: 'privacy' },
+  { label: '特定商取引法に基づく表記', key: 'tokushoho' },
+]
 
 const inputStyle = {
   background: C.white,
@@ -235,6 +242,29 @@ export default function SignUp({ flow }: { flow: Flow }) {
         >
           すでにアカウントをお持ちですか？ ログイン
         </span>
+
+        {/* 登録する前に読めなければ意味がないもの。
+            特商法の表記は「購入する前に見られること」が要件で、
+            決済事業者・銀行の審査でも同じ場所を見られる。 */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '4px 14px',
+            paddingTop: 4,
+          }}
+        >
+          {LEGAL_LINKS.map(({ label, key }) => (
+            <span
+              key={key}
+              onClick={() => flow.openLegalDoc(key)}
+              style={{ cursor: 'pointer', fontSize: 11, color: C.muted, textDecoration: 'underline' }}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
       </div>
     </Screen>
   )

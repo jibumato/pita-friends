@@ -284,15 +284,39 @@ export type Flow = {
   signOut: () => void
 }
 
+/**
+ * `/legal/tokushoho` のようなURLで、**ログインしていなくても**法務ページを開けるようにする。
+ *
+ * 特定商取引法の表記は購入する前に読めなければ意味がなく、
+ * 銀行・決済事業者の審査でも「そのURLを開いて事業者情報が見えること」を確かめられる。
+ * ログインの内側にしか無いと、どちらも通らない。
+ *
+ * Cloudflare 側は `not_found_handling: single-page-application`(wrangler.jsonc)なので、
+ * この配下のパスはすべて index.html が返る。
+ */
+const LEGAL_PATHS: Record<string, LegalDocKey> = {
+  '/legal/terms': 'terms',
+  '/legal/privacy': 'privacy',
+  '/legal/tokushoho': 'tokushoho',
+  '/legal/shikin': 'shikin',
+  '/legal/mimamori': 'mimamori',
+}
+
+/** 起動時のURLが法務ページなら、そのキー。違えば null。 */
+const bootLegalKey: LegalDocKey | null =
+  LEGAL_PATHS[window.location.pathname.replace(/\/+$/, '')] ?? null
+
 const INITIAL = {
-  screen: 'home' as ScreenKey,
+  // URLで直接開かれたときは、セッションの有無にかかわらずその文書を出す
+  screen: (bootLegalKey ? 'legalDoc' : 'home') as ScreenKey,
   welcomeLoginOpen: false,
   game: 'Apex',
   when: '今夜 22:00〜',
   dealDone: false,
   reportTarget: null as ReportTarget | null,
-  legalDocKey: null as LegalDocKey | null,
-  legalDocReturn: 'settings' as ScreenKey,
+  legalDocKey: bootLegalKey,
+  // URLから来た場合、戻り先は設定画面ではなくトップ(ログイン前でも成立する)
+  legalDocReturn: (bootLegalKey ? 'home' : 'settings') as ScreenKey,
   profileUserId: null as string | null,
   profileReturn: 'search' as ScreenKey,
   inviteTarget: null as { userId: string; name: string } | null,
@@ -441,7 +465,8 @@ export default function App() {
             // オンボーディング完了はaccount.updated Webhookで反映されるため、
             // ピタメイト設定画面に戻して(その画面が自分で状況を再取得する)
             setState((p) => ({ ...p, screen: 'hostSettings' }))
-          } else {
+          } else if (!bootLegalKey) {
+            // 法務ページのURLで開かれたときは、ログイン済みでもその文書のままにする
             setState((p) => ({ ...p, screen: 'home' }))
           }
         }
@@ -456,6 +481,14 @@ export default function App() {
       active = false
     }
   }, [hydrateAccount])
+
+  // /legal/... で入ってきた人がその画面を離れたら、URLをトップに戻す。
+  // 残したままだと、アプリを使っている最中にリロードした人が法務ページに着地する。
+  useEffect(() => {
+    if (state.screen === 'legalDoc') return
+    if (!window.location.pathname.startsWith('/legal/')) return
+    window.history.replaceState({}, '', '/')
+  }, [state.screen])
 
   // パスワード再設定のリンクを開いた瞬間に飛ぶイベント。パスの判定(上)で
   // ほぼ拾えるが、ハッシュの処理が先に走ったときの取りこぼしを防ぐ保険。
