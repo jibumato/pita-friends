@@ -1,16 +1,17 @@
 -- ============================================================
--- 0093 が効いているかの確認
+-- 0093 が効いているかの確認と、効いていないときの原因の切り分け
 -- ------------------------------------------------------------
--- Supabase の SQL Editor は **RAISE NOTICE を表示しません。**
--- 0093 を流しても「Success. No rows returned」としか出ないので、
--- 効いたかどうかはこれで見ます。
+-- Supabase の SQL Editor は **NOTICE も WARNING も表示しません。**
+-- とくに、関数の所有者でない役割が revoke すると PostgreSQL は
+-- 「WARNING: no privileges could be revoked」を出すだけで**成功扱い**にします。
+-- そのため「成功と出たのに穴が開いたまま」が起こりえます。
 --
--- なお 0093 には「対象が1つも見つからなければ例外を出す」ガードが
--- 入っているので、**エラーにならずに成功した時点で何かは処理されています。**
--- ここでは取りこぼしが無いかまで見ます。
+-- **開いているものが上に来ます。0行目に ❌ が無ければ完了です。**
+-- ❌ が残るときは「所有者」の列を見てください。実行中のロールと違えば、
+-- そのロールでは revoke できません（Supabase サポートに所有者の変更を相談）。
 -- ============================================================
 with target as (
-  select p.oid, p.oid::regprocedure::text as 関数
+  select p.oid, p.proname
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
@@ -58,9 +59,14 @@ with target as (
      ])
 )
 select
-  count(*)                                                              as "対象の関数",
-  count(*) filter (where has_function_privilege('public', oid, 'execute')) as "まだ未ログインに開いている",
-  case when count(*) filter (where has_function_privilege('public', oid, 'execute')) = 0
-       then '✅ 0093 は適用済み'
-       else '❌ まだ当たっていない。0093 を実行してください' end        as 判定
-from target;
+  case when has_function_privilege('public', oid, 'execute')
+       then '❌ まだ未ログインに開いている' else '✅ 閉じている' end as 状態,
+  oid::regprocedure::text            as 関数,
+  pg_get_userbyid(
+    (select proowner from pg_proc where oid = target.oid)) as 所有者,
+  current_user                        as "実行中のロール",
+  coalesce(
+    (select proacl::text from pg_proc where oid = target.oid),
+    '(設定なし=PUBLICに開放)')       as "権限の設定"
+from target
+order by has_function_privilege('public', oid, 'execute') desc, 2;
