@@ -9,15 +9,16 @@ import react from '@vitejs/plugin-react'
  * ここが更新されていなければ、原因はコードではなく配信側(デプロイ未実行、
  * またはHTMLのキャッシュ)だと1秒で分かる。
  *
- * **コミットの短縮ハッシュを併記する。** 時刻だけだと、同じコミットを
- * 別々の経路がビルドしたときに区別がつかない(実際に混乱した)。
+ * 形式は `YYYYMMDDHHMM` の**数字だけ**(UTC・分まで)。区切りを入れると
+ * 訪問者にも更新日時として読めてしまうため、通し番号のように見せる。
+ * こちらは頭から読めば日時なので、切り分けの用は変わらず足りる。
+ *
+ * **コミットの短縮ハッシュはここには併記しない。** 以前は同じコミットを
+ * 別々の経路がビルドして混乱したので付けていたが、配信経路は
+ * GitHub Actions の1本に絞った(`docs/deploy.md`)。どのコミットが出ているかは
+ * `/version.json` に完全なSHAが入っており、デプロイ後の自動確認もそれを見ている。
  */
-const BUILD_ID = [
-  new Date().toISOString().slice(0, 16).replace('T', ' '),
-  ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.GITHUB_SHA ?? '').slice(0, 7),
-]
-  .filter(Boolean)
-  .join(' ')
+const BUILD_ID = new Date().toISOString().slice(0, 16).replace(/\D/g, '')
 
 // https://vite.dev/config/
 export default defineConfig({
