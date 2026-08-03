@@ -54,7 +54,11 @@ self.addEventListener('fetch', (event) => {
       fetch(req)
         .then((res) => {
           const clean = dropRedirected(res)
-          caches.open(CACHE).then((c) => c.put('/index.html', clean.clone()))
+          // ⚠️ **複製は同期的に取る。** caches.open() が解決する頃には、
+          // 下で return した clean の本体をブラウザが読み始めていて、
+          // そこで clone() すると "Response body is already used" で落ちる。
+          const copy = clean.clone()
+          caches.open(CACHE).then((c) => c.put('/index.html', copy))
           return clean
         })
         .catch(() =>
