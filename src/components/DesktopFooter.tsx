@@ -2,14 +2,7 @@
  *  利用規約・プライバシーポリシー等の法務ページへの導線をどの画面からも辿れるようにする。 */
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
-import type { LegalDocKey } from '../content/legalDocs'
-
-const LEGAL_LINKS: { label: string; key: LegalDocKey }[] = [
-  { label: '利用規約', key: 'terms' },
-  { label: 'プライバシーポリシー', key: 'privacy' },
-  { label: '特定商取引法に基づく表記', key: 'tokushoho' },
-  { label: '資金決済法に基づく表示', key: 'shikin' },
-]
+import LegalLinks from './LegalLinks'
 
 export default function DesktopFooter({ flow }: { flow: Flow }) {
   return (
@@ -27,17 +20,7 @@ export default function DesktopFooter({ flow }: { flow: Flow }) {
       }}
     >
       <span style={{ fontSize: 11, color: C.muted }}>© 2026 ピタフレ — ゲーム仲間マッチングサービス</span>
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-        {LEGAL_LINKS.map(({ label, key }) => (
-          <span
-            key={key}
-            onClick={() => flow.openLegalDoc(key)}
-            style={{ cursor: 'pointer', fontSize: 11.5, color: C.muted, textDecoration: 'underline' }}
-          >
-            {label}
-          </span>
-        ))}
-      </div>
+      <LegalLinks flow={flow} align="flex-end" size={11.5} gap="6px 18px" />
     </footer>
   )
 }

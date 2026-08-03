@@ -20,6 +20,7 @@ import FavoriteStar from '../components/FavoriteStar'
 import HostStatus from '../components/HostStatus'
 import VoiceChip from '../components/VoiceChip'
 import RepeatBadge from '../components/RepeatBadge'
+import LegalLinks from '../components/LegalLinks'
 import {
   fetchDiscoverableHosts,
   fetchPublicHostCards,
@@ -1386,6 +1387,26 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           </div>
         )}
         </>
+        )}
+
+        {/* 未ログインの訪問者への法務リンク。**モバイルにはフッターが無い**ので、
+            ここに置かないと、登録も購入もしていない人が特商法の表記に辿り着けない。
+            デスクトップは DesktopFooter が同じものを出すため重ねない。 */}
+        {!signedIn && mobile && (
+          <div
+            style={{
+              borderTop: `1.5px solid ${C.border}`,
+              paddingTop: 14,
+              marginTop: 4,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            <LegalLinks flow={flow} />
+            <span style={{ fontSize: 10.5, color: C.muted }}>© 2026 ピタフレ</span>
+          </div>
         )}
       </div>
       <BottomTabs current={flow.screen} onNavigate={flow.go} />
