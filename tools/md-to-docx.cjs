@@ -1,16 +1,24 @@
-// ピタフレ 利用規約 Markdown → Word(.docx)
+// リポジトリの Markdown → 人に渡せる Word(.docx)
 //
-// 2種類つくる:
-//   ・条文のみ … そのまま人に渡せる形。〔※〕の内部メモとリポジトリ保守用の注意書きを落とす
-//   ・注記付き … 内部メモ入り。弁護士に「なぜこの条文があるか」を一緒に見てもらう用
+// `〔※…〕` を**内部メモ**として扱い、落とすか残すかを選べる。
+//
+//   --variants both  … 2本つくる(メモ無し / メモ入り)。利用規約はこれ
+//   --variants strip … メモを落とした1本
+//   --variants keep  … メモも入れた1本(既定)。事業計画書はこれ——
+//                       メモ自体が「なぜそう決めたか」の記録で、外にも出せる内容
 //
 // 使い方(docx は生成のときだけ要るので package.json には入れない):
 //   npm i --no-save docx
-//   node tools/terms-to-docx.cjs docs/legal/terms-of-service-draft.md docs/legal/word
+//   node tools/md-to-docx.cjs docs/legal/terms-of-service-draft.md docs/legal/word \
+//     --name ピタフレ利用規約_全文 --variants both --title 'ピタフレ 利用規約' \
+//     --require 第16条の6,第10条の2,改定履歴
+//
+// `--require` は、メモを落とした版から**消えてはいけない見出し**の検査。
+// 落ちていれば生成を止める。
 //
 // **Markdown が原本です。** Word 側を直しても次の生成で消えます。
-// 条文を変えたら必ず再生成してください。古い Word を弁護士に送るほうが、
-// 送らないより事故になります。
+// 内容を変えたら必ず再生成してください。
+// 古い Word を人に送るほうが、送らないより事故になります。
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -20,8 +28,24 @@ const {
   Header, Footer, PageNumber, TabStopType, convertMillimetersToTwip,
 } = require('docx');
 
-const SRC = process.argv[2];
-const OUT_DIR = process.argv[3];
+const ARGV = process.argv.slice(2);
+const flag = (name, fallback) => {
+  const i = ARGV.indexOf(`--${name}`);
+  return i >= 0 && ARGV[i + 1] ? ARGV[i + 1] : fallback;
+};
+const positional = ARGV.filter((a, i) => !a.startsWith('--') && !(ARGV[i - 1] || '').startsWith('--'));
+
+const SRC = positional[0];
+const OUT_DIR = positional[1];
+const BASE_NAME = flag('name', path.basename(SRC || '', '.md'));
+const VARIANTS = flag('variants', 'keep');
+const DOC_TITLE = flag('title', BASE_NAME);
+const REQUIRED = flag('require', '').split(',').map((s) => s.trim()).filter(Boolean);
+
+if (!SRC || !OUT_DIR) {
+  console.error('使い方: node tools/md-to-docx.cjs <src.md> <outdir> [--name N] [--variants both|strip|keep] [--title T] [--require A,B]');
+  process.exit(2);
+}
 
 const MINCHO = { ascii: 'Yu Mincho', eastAsia: 'Yu Mincho', hAnsi: 'Yu Mincho' };
 const GOTHIC = { ascii: 'Yu Gothic', eastAsia: 'Yu Gothic', hAnsi: 'Yu Gothic' };
@@ -68,12 +92,15 @@ function para(text, opts = {}) {
   });
 }
 
-function heading(text) {
+// level 2 = ## (章)、level 3 = ### (節)。節は罫線を引かず、字を一段小さくする
+function heading(text, level = 2) {
   return new Paragraph({
-    children: runs(text, { font: GOTHIC, size: 24, bold: true, color: INK }),
-    spacing: { before: 320, after: 140 },
+    children: runs(text, { font: GOTHIC, size: level >= 3 ? 21 : 24, bold: true, color: INK }),
+    spacing: { before: level >= 3 ? 240 : 320, after: level >= 3 ? 100 : 140 },
     keepNext: true,
-    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: RULE, space: 4 } },
+    border: level >= 3
+      ? undefined
+      : { bottom: { style: BorderStyle.SINGLE, size: 6, color: RULE, space: 4 } },
   });
 }
 
@@ -130,10 +157,36 @@ function table(rows) {
 }
 
 // ------------------------------------------------------------------
+// 折り返された行をつなぎ直す
+// ------------------------------------------------------------------
+// リポジトリの Markdown は読みやすさのために手で折り返してある。1行ずつ段落に
+// すると、**強調が行をまたいでいるときに `**` が文字として出てしまう**
+// (`**当事業はピタメイトの…` / `…整合しないから**である。`)。
+// Markdown の本来の解釈どおり、続きの行は前の行につなぐ。
+const BLOCK_START = /^(#{1,6}\s|>|\||-{3,}$|〔※|[-•]\s|\d+(の\d+)?\.\s)/;
+
+function fold(lines) {
+  const out = [];
+  for (const raw of lines) {
+    const t = raw.trim();
+    const prev = out.length ? out[out.length - 1] : null;
+    // 字下げの無い **…** 始まりは、続きではなく独立した行として扱う
+    // (「**制定日**: …」のようなラベル行が1段落にまとまってしまうため)
+    const labelLine = /^\*\*/.test(raw);
+    if (prev !== null && prev.trim() !== '' && t !== '' && !BLOCK_START.test(t) && !labelLine) {
+      out[out.length - 1] = prev + t;
+      continue;
+    }
+    out.push(raw);
+  }
+  return out;
+}
+
+// ------------------------------------------------------------------
 // Markdown → ブロック列
 // ------------------------------------------------------------------
 function parse(md, { withNotes }) {
-  const lines = md.split('\n');
+  const lines = fold(md.split('\n'));
   const out = [];
   let i = 0;
 
@@ -163,7 +216,8 @@ function parse(md, { withNotes }) {
       i++; continue;
     }
 
-    if (line.startsWith('## ')) { out.push(heading(line.slice(3))); i++; continue; }
+    const h = /^(#{2,6})\s+(.*)$/.exec(line);
+    if (h) { out.push(heading(h[2], h[1].length)); i++; continue; }
 
     // 引用ブロック(表を含むことがある)
     if (line.startsWith('>')) {
@@ -172,8 +226,10 @@ function parse(md, { withNotes }) {
         buf.push(lines[i].trim().replace(/^>\s?/, ''));
         i++;
       }
-      const tbl = buf.filter((l) => l.startsWith('|'));
-      const txt = buf.filter((l) => !l.startsWith('|') && l !== '');
+      // 引用の中も折り返しをつなぐ(**強調が行をまたぐ**のは引用でも起きる)
+      const joined = fold(buf);
+      const tbl = joined.filter((l) => l.startsWith('|'));
+      const txt = joined.filter((l) => !l.startsWith('|') && l !== '');
       if (txt.length) out.push(...quoteBlock(txt));
       if (tbl.length) out.push(...renderTable(tbl));
       continue;
@@ -264,8 +320,8 @@ function stripNotes(md) {
 function build(md, { withNotes, subtitle, file }) {
   const children = parse(md, { withNotes });
   const doc = new Document({
-    creator: 'ピタフレ',
-    title: 'ピタフレ 利用規約',
+    creator: 'Type&Co',
+    title: DOC_TITLE,
     description: subtitle,
     sections: [{
       properties: {
@@ -279,7 +335,7 @@ function build(md, { withNotes, subtitle, file }) {
       headers: {
         default: new Header({
           children: [new Paragraph({
-            children: [new TextRun({ text: `ピタフレ 利用規約　${subtitle}`, font: GOTHIC, size: 16, color: NOTE_INK })],
+            children: [new TextRun({ text: subtitle ? `${DOC_TITLE}　${subtitle}` : DOC_TITLE, font: GOTHIC, size: 16, color: NOTE_INK })],
             alignment: AlignmentType.RIGHT,
             spacing: { after: 80 },
             border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: RULE, space: 3 } },
@@ -306,16 +362,33 @@ function build(md, { withNotes, subtitle, file }) {
 }
 
 const md = fs.readFileSync(SRC, 'utf8');
-const clean = stripNotes(md);
+const jobs = [];
 
-// 取りこぼしの検査。**メモが本文に残る**のが一番まずいので落ちるようにする
-if (clean.includes('〔※')) throw new Error('条文のみの版に〔※が残っている');
-if (!clean.includes('〔監視〕')) throw new Error('第4条の〔監視〕まで消してしまっている');
-for (const k of ['第16条の6', '第10条の2', '第3条の2', '第11条', '改定履歴']) {
-  if (!clean.includes(k)) throw new Error(`条文のみの版から ${k} が消えている`);
+if (VARIANTS === 'both' || VARIANTS === 'strip') {
+  const clean = stripNotes(md);
+
+  // 取りこぼしの検査。**メモが本文に残る**のが一番まずいので落ちるようにする
+  if (clean.includes('〔※')) throw new Error('メモを落とした版に〔※が残っている');
+  // 〔監視〕のような通常の亀甲括弧まで巻き込んでいないか
+  const kakko = (md.match(/〔(?!※)/g) || []).length;
+  if ((clean.match(/〔(?!※)/g) || []).length !== kakko) {
+    throw new Error('〔※ でない亀甲括弧まで消してしまっている');
+  }
+  for (const k of REQUIRED) {
+    if (!clean.includes(k)) throw new Error(`メモを落とした版から ${k} が消えている`);
+  }
+
+  jobs.push(build(clean, {
+    withNotes: false,
+    subtitle: VARIANTS === 'both' ? '条文' : '',
+    file: `${BASE_NAME}.docx`,
+  }));
 }
 
-Promise.all([
-  build(clean, { withNotes: false, subtitle: '条文', file: 'ピタフレ利用規約_全文.docx' }),
-  build(md, { withNotes: true, subtitle: '注記付き（内部・弁護士確認用）', file: 'ピタフレ利用規約_全文_注記付き.docx' }),
-]).catch((e) => { console.error(e); process.exit(1); });
+if (VARIANTS === 'both') {
+  jobs.push(build(md, { withNotes: true, subtitle: '注記付き（内部・確認用）', file: `${BASE_NAME}_注記付き.docx` }));
+} else if (VARIANTS === 'keep') {
+  jobs.push(build(md, { withNotes: true, subtitle: '', file: `${BASE_NAME}.docx` }));
+}
+
+Promise.all(jobs).catch((e) => { console.error(e); process.exit(1); });
