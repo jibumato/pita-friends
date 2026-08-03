@@ -100,6 +100,40 @@ begin
   end loop;
 end $$;
 
+\echo '=== 3-2. Edge Function だけが呼ぶ関数は、利用者から閉じている(0095) ==='
+-- **credit_coins_for_purchase が最重要。** security definer なのに中に権限
+-- チェックが無く、引数で「誰に」「何コイン」を渡せる。利用者に開いていると
+-- 無制限にコインを付与できる(2026-08-03、本番で開いていた)。
+do $$
+declare
+  c_server_only constant text[] := array[
+    'credit_coins_for_purchase',  -- コインの付与(stripe-webhook)
+    'check_purchase_allowed',     -- 購入上限の判定(create-checkout-session)
+    'safety_fee_for',             -- あんしんサポート料の計算(同上)
+    'record_ip'                   -- IPの記録(record-ip)
+  ];
+  v record;
+begin
+  for v in
+    select p.oid, p.oid::regprocedure::text as sig
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = any (c_server_only)
+  loop
+    if has_function_privilege('authenticated', v.oid, 'execute') then
+      raise exception 'FAIL: 利用者が % を呼べます(Edge Function 専用のはず)', v.sig;
+    end if;
+    if has_function_privilege('anon', v.oid, 'execute') then
+      raise exception 'FAIL: 未ログインが % を呼べます', v.sig;
+    end if;
+    -- **閉じすぎていないか。** service_role が失うと決済が止まる
+    if not has_function_privilege('service_role', v.oid, 'execute') then
+      raise exception 'FAIL: service_role が % を呼べません(決済が止まります)', v.sig;
+    end if;
+  end loop;
+  raise notice 'OK: Edge Function 専用の4本は service_role からのみ';
+end $$;
+
 \echo '=== 4. 予約表が外から復元できないこと(0065で塞いだ本体) ==='
 insert into auth.users (id) values
   ('ba000000-0000-0000-0000-000000000001'::uuid),
