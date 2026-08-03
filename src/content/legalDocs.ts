@@ -7,6 +7,7 @@
 import termsRaw from '../../docs/legal/terms-of-service-draft.md?raw'
 import privacyRaw from '../../docs/legal/privacy-policy-draft.md?raw'
 import tokushohoRaw from '../../docs/legal/tokushoho-draft.md?raw'
+import { BUSINESS, ADDRESS_DISCLOSURE } from './businessInfo'
 
 export type LegalDocKey = 'terms' | 'privacy' | 'tokushoho' | 'shikin' | 'mimamori'
 
@@ -18,6 +19,26 @@ function body(md: string): string {
   const idx = md.indexOf('\n---\n')
   return idx >= 0 ? md.slice(idx + 5).trim() : md.trim()
 }
+
+const ON_REQUEST = 'ご請求があれば遅滞なく開示します（下記のメールアドレスへご連絡ください）'
+
+/**
+ * 条文中の事業者情報の差込み。**値は `businessInfo.ts` の1か所にしかない。**
+ * ドラフト側に住所や氏名を直接書くと、書類ごとにずれていく。
+ */
+function fillBusiness(md: string): string {
+  const open = ADDRESS_DISCLOSURE === 'public'
+  const pairs: [string, string][] = [
+    ['【氏名（個人事業主本人）：公開前に記入】', BUSINESS.name],
+    ['【氏名（個人事業主）：公開前に記入】', BUSINESS.name],
+    ['【サービス専用の問い合わせ用メールアドレス：公開前に記入】', BUSINESS.email],
+    ['【所在地：公開前に記入】', open ? `〒${BUSINESS.postalCode} ${BUSINESS.address}` : ON_REQUEST],
+    ['【電話番号：公開前に記入】', open ? BUSINESS.phone : ON_REQUEST],
+  ]
+  return pairs.reduce((acc, [from, to]) => acc.split(from).join(to), md)
+}
+
+const doc = (md: string) => fillBusiness(body(md))
 
 const shikinMd = `# 資金決済法に基づく表示（前払式支払手段）
 
@@ -89,9 +110,9 @@ const mimamoriMd = `# みまもり（監視）について
 安心して、ゲームを一緒に楽しむことに集中してください。`
 
 export const LEGAL_DOCS: Record<LegalDocKey, { title: string; markdown: string }> = {
-  terms: { title: '利用規約', markdown: body(termsRaw) },
-  privacy: { title: 'プライバシーポリシー', markdown: body(privacyRaw) },
-  tokushoho: { title: '特定商取引法に基づく表記', markdown: body(tokushohoRaw) },
-  shikin: { title: '資金決済法に基づく表示', markdown: body(shikinMd) },
-  mimamori: { title: 'みまもり（監視）について', markdown: body(mimamoriMd) },
+  terms: { title: '利用規約', markdown: doc(termsRaw) },
+  privacy: { title: 'プライバシーポリシー', markdown: doc(privacyRaw) },
+  tokushoho: { title: '特定商取引法に基づく表記', markdown: doc(tokushohoRaw) },
+  shikin: { title: '資金決済法に基づく表示', markdown: doc(shikinMd) },
+  mimamori: { title: 'みまもり（監視）について', markdown: doc(mimamoriMd) },
 }

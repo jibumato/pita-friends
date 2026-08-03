@@ -7,12 +7,15 @@
 import type { ReactNode } from 'react'
 import { color as C } from '../theme/tokens'
 
-/** インライン装飾: **太字** と [text](url)→text、`code`→code。 */
+/** インライン装飾: **太字** と [text](url)→text、`code`→code、`<br>`→改行。 */
 function inline(text: string, keyBase: string): ReactNode[] {
   // リンクとバッククォートを素のテキストへ
   const cleaned = text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/`([^`]*)`/g, '$1')
-  const parts = cleaned.split(/(\*\*[^*]+\*\*)/g)
+  // 表のセル内の改行は <br> でしか書けない(セルを行で割れない)ので、ここで拾う。
+  // 拾わないと特商法表記に "<br>" がそのまま出る
+  const parts = cleaned.split(/(\*\*[^*]+\*\*|<br\s*\/?>)/g)
   return parts.map((p, i) => {
+    if (/^<br\s*\/?>$/.test(p)) return <br key={`${keyBase}-br${i}`} />
     if (p.startsWith('**') && p.endsWith('**')) {
       return (
         <b key={`${keyBase}-b${i}`} style={{ color: C.ink }}>
