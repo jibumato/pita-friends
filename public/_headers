@@ -14,6 +14,21 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+# ⚠️ **HTMLは毎回検証させる。**
+# アセットのファイル名はハッシュ付きなので不変キャッシュでよいが、
+# **そのハッシュを指しているのは index.html** で、ここに指定が無かった。
+# 指定が無いと、ブラウザや中間キャッシュが古い index.html を持ち続け、
+# **デプロイしても古いアプリが表示され続ける**(2026-08-03に実際に起きた)。
+# SPAなので、下のパスはすべて index.html が返る。
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/legal/*
+  Cache-Control: no-cache
+/reset-password
+  Cache-Control: no-cache
+
 # 自己ホストしたフォント。ファイル名にハッシュが付かない(生成手順の都合)ので
 # immutable にはせず、30日で再検証させる。差し替えるのはフォントの版を
 # 上げるときだけ。
