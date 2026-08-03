@@ -33,12 +33,15 @@ supabase db push               # supabase/migrations/ を番号順に適用
 
 ### 1. アプリを起動して接続確認
 
-`.env.local` はこのリポジトリに用意済みですが、`.gitignore` 対象なので**あなたの手元には無い場合があります**。無ければ以下を作成してください（値はSupabaseの `Settings > API`）。
+`.env.local` はこのリポジトリに用意済みですが、`.gitignore` 対象なので**あなたの手元には無い場合があります**。無ければ以下を作成してください（値はSupabaseの `Settings > API Keys`）。
 
 ```
 VITE_SUPABASE_URL=https://ytxsyklnqepanloomzcw.supabase.co
-VITE_SUPABASE_ANON_KEY=（anon public キー）
+VITE_SUPABASE_ANON_KEY=（Publishable key。sb_publishable_ で始まる）
 ```
+
+> レガシーの `anon public` キー(`eyJ...`)は使いません。Edge Functions が
+> `UNAUTHORIZED_LEGACY_JWT` で拒否します。
 
 ```bash
 npm install

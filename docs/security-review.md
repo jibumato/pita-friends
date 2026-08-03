@@ -99,7 +99,7 @@ URLに攻撃者の文字列が混じると別アプリを起動させられる�
 | `bookings` のRLS | 当事者のみ（`guest_id = auth.uid() or host_id = auth.uid()`） |
 | `ledger_audit` | 運営（`admins`）だけが読める |
 | `push_outbox` | ポリシーを1本も作っていない=誰も読めない |
-| リポジトリ内の秘密 | 実値の秘密は無し。`.env.production` は anon キーのみ（JWTの `role` が `anon` であることを確認） |
+| リポジトリ内の秘密 | 実値の秘密は無し。`.env.production` は publishable キー(`sb_publishable_...`)のみ。**secret キー(`sb_secret_...`)が入っていないことを確認** |
 | XSS | `dangerouslySetInnerHTML` / `innerHTML` / `eval` の使用は0件。`Markdown` は規約表示専用で、ユーザー入力を通さず、リンクも描画しない |
 | Edge Function の認証 | Verify JWT を OFF にしている前提で、利用者向けの5本すべてが `getUser()` で自前検証。`stripe-webhook` は署名検証、`push-send` は共有秘密 |
 | オープンリダイレクト | `window.location.href` への代入は Stripe の決済URL（自前のEdge Functionが返す値）のみ |
