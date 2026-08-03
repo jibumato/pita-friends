@@ -1,0 +1,66 @@
+# main への push で Cloudflare へデプロイする。
+#
+# **なぜ GitHub Actions に移したか**
+# Cloudflare 側の自動ビルド(Workers Builds)が、2026-08-03 に**無言で止まった**。
+# 6回 push して1つもビルドが積まれず、しかも Cloudflare の画面には
+# 成功したバージョンしか出ないため、止まっていること自体に気づけなかった。
+# ここに置けば、失敗すれば GitHub 上で赤くなり、通知が飛ぶ。
+#
+# **最後の「反映の確認」が本体**。デプロイが成功したと報告されても、
+# 実際に配信されているとは限らない。ビルドしたアセット名が本番から返って
+# くるまで確かめて、返らなければ落とす。
+name: デプロイ
+
+on:
+  push:
+    branches: [main]
+  # 手動でも流せるようにする(ロールバック後の再デプロイ等)
+  workflow_dispatch:
+
+# 連続で push したときに古いほうが後から上書きしないようにする
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # package-lock.json のとおりに入れる(npm install ではない)
+      - run: npm ci
+
+      # Supabase の接続情報は .env.production がリポジトリに入っているので、
+      # ここで環境変数を渡す必要はない。**秘密の値はここに増やさないこと。**
+      - run: npm run build
+
+      - name: Cloudflare へデプロイ
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      - name: 反映の確認
+        run: |
+          ASSET=$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html | head -1)
+          echo "配信されるはずのアセット: $ASSET"
+          for i in 1 2 3 4 5 6; do
+            if curl -sf https://pitafure.com/ | grep -q "$ASSET"; then
+              echo "OK: 本番が $ASSET を返している"
+              exit 0
+            fi
+            echo "まだ切り替わっていない。10秒待って再確認 ($i/6)"
+            sleep 10
+          done
+          echo "::error::デプロイは成功したが、https://pitafure.com/ が $ASSET を返さない。Cloudflare 側のルーティングかキャッシュを確認すること"
+          exit 1

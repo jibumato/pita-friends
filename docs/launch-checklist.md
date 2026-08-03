@@ -19,6 +19,10 @@
 > 静的配信で、Workerスクリプトは使っていません。
 
 1. ✅ Cloudflare へのデプロイ(`main` にマージすると反映される)
+   - ☐ **【2026-08-03】配信を GitHub Actions に移す。**Cloudflare 側の自動ビルドが
+     無言で止まり、6コミットが配信されないまま気づけなかった。手順は
+     [`deploy.md`](deploy.md)。**シークレット2つの登録と、Cloudflare 側の
+     Git接続の解除がご本人の作業**
 2. ✅ 環境変数 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` の設定
    ※この2つは公開されても安全な値です(service_roleキーは**絶対に**入れない)
 3. ✅ **独自ドメインの取得・接続**: `https://pitafure.com`(2026-07-26)
