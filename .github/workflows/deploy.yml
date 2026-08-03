@@ -76,12 +76,14 @@ jobs:
         run: |
           echo "配信されるはずのコミット: $GITHUB_SHA"
 
-          for i in 1 2 3 4 5 6; do
+          # **3分待つ。** Cloudflare の伝播は60秒では終わらないことがあり、
+          # 短く切ると「成功したデプロイ」を失敗と報告してしまう(2026-08-03)。
+          for i in $(seq 1 18); do
             if curl -sf "https://pitafure.com/version.json?cb=$GITHUB_RUN_ID$i" | grep -q "$GITHUB_SHA"; then
-              echo "OK: 本番が $GITHUB_SHA を返している"
+              echo "OK: 本番が $GITHUB_SHA を返している(${i}回目)"
               exit 0
             fi
-            echo "まだ切り替わっていない。10秒待って再確認 ($i/6)"
+            echo "まだ切り替わっていない。10秒待って再確認 ($i/18)"
             sleep 10
           done
 
