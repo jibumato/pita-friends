@@ -58,10 +58,16 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
+      # 落ちたときに**原因まで分かる**ようにしておく。
+      # 「反映されていない」だけでは、ワーカー・独自ドメインの経路・エッジキャッシュの
+      # どれが悪いのか切り分けられず、毎回ダッシュボードを見に行くことになる。
       - name: 反映の確認
+        env:
+          WORKERS_DEV: https://pita-friends.sunny-rainy1115.workers.dev
         run: |
           ASSET=$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html | head -1)
           echo "配信されるはずのアセット: $ASSET"
+
           for i in 1 2 3 4 5 6; do
             if curl -sf https://pitafure.com/ | grep -q "$ASSET"; then
               echo "OK: 本番が $ASSET を返している"
@@ -70,5 +76,29 @@ jobs:
             echo "まだ切り替わっていない。10秒待って再確認 ($i/6)"
             sleep 10
           done
-          echo "::error::デプロイは成功したが、https://pitafure.com/ が $ASSET を返さない。Cloudflare 側のルーティングかキャッシュを確認すること"
+
+          echo "--- 切り分け ---"
+          # ①ワーカー自体は新しいか(独自ドメインを通らない経路で見る)
+          if curl -sf "$WORKERS_DEV/" | grep -q "$ASSET"; then
+            WORKER=新しい
+          else
+            WORKER=古い
+          fi
+          # ②キャッシュを迂回すると新しいか
+          if curl -sf "https://pitafure.com/?cb=$GITHUB_RUN_ID" | grep -q "$ASSET"; then
+            BYPASS=新しい
+          else
+            BYPASS=古い
+          fi
+          echo "workers.dev: $WORKER / キャッシュ迂回: $BYPASS"
+          echo "pitafure.com のヘッダ:"
+          curl -sSI https://pitafure.com/ | grep -iE '^(cf-cache-status|age|cache-control|server|cf-ray):' || true
+
+          if [ "$WORKER" = 古い ]; then
+            echo "::error::ワーカー自体が古い。デプロイは通っているのに反映されていないので、Cloudflare のバージョン(段階的デプロイ)を確認すること"
+          elif [ "$BYPASS" = 新しい ]; then
+            echo "::error::**エッジキャッシュが古い応答を保持している。** Cloudflare の pitafure.com → キャッシュ → 「すべてをパージ」を実行すること"
+          else
+            echo "::error::独自ドメイン pitafure.com がこのワーカーに向いていない。Cloudflare の pita-friends → ドメイン を確認すること"
+          fi
           exit 1
