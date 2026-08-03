@@ -1396,12 +1396,15 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           <div
             style={{
               borderTop: `1.5px solid ${C.border}`,
-              paddingTop: 14,
+              paddingTop: 16,
+              // スクロール領域の下に余白が無く、下部タブにくっついて見えるため
+              // ここで確保する(スクロールの最後の要素なので、ここが実質の下端)
+              paddingBottom: 26,
               marginTop: 4,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 10,
+              gap: 12,
             }}
           >
             <LegalLinks flow={flow} />
