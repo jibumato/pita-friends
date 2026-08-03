@@ -94,9 +94,12 @@
    - ☐ `docs/check-cron.sql` を実行して定期ジョブが**11件**
      (`0086` の `expire-withdrawn-earned` と `0089` の
      `notify-expiring-coins` が増えています)
-   - ☐ **`create-checkout-session` の再デプロイ**(下記 B-2)。
+   - ✅ **`create-checkout-session` の再デプロイ**(2026-08-03)。
      `0087` の購入上限の判定を Edge Function から呼ぶので、
-     **当てただけでは効きません**
+     当てただけでは効かない
+   - ☐ **テスト購入を1件**通して、Stripe の明細が**2行**
+     (コイン代金 ＋ あんしんサポート料)になることを確認する。
+     1行しか出なければ古い関数のまま
 
    > 今後マイグレーションを足したら、Supabase SQL Editor で**必ず番号の小さい順に**
    > 実行してください(手順: `docs/apply-migrations.md`)。どこまで当てたか
