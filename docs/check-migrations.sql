@@ -99,7 +99,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 退会で投稿等の表示を止める(規約第10条の2第4項)
     (92, '0092_withdraw_clears_posts',    'funcsrc', 'withdraw_account',          'voice_path = null'),
     -- 0065の当て漏れの回収。0091が作り直して開き直した穴も同時に閉じる
-    (93, '0093_relock_function_grants',  'noexec',  'host_progressive_fee(int, timestamptz)', null)
+    (93, '0093_relock_function_grants',  'noexec',  'host_progressive_fee(int, timestamptz)', null),
+    -- 未ログインに開いていた163本を5本に絞る(Supabaseの既定権限への対処)
+    (94, '0094_close_anon_function_grants', 'noexec', '_booking_slot_conflict(uuid, timestamptz, int, uuid, text[])', null)
 ),
 checked as (
   select
@@ -243,7 +245,9 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 退会で投稿等の表示を止める(規約第10条の2第4項)
     (92, '0092_withdraw_clears_posts',    'funcsrc', 'withdraw_account',          'voice_path = null'),
     -- 0065の当て漏れの回収。0091が作り直して開き直した穴も同時に閉じる
-    (93, '0093_relock_function_grants',  'noexec',  'host_progressive_fee(int, timestamptz)', null)
+    (93, '0093_relock_function_grants',  'noexec',  'host_progressive_fee(int, timestamptz)', null),
+    -- 未ログインに開いていた163本を5本に絞る(Supabaseの既定権限への対処)
+    (94, '0094_close_anon_function_grants', 'noexec', '_booking_slot_conflict(uuid, timestamptz, int, uuid, text[])', null)
 ),
 checked as (
   select e.seq, e.migration,
