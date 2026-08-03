@@ -696,7 +696,74 @@ function ReportsTab({ onChanged }: { onChanged: () => void }) {
 // 換金申請
 // ------------------------------------------------------------
 
-/** 銀行の一括振込に貼れる形でCSVを作る。Excelで開けるようBOM付き。 */
+type PayoutIssue = { level: 'block' | 'warn'; text: string }
+
+/**
+ * 振込を実行する**前に**見つけたい問題。
+ *
+ * `block` は銀行アップロード用CSVから除外する。**黙って落とさない**こと——
+ * 何件をなぜ外したかは画面に出す(下の PayoutsTab)。除外を黙ってやると
+ * 「全員に振り込んだつもり」で締めてしまう。
+ */
+function payoutIssues(p: AdminPayout): PayoutIssue[] {
+  const out: PayoutIssue[] = []
+  if (!p.isVerified) {
+    out.push({ level: 'block', text: '本人確認が未完了です。振り込まないでください。' })
+  }
+  // 全銀の受取人名は半角カナ最大30文字。アプリ側はカナ48文字まで通すので、
+  // 長い名義は**銀行のアップロードで初めて弾かれる**。ここで先に気づく。
+  if (p.accountHolderKana.length > 30) {
+    out.push({
+      level: 'block',
+      text: `受取人名が${p.accountHolderKana.length}文字です。全銀の上限は30文字なので、銀行側で弾かれます。名義の短縮を依頼してください。`,
+    })
+  }
+  // ゆうちょ(9900)は通帳の記号・番号のままでは他行から振り込めない。
+  // 変換後は店番3桁・口座番号7桁。7桁でなければ未変換を疑う。
+  if (p.bankCode === '9900' && p.accountNumber.replace(/\D/g, '').length !== 7) {
+    out.push({
+      level: 'warn',
+      text: 'ゆうちょ銀行ですが口座番号が7桁ではありません。通帳の記号・番号のままだと振込不能になります。変換後の値か本人に確認してください。',
+    })
+  }
+  return out
+}
+
+const isBlocked = (p: AdminPayout) => payoutIssues(p).some((i) => i.level === 'block')
+
+/**
+ * 銀行の総合振込にそのまま載せる形のCSV。
+ *
+ * **確認用CSV(下の payoutsCsv)とは別物。** あちらは目視確認の一覧で、
+ * 申請IDやニックネームまで入っている。銀行に渡すのは6列だけで、列順も
+ * 預金種目の表し方(1=普通/2=当座)も銀行の指定に合わせる。
+ *
+ * 分けている理由は、**間にExcelの手作業を挟ませないため**。金額を扱う作業で
+ * 列を並べ替えると、行がずれた瞬間に別人へ振り込む。
+ *
+ * ⚠️ 列順・ヘッダの有無・文字コードは銀行によって違う。GMOあおぞらネット銀行の
+ * 管理画面のテンプレートと突き合わせること(`docs/payouts-bank-operations.md` §①)。
+ */
+function bankTransferCsv(rows: AdminPayout[]): string {
+  const head = ['銀行コード', '支店コード', '預金種目', '口座番号', '受取人名', '振込金額']
+  const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
+  const body = rows.map((r) =>
+    [
+      r.bankCode,
+      r.branchCode,
+      // account_type は DB 側で '普通' | '当座' に制約済み(0014_bank_payouts.sql:51)
+      r.accountType === '当座' ? '2' : '1',
+      r.accountNumber,
+      r.accountHolderKana,
+      r.amountYen,
+    ]
+      .map(esc)
+      .join(','),
+  )
+  return '﻿' + [head.map(esc).join(','), ...body].join('\r\n')
+}
+
+/** 口座情報つきの確認用CSV。目視確認と控えのため。Excelで開けるようBOM付き。 */
 function payoutsCsv(rows: AdminPayout[]): string {
   const head = [
     '申請ID',
@@ -743,15 +810,28 @@ function PayoutsTab({ onChanged }: { onChanged: () => void }) {
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
-  function download() {
-    if (!items || items.length === 0) return
-    const blob = new Blob([payoutsCsv(items)], { type: 'text/csv;charset=utf-8' })
+  function save(csv: string, name: string) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `payouts-${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = name
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const today = () => new Date().toISOString().slice(0, 10)
+
+  /** 口座情報つきの確認用。**全件**出す(除外した分も控えとして残すため) */
+  function download() {
+    if (!items || items.length === 0) return
+    save(payoutsCsv(items), `payouts-${today()}.csv`)
+  }
+
+  /** 銀行の総合振込にアップロードする用。**問題のある行は入れない** */
+  function downloadBank(rows: AdminPayout[]) {
+    if (rows.length === 0) return
+    save(bankTransferCsv(rows), `payouts-bank-${today()}.csv`)
   }
 
   async function run(fn: () => Promise<void>) {
@@ -775,6 +855,10 @@ function PayoutsTab({ onChanged }: { onChanged: () => void }) {
   if (!items) return <Note>読み込み中…</Note>
 
   const total = items.reduce((n, r) => n + r.amountYen, 0)
+  // 銀行に渡してよい行と、先に解消が要る行を分ける
+  const payable = items.filter((p) => !isBlocked(p))
+  const blocked = items.filter(isBlocked)
+  const payableTotal = payable.reduce((n, r) => n + r.amountYen, 0)
 
   return (
     <>
@@ -795,20 +879,51 @@ function PayoutsTab({ onChanged }: { onChanged: () => void }) {
             <br />
             この一覧を開いたことは操作記録に残ります（誰がいつ口座情報を見たか）。
           </Note>
-          <Btn onClick={download}>CSVをダウンロード</Btn>
+          <div style={{ display: 'grid', gap: 6 }}>
+            <Btn disabled={payable.length === 0} onClick={() => downloadBank(payable)}>
+              銀行アップロード用CSV（{payable.length}件 / {payableTotal.toLocaleString()}円）
+            </Btn>
+            <Btn onClick={download}>確認用CSV（口座情報つき・全{items.length}件）</Btn>
+          </div>
+          <Note>
+            銀行アップロード用は<b style={{ color: C.ink }}>6列だけ</b>
+            （銀行コード・支店コード・預金種目・口座番号・受取人名・振込金額）で、
+            そのまま総合振込に載せられます。
+            <b style={{ color: C.ink }}>Excelで並べ替えないでください</b>
+            ——列をいじると行がずれて別人に振り込みます。
+            <br />
+            列順・ヘッダの有無・文字コードは銀行によって違うので、初回だけ
+            管理画面のテンプレートと突き合わせてください（docs/payouts-bank-operations.md §①）。
+          </Note>
+          {blocked.length > 0 && (
+            <ErrorBox>
+              <b>{blocked.length}件を銀行アップロード用CSVから外しました。</b>
+              理由は各カードの赤い注意書きです。外した分は「振込済みにする」を押さずに残し、
+              解消してから次回に回してください（報酬コインは失効しません）。
+            </ErrorBox>
+          )}
           {items.map((p) => (
-            <Card key={p.id} alert={!p.isVerified || p.sharedCardCount > 0}>
+            <Card key={p.id} alert={isBlocked(p) || p.sharedCardCount > 0}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                 <span style={{ fontSize: 12.5, color: C.ink }}>{p.nickname}</span>
                 <span style={{ fontSize: 13, color: C.ink, flex: 'none', fontVariantNumeric: 'tabular-nums' }}>
                   {p.amountYen.toLocaleString()}円
                 </span>
               </div>
-              {!p.isVerified && (
-                <span style={{ fontSize: 11, color: '#E5484D' }}>
-                  ⚠️ 本人確認が未完了です。振り込まないでください。
+              {/* 本人確認・受取人名の長さ・ゆうちょの未変換。
+                  block は銀行アップロード用CSVから外れている(上のErrorBoxで件数を出す) */}
+              {payoutIssues(p).map((issue, i) => (
+                <span
+                  key={i}
+                  style={{
+                    fontSize: 11,
+                    lineHeight: 1.7,
+                    color: issue.level === 'block' ? '#E5484D' : C.body,
+                  }}
+                >
+                  ⚠️ {issue.text}
                 </span>
-              )}
+              ))}
               {/* 0080・E-9。**資金が出る瞬間に目に入る**のがこの表示の値打ち。
                   遮断しないのは、家族カード・同一世帯で正当に一致しうるため */}
               {p.sharedCardCount > 0 && (
