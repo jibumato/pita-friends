@@ -1168,7 +1168,9 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           display: 'flex',
           flexDirection: 'column',
           gap: 18,
-          padding: '14px 20px 0',
+          // 下を 0 にすると、モバイルでは下部タブに、
+          // デスクトップではフッターの罫線に中身が接する
+          padding: '14px 20px 24px',
         }}
       >
         {/* 最上部: お気に入りのピタメイト。既にお気に入りがいる人は、ホームに来る目的が
@@ -1397,9 +1399,8 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             style={{
               borderTop: `1.5px solid ${C.border}`,
               paddingTop: 16,
-              // スクロール領域の下に余白が無く、下部タブにくっついて見えるため
-              // ここで確保する(スクロールの最後の要素なので、ここが実質の下端)
-              paddingBottom: 26,
+              // 下余白はスクロール領域側(padding-bottom: 24)で確保している
+              paddingBottom: 4,
               marginTop: 4,
               display: 'flex',
               flexDirection: 'column',
