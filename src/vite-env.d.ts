@@ -14,3 +14,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/** ビルド時刻(UTC・分まで)。vite.config.ts の define で埋め込む。 */
+declare const __BUILD_ID__: string

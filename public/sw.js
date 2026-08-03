@@ -7,7 +7,9 @@
  * Viteはアセット名をハッシュ化するため、事前プリキャッシュではなく取得時キャッシュにしている。
  */
 // ロゴ等の静的アセットを差し替えたらここを上げる(キャッシュ優先のため古い版が残り続ける)
-const CACHE = 'pita-friends-v7'
+// v8: 2026-08-03。古い index.html を掴んだままの端末を確実に切り替えるため
+// (activate で CACHE 以外のキャッシュを全部消す)
+const CACHE = 'pita-friends-v8'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.ico', '/icon-192.png', '/icon-512.png']
 
 /**

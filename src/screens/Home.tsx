@@ -1405,7 +1405,9 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
             }}
           >
             <LegalLinks flow={flow} />
-            <span style={{ fontSize: 10.5, color: C.muted }}>© 2026 ピタフレ</span>
+            <span style={{ fontSize: 10.5, color: C.muted }}>
+              © 2026 ピタフレ　<span style={{ opacity: 0.7 }}>build {__BUILD_ID__}</span>
+            </span>
           </div>
         )}
       </div>
