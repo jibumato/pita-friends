@@ -62,6 +62,23 @@ declare
     'host_repeat_stats(p_host_ids uuid[])',
     'public_host_cards(p_limit integer)'
   ];
+  -- 運営(SQL/コンソール)か Edge Function だけが呼ぶもの。
+  -- **利用者に開いていてはいけない**とテストが固定している一覧
+  -- (73_admin_console / 75_web_push / 77_fast_release /
+  --  93_payment_dispute_freeze / 96_card_and_residency)。
+  -- `_` 始まりとトリガー関数は別途まとめて閉じるので、ここには書かない。
+  c_backend constant text[] := array[
+    'mark_payout_paid',            -- 振込の消込(運営)
+    'mark_payout_failed',          -- 同上
+    'resolve_report',              -- 通報の処理(運営)
+    'auto_complete_bookings',      -- 自動確定(定期ジョブ)
+    'claim_push_batch',            -- 送信待ちの取り出し(送信側)
+    'mark_push_result',            -- 送信結果の記録(送信側)
+    'disable_push_subscription',   -- 無効な購読の停止(送信側)
+    'prune_push',                  -- 送信済みの片付け(定期ジョブ)
+    'record_payment_card',         -- カード指紋の記録(Edge Function)
+    'record_payment_dispute'       -- 異議の記録(同上)
+  ];
   r record;
   n int := 0;
   m int := 0;
@@ -72,6 +89,7 @@ begin
     select p.oid,
            p.oid::regprocedure as sig,
            p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as ident,
+           p.proname,
            (p.proname like '\_%' or p.prorettype = 'trigger'::regtype) as is_internal
       from pg_proc p
       join pg_namespace ns on ns.oid = p.pronamespace
@@ -97,7 +115,8 @@ begin
     -- 内部用の補助関数とトリガー関数は、ログイン済みの利用者からも閉じる。
     -- SECURITY DEFINER 関数の中から呼ばれるだけで、そのときは定義者の
     -- 権限で動くので、利用者側の EXECUTE は要らない
-    if (r.is_internal) and has_function_privilege('authenticated', r.oid, 'execute') then
+    if (r.is_internal or r.proname = any (c_backend))
+       and has_function_privilege('authenticated', r.oid, 'execute') then
       execute format('revoke all on function %s from authenticated', r.sig);
       m := m + 1;
     end if;
@@ -153,12 +172,13 @@ begin
          and not exists (
            select 1 from pg_depend d
             where d.objid = p.oid and d.classid = 'pg_proc'::regclass and d.deptype = 'e')
-         and (p.proname like '\_%' or p.prorettype = 'trigger'::regtype)
+         and (p.proname like '\_%' or p.prorettype = 'trigger'::regtype
+              or p.proname = any (c_backend))
          and has_function_privilege('authenticated', p.oid, 'execute')
     ) t;
 
   if v_left is not null then
-    raise exception '0094: 内部用の関数がログイン済み利用者に開いたままです: %', v_left;
+    raise exception '0094: 内部用・運営用の関数がログイン済み利用者に開いたままです: %', v_left;
   end if;
 
   raise notice '0094: 未ログインに開いているのは一覧の5本だけになりました';
