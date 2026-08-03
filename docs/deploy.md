@@ -67,6 +67,7 @@ Actions が通ることを確認してから、Cloudflare の
 | Actions に何も出ない | ワークフローが `main` にあるか。Actions が無効化されていないか |
 | `npm ci` で落ちる | `package-lock.json` が `package.json` とずれている。手元で `npm ci` を試す |
 | デプロイの手順で落ちる | シークレット2つの名前と値。トークンの権限（Workers Scripts: Edit） |
+| `Missing entry-point` | wrangler が古く `wrangler.jsonc` を読めていない。**wrangler は `devDependencies` に固定してある**ので、`npm ci` が効いているか確認する |
 | 「反映の確認」だけ落ちる | デプロイ自体は成功している。Cloudflare のルーティング・独自ドメインの設定・キャッシュ |
 
 ## 手で配信する（最後の手段）
