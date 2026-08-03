@@ -47,11 +47,16 @@ jobs:
       # 3.90.0 は wrangler.jsonc(JSONC形式の設定)を読めず、設定が正しいのに
       # 「Missing entry-point」で落ちる(2026-08-03)。
       # wrangler は devDependencies に固定してあるので、npx はそれを使う。
+      #
+      # **アカウントIDは渡さない。** トークンが1つのアカウントに限定されていれば、
+      # wrangler が自分で判別する。32桁の英数字を手で書き写す作業は、
+      # 1文字ずれても「object identifier is invalid [code: 7003]」としか出ず、
+      # 原因に辿り着きにくい(2026-08-03に1文字欠けで落ちた)。
+      # 将来アカウントを増やしたら、そのときだけ CLOUDFLARE_ACCOUNT_ID を足す。
       - name: Cloudflare へデプロイ
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: 反映の確認
         run: |
