@@ -55,7 +55,13 @@ Deno.serve(async (req) => {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
-    // 未払いのまま completed になるケースは弾く
+    // 未払いのまま completed になるケースは弾く。
+    //
+    // ⚠️ **非同期決済(コンビニ払い・銀行振込)をSTRIPE_PAYMENT_METHODSに
+    //    足すときは、ここを直すこと。** それらは completed 時点で unpaid のまま
+    //    ここで捨てられ、入金時の checkout.session.async_payment_succeeded は
+    //    このFunctionが処理していない → **支払われたのにコインが付かない。**
+    //    カードとPayPayは同期(completed時点でpaid)なので現構成では起きない。
     if (session.payment_status !== 'paid') {
       return new Response('ignored (not paid)', { status: 200 })
     }
