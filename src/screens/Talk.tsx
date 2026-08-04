@@ -792,7 +792,11 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
             >
               {/* 一般論ではなく「いま取り消したら実際にいくら戻るか」を出す。
                   0048で没収額に上限を入れたので、率からの掛け算では実額が出ない。
-                  ここでは計算せず、サーバが返した額をそのまま表示する。 */}
+                  ここでは計算せず、サーバが返した額をそのまま表示する。
+
+                  0102: すでに遊んだあと(played)なら、キャンセルは「プレイ完了」と
+                  同じ扱いになる。**ドタキャン記録の文言を出してはいけない**
+                  （実際につかないので、嘘になる）。 */}
               <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
                 {!isGuestOfBooking
                   ? 'あなた都合のキャンセルはコインが相手に全額戻り、あなたのドタキャン記録に残ります。'
@@ -800,9 +804,11 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
                     ? '確認しています…'
                     : refundQuote.refundCoins >= refundQuote.coins
                       ? `いまキャンセルすると、${refundQuote.coins.toLocaleString()}コインが全額戻ります。`
-                      : refundQuote.refundCoins === 0
-                        ? `いまキャンセルすると、${refundQuote.coins.toLocaleString()}コインは戻らず相手の報酬になります。ドタキャンとして記録されます。`
-                        : `いまキャンセルすると、${refundQuote.refundCoins.toLocaleString()}コインが戻ります。残りの${refundQuote.forfeitCoins.toLocaleString()}コインは相手の報酬になり、ドタキャンとして記録されます。`}
+                      : refundQuote.played
+                        ? `すでに一緒に遊んでいるので、これは「プレイ完了」と同じ扱いになります。${refundQuote.forfeitCoins.toLocaleString()}コインが相手の報酬として確定し、${refundQuote.refundCoins > 0 ? `${refundQuote.refundCoins.toLocaleString()}コインが戻ります。` : '戻るコインはありません。'}ドタキャンの記録はつきません。`
+                        : refundQuote.refundCoins === 0
+                          ? `いまキャンセルすると、${refundQuote.coins.toLocaleString()}コインは戻らず相手の報酬になります。ドタキャンとして記録されます。`
+                          : `いまキャンセルすると、${refundQuote.refundCoins.toLocaleString()}コインが戻ります。残りの${refundQuote.forfeitCoins.toLocaleString()}コインは相手の報酬になり、ドタキャンとして記録されます。`}
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
                 <span

@@ -2116,6 +2116,12 @@ export type RefundQuote = {
   basePercent: number
   /** 没収の上限(0048)が効いて、率から期待されるより多く戻る状態か */
   capped: boolean
+  /**
+   * 両方がチェックイン済み = **実際に遊んだあと**か(0102)。
+   * このときキャンセルは完了と同じ扱いになり、ドタキャン記録がつかない。
+   * **画面で作り直さないこと**(判定はサーバの1か所にある)。
+   */
+  played: boolean
 }
 
 /**
@@ -2137,6 +2143,7 @@ export async function fetchMyRefundQuote(bookingId: string): Promise<RefundQuote
     forfeitCoins: Number(q.forfeit_coins ?? 0),
     basePercent: Number(q.base_percent ?? 0),
     capped: Boolean(q.capped),
+    played: Boolean(q.played),
   }
 }
 
