@@ -219,9 +219,17 @@ on conflict (user_id) do nothing;
 do $$
 declare v_id uuid;
 begin
-  v_id := public.request_bank_payout(5000);
+  -- 0100: 退会後は**換金可能な全額を一括**。6,000のうち5,000だけ、はできない
+  begin
+    perform public.request_bank_payout(5000);
+    raise exception 'FAIL: 退会後に分割して申請できてしまった';
+  exception when others then
+    if sqlerrm not like '%FINAL_PAYOUT_MUST_BE_WHOLE%' then raise; end if;
+  end;
+
+  v_id := public.request_bank_payout(6000);
   if v_id is null then raise exception 'FAIL: 換金を申請できない'; end if;
-  raise notice 'OK: 退会後でも換金を申請できる';
+  raise notice 'OK: 退会後でも換金を申請できる(全額6,000を一括)';
 end $$;
 
 -- ------------------------------------------------------------
@@ -232,18 +240,21 @@ update public.account_withdrawals
   where user_id = 'e1000000-0000-0000-0000-000000000001';
 
 do $$
-declare v_n int; v_earned int;
+declare v_n int; v_pending int;
 begin
   v_n := public.expire_withdrawn_earned();
-  select earned_balance into v_earned from public.coin_wallets
-   where user_id = 'e1000000-0000-0000-0000-000000000001';
   if v_n <> 0 then
-    raise exception 'FAIL: 申請中なのに消滅させた(%件)', v_n;
+    raise exception 'FAIL: 申請中なのに消滅の処理を走らせた(%件)', v_n;
   end if;
-  if v_earned = 0 then
-    raise exception 'FAIL: 申請中の報酬コインまで消えた';
+  -- 0100 で全額を一括申請するようになったため、残高は0になる。
+  -- **守るべき不変条件は「残高が残っていること」ではなく
+  --   「申請中の payout が生きていること」。**
+  select count(*) into v_pending from public.payouts
+   where user_id = 'e1000000-0000-0000-0000-000000000001' and status = 'pending';
+  if coalesce(v_pending, 0) <> 1 then
+    raise exception 'FAIL: 申請中の換金が消えた(%件)', v_pending;
   end if;
-  raise notice 'OK: 申請中は消さない(残%枚)', v_earned;
+  raise notice 'OK: 申請中は消滅の処理を走らせない(pending %件が生きている)', v_pending;
 end $$;
 
 -- ------------------------------------------------------------

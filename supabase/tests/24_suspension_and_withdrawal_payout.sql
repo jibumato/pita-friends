@@ -7,6 +7,8 @@
 -- 固定するのは5つ:
 --   ・退会**前**は最低申請額(5,000)が効くこと
 --   ・退会**後**は最低申請額が外れ、少額でも申請できること
+--   ・退会後は**分割できない**こと(0100。手数料を何度も取られないため)
+--   ・**利用停止**でも最低申請額が外れること(0100)
 --   ・手数料(300)以下は、退会後でも申請できないこと
 --   ・利用停止で購入コインは消え、**報酬コインは残る**こと
 --   ・没収は明示したときだけ起き、理由が無ければ実行できないこと
@@ -61,14 +63,31 @@ do $$ begin raise notice '=== 2. 退会すると最低申請額が外れる(A-2)
 select public.withdraw_account('テスト');
 
 do $$
-declare v_id uuid; v_amount int;
+begin
+  -- 0100: **分割できない。** 分けられると手数料を何度も取られる
+  begin
+    perform public.request_bank_payout(400);
+    raise exception 'FAIL 退会後に分割して申請できてしまった';
+  exception when others then
+    if sqlerrm not like '%FINAL_PAYOUT_MUST_BE_WHOLE%' then raise; end if;
+    raise notice 'OK 一部だけの申請は FINAL_PAYOUT_MUST_BE_WHOLE で弾かれる';
+  end;
+end $$;
+
+do $$
+declare v_id uuid; v_amount int; v_left int;
 begin
   v_id := public.request_bank_payout(1200);
   select amount_yen into v_amount from public.payouts where id = v_id;
   if v_amount <> 900 then
     raise exception 'FAIL 手数料の控除がおかしい: %(1200-300=900のはず)', v_amount;
   end if;
-  raise notice 'OK 退会後は 1,200 コインで申請でき、手数料300を引いて900円';
+  select earned_balance into v_left
+    from public.coin_wallets where user_id = '24000000-0000-0000-0000-000000000001';
+  if coalesce(v_left, -1) <> 0 then
+    raise exception 'FAIL 全額のはずなのに残っている: %', v_left;
+  end if;
+  raise notice 'OK 退会後は全額(1,200)で申請でき、手数料300を引いて900円。残高は0';
 end $$;
 
 -- ------------------------------------------------------------
@@ -148,6 +167,39 @@ begin
     raise exception 'FAIL 没収したのに換金の期限が残っている';
   end if;
   raise notice 'OK p_forfeit_earned=true のときだけ没収され、換金の期限も消える';
+end $$;
+
+-- ------------------------------------------------------------
+do $$ begin raise notice '=== 6. 利用停止でも最低申請額が外れる(0100) ==='; end $$;
+-- ------------------------------------------------------------
+-- 5 で没収してしまったので、別のユーザーで見る
+insert into auth.users (id) values ('24000000-0000-0000-0000-000000000003');
+insert into public.profiles (id, nickname) values
+  ('24000000-0000-0000-0000-000000000003','停止される人2')
+  on conflict (id) do update set nickname = excluded.nickname;
+update public.profile_trust_stats set is_verified = true
+  where user_id = '24000000-0000-0000-0000-000000000003';
+insert into public.host_bank_accounts
+  (user_id, bank_name, bank_code, branch_name, branch_code, account_type, account_number, account_holder_kana)
+values ('24000000-0000-0000-0000-000000000003','テスト銀行','0001','本店','001','普通','1112223','テスト サブロウ')
+  on conflict (user_id) do nothing;
+update public.coin_wallets set earned_balance = 1600
+  where user_id = '24000000-0000-0000-0000-000000000003';
+
+set test.uid = '24000000-0000-0000-0000-0000000000ad';
+select public.admin_suspend_account('24000000-0000-0000-0000-000000000003', '規約違反(テスト)');
+
+set test.uid = '24000000-0000-0000-0000-000000000003';
+do $$
+declare v_id uuid;
+begin
+  -- **停止された人も、稼いだ分は取り戻せる。**
+  -- ここが弾かれると、弁護士の指摘した「稼得済み報酬の没収」が残る
+  v_id := public.request_bank_payout(1600);
+  if v_id is null then
+    raise exception 'FAIL 利用停止で換金できなかった';
+  end if;
+  raise notice 'OK 利用停止でも 1,600 コイン(<5,000)を申請できる';
 end $$;
 
 do $$ begin raise notice '==== 24: すべて通過 ===='; end $$;
