@@ -14,9 +14,22 @@ import termsRaw from '../../docs/legal/terms-of-service-draft.md?raw'
 import privacyRaw from '../../docs/legal/privacy-policy-draft.md?raw'
 import tokushohoRaw from '../../docs/legal/tokushoho-draft.md?raw'
 import shikinRaw from '../../docs/legal/shikin-kessai-draft.md?raw'
+// 役務提供に関するガイドラインは**規約の一部**(第1条2項)。
+// 「本サービス上で別途定める」ものなので、**アプリから到達できないと成立しない。**
+import guidelineRaw from '../../docs/legal/service-standard-guideline.md?raw'
+// 事例集は規約の**外**。⚠️ 名称に「ガイドライン」を使わないこと(第1条2項が
+// その名称の文書を自動的に規約へ取り込むため、1件直すたびに規約変更になる)
+import examplesRaw from '../../docs/help/service-standard-examples.md?raw'
 import { BUSINESS, ADDRESS_DISCLOSURE, TERMS_PARTY_NAME } from './businessInfo'
 
-export type LegalDocKey = 'terms' | 'privacy' | 'tokushoho' | 'shikin' | 'mimamori'
+export type LegalDocKey =
+  | 'terms'
+  | 'privacy'
+  | 'tokushoho'
+  | 'shikin'
+  | 'guideline'
+  | 'examples'
+  | 'mimamori'
 
 /**
  * ドラフトの前付け(H1タイトル・社内レビュー用の引用注記・作成日)を落として
@@ -47,7 +60,31 @@ function fillBusiness(md: string): string {
   return pairs.reduce((acc, [from, to]) => acc.split(from).join(to), md)
 }
 
-const doc = (md: string) => fillBusiness(body(md))
+/**
+ * 社内向けの注記 `〔※ … 〕` を落とす。
+ *
+ * **利用者に見せるものではない。** 注記には、弁護士回答の引用、同種サービスの
+ * 名前、「なぜこの条文にしたか」の判断の経緯が入っている。ドラフトの間は
+ * 画面にもそのまま出ていたが、公開する書面としては不適切なので落とす。
+ *
+ * `tools/md-to-docx.cjs` の `stripNotes` と同じ扱いにしてある
+ * （Word版と画面で中身が食い違うと、どちらが本物か分からなくなる）。
+ * `〔監視〕` のような**通常の亀甲括弧には触れない。**
+ */
+function stripNotes(md: string): string {
+  return md
+    .replace(/〔※[^〕]*〕/g, '')
+    // 注記だけの行が空になるので、空行の連続を1つに畳む
+    .split('\n')
+    .filter((l, i, a) => !(l.trim() === '' && (a[i - 1] ?? '').trim() === ''))
+    .join('\n')
+    .replace(/[ 　]+$/gm, '')
+    // 末尾の「AIが作ったたたき台」の断り書き。Word版でも落としている
+    .replace(/\n\*本ドラフトはAI[\s\S]*?\*/, '')
+    .trim()
+}
+
+const doc = (md: string) => stripNotes(fillBusiness(body(md)))
 
 const mimamoriMd = `# みまもり（監視）について
 
@@ -103,5 +140,7 @@ export const LEGAL_DOCS: Record<LegalDocKey, { title: string; markdown: string }
   privacy: { title: 'プライバシーポリシー', markdown: doc(privacyRaw) },
   tokushoho: { title: '特定商取引法に基づく表記', markdown: doc(tokushohoRaw) },
   shikin: { title: '資金決済法に基づく表示', markdown: doc(shikinRaw) },
+  guideline: { title: '役務提供に関するガイドライン', markdown: doc(guidelineRaw) },
+  examples: { title: 'プレイの内容が約束と違ったとき', markdown: doc(examplesRaw) },
   mimamori: { title: 'みまもり（監視）について', markdown: doc(mimamoriMd) },
 }

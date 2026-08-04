@@ -419,6 +419,17 @@ export default function Settings({ flow }: { flow: Flow }) {
           <ListRow label="プライバシーポリシー" onClick={() => flow.openLegalDoc('privacy')} />
           <ListRow label="特定商取引法に基づく表記" onClick={() => flow.openLegalDoc('tokushoho')} />
           <ListRow label="資金決済法に基づく表示" onClick={() => flow.openLegalDoc('shikin')} />
+          {/* ガイドラインは**規約の一部**(第1条2項)。「本サービス上で別途定める」
+              ものなので、ここから到達できないと規約に取り込めない */}
+          <ListRow
+            label="役務提供に関するガイドライン"
+            onClick={() => flow.openLegalDoc('guideline')}
+          />
+          <ListRow
+            label="プレイの内容が約束と違ったとき"
+            sub="運用例（規約の一部ではありません）"
+            onClick={() => flow.openLegalDoc('examples')}
+          />
           <ListRow
             label="みまもり（監視）について"
             divider={false}

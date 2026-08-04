@@ -10,7 +10,8 @@
 | `ピタフレプライバシーポリシー.docx` | `../privacy-policy-draft.md` | 照会の別紙2 |
 | `ピタフレ特定商取引法に基づく表記.docx` | `../tokushoho-draft.md` | 照会の別紙3 |
 | `ピタフレ資金決済法に基づく表示.docx` | `../shikin-kessai-draft.md` | 照会の別紙4 |
-| `ピタフレ役務提供に関するガイドライン.docx` | `../service-standard-guideline.md` | 規約第1条2項により**規約の一部**。公開前に掲載場所を決めること |
+| `ピタフレ役務提供に関するガイドライン.docx` | `../service-standard-guideline.md` | 規約第1条2項により**規約の一部**。アプリ内は 設定 ＞ 規約・ポリシー |
+| `ピタフレ運用例_約束と違ったとき.docx` | `../../help/service-standard-examples.md` | **規約の外**（ヘルプ）。更新に規約変更の手続は要らない |
 
 ## ⚠️ `--fill-business` を付け忘れないこと
 
@@ -56,7 +57,21 @@ node tools/md-to-docx.cjs docs/legal/shikin-kessai-draft.md docs/legal/word \
 node tools/md-to-docx.cjs docs/legal/service-standard-guideline.md docs/legal/word \
   --name ピタフレ役務提供に関するガイドライン --variants both \
   --title '役務提供に関するガイドライン'
+
+node tools/md-to-docx.cjs docs/help/service-standard-examples.md docs/legal/word \
+  --name ピタフレ運用例_約束と違ったとき --variants both \
+  --title 'プレイの内容が約束と違ったとき（運用例）'
 ```
+
+## 画面と Word で中身を揃えていること
+
+アプリの `src/content/legalDocs.ts` も、表示のときに `〔※ … 〕` を落とします
+（`stripNotes`）。**この道具と同じ扱いにしてあります。**
+片方だけ注記が出ていると、どちらが本物か分からなくなるためです。
+
+⚠️ 2026-08-04まで、**画面には注記がそのまま出ていました。**
+弁護士回答の引用・同種サービスの名前・「なぜこの条文にしたか」の判断の経緯が
+利用者に読める状態だったということです。公開前に気づけて幸いでした。
 
 ## 資金決済法に基づく表示だけ、注記の扱いが違います
 
