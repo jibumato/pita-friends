@@ -141,7 +141,7 @@ function Bubble({ side, children }: { side: 'left' | 'right'; children: React.Re
   )
 }
 
-/** ギフト(投げ銭)を贈るボトムシート。 */
+/** ギフト(投げ銭)のボトムシート。 */
 function GiftSheet({
   promiseId,
   partnerName,
@@ -180,7 +180,7 @@ function GiftSheet({
       onSent()
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'ギフトの送信に失敗しました')
+      setError(e instanceof Error ? e.message : 'ギフトに失敗しました')
     } finally {
       setSending(false)
     }
@@ -220,7 +220,8 @@ function GiftSheet({
         </div>
 
         <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
-          一緒に遊んでくれた感謝の気持ちを、コインで贈れます。相手の報酬(換金可能・受領から7日後)になります。
+          一緒に遊んでくれた感謝の気持ちを、コインで伝えられます。使ったコインは消滅し、
+          お相手には当社から報酬コイン(換金可能・付与から7日後)が付与されます。
           原資は購入コインのみ・返金はできません。
         </span>
 
@@ -273,7 +274,7 @@ function GiftSheet({
 
         {short && (
           <span style={{ fontSize: 11, color: C.avatarPink }}>
-            残高が足りません。ギフトは購入コインからのみ贈れます。
+            残高が足りません。ギフトは購入コインからのみ行えます。
           </span>
         )}
         {error && <span style={{ fontSize: 11, color: C.avatarPink }}>{error}</span>}
@@ -291,7 +292,7 @@ function GiftSheet({
             padding: '13px 0',
           }}
         >
-          {sending ? '送信中…' : `${amount} コインを贈る 🎁`}
+          {sending ? '処理中…' : `${amount} コインでギフトする 🎁`}
         </div>
       </div>
     </div>
@@ -923,7 +924,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
                 padding: '9px 0',
               }}
             >
-              🎁 {partner.name}さんにありがとうギフトを贈る
+              🎁 {partner.name}さんを指定してありがとうギフト
             </div>
           )}
         </div>

@@ -1,7 +1,12 @@
 /**
- * 遊び終わったあとに、ピタメイトを応援する(ありがとうチップを贈る)シート。
+ * 遊び終わったあとに、ピタメイトを応援する(ありがとうギフトを行う)シート。
  *
- * **裏側は既存のギフト(send_gift)をそのまま使う。** 別系統の送金にしていない。
+ * **裏側は既存のギフト(send_gift)をそのまま使う。** 別系統にしていない。
+ *
+ * ⚠️ 文言は「贈る／送る」型にしないこと(0097・規約 第7条の2)。
+ * ゲストのコインがピタメイトへ移るのではなく、**コインは消費されて消滅し、
+ * 当社が自己の債務として報酬コインを付与する**構成に書き換えてある。
+ * 画面の言い方が食い違うと、その構成が崩れる。
  * 0020で弁護士の指摘に沿って「一緒に遊んだ相手への“ありがとうチップ”」へ
  * 作り替え、送信条件と上限(1回5万・24時間5万・30日20万・相互送金禁止・
  * チャージ後24時間は不可)をそこへ集約した。もう1本作ると上限が二重になり、
@@ -109,7 +114,7 @@ export default function SupportSheet({ promiseId, partnerName, onClose, onSent }
         </div>
 
         <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.7 }}>
-          気持ちをコインで贈れます。<b style={{ color: C.ink }}>任意</b>です。贈らなくても評価やプレイに影響はありません。
+          気持ちをコインで伝えられます。<b style={{ color: C.ink }}>任意</b>です。行わなくても評価やプレイに影響はありません。
         </span>
 
         <span style={{ fontSize: 11.5, color: C.ink, marginTop: 2 }}>ひとこと</span>
@@ -186,14 +191,14 @@ export default function SupportSheet({ promiseId, partnerName, onClose, onSent }
             marginTop: 2,
           }}
         >
-          {sending ? '送信中…' : `${amount.toLocaleString()}コインを贈る ▶`}
+          {sending ? '処理中…' : `${amount.toLocaleString()}コインでギフトする ▶`}
         </button>
 
         {/* 資金決済法・規約まわりの必須表示。ギフトシート(Talk)と同じ内容を保つこと。 */}
         <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
-          原資は購入コインのみです（おまけコインは使えません）。贈ったコインは
-          <b style={{ color: C.ink }}>返金・取り消しができません</b>。
-          相手には報酬コイン（受領から7日後に換金可能）として届きます。
+          原資は購入コインのみです（おまけコインは使えません）。ギフトに使ったコインは
+          <b style={{ color: C.ink }}>消費されて消滅し、返金・取り消しができません</b>。
+          お相手には、当社から報酬コイン（付与から7日後に換金可能）が付与されます。
         </span>
       </div>
     </div>

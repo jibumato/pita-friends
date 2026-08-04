@@ -1,8 +1,12 @@
 /**
  * ギフト(応援チップ)のトーク本文を、スタンプ表示に読み替える。
  *
- * 送信時に send_gift(0020) が、トークへ次の本文を投稿している:
- *   🎁 {コイン}コインのありがとうギフトを贈りました「{ひとこと}」
+ * send_gift が、トークへ次の本文を投稿している:
+ *   0097以降: 🎁 ありがとうギフト {コイン}コイン「{ひとこと}」
+ *   0097より前: 🎁 {コイン}コインのありがとうギフトを贈りました「{ひとこと}」
+ *
+ * **旧い本文も読める。** 既に流れたメッセージは書き換えていない
+ * (過去の事実の改変になる)ので、新旧どちらも受ける。
  *
  * **本文の形は変えていない。** 表示だけをこちらで読み替える。
  * そうすることで、
@@ -24,17 +28,21 @@ export type GiftMessage = {
   coins: number
   /** 添えられたひとこと(定型＋自由入力)。無ければ null。 */
   text: string | null
-  /** 定型文に対応するスタンプ。定型を選ばずに贈った場合は null。 */
+  /** 定型文に対応するスタンプ。定型を選ばなかった場合は null。 */
   stickerSrc: string | null
   /** スタンプの代替テキスト(読み上げ・画像が出ないとき用)。 */
   stickerAlt: string | null
 }
 
-const PATTERN = /^🎁\s*([\d,]+)コインのありがとうギフトを贈りました(?:「(.*)」)?$/s
+// 0097: 「贈りました」= A→B の移転を表す言い方をやめた(規約 第7条の2)。
+// 旧い本文が残っているので、両方を受ける。
+const PATTERN_NEW = /^🎁\s*ありがとうギフト\s*([\d,]+)コイン(?:「(.*)」)?$/s
+const PATTERN_OLD = /^🎁\s*([\d,]+)コインのありがとうギフトを贈りました(?:「(.*)」)?$/s
 
 /** ギフトの本文なら中身を返す。違えば null(通常のメッセージとして描く)。 */
 export function parseGiftMessage(body: string): GiftMessage | null {
-  const m = PATTERN.exec(body.trim())
+  const t = body.trim()
+  const m = PATTERN_NEW.exec(t) ?? PATTERN_OLD.exec(t)
   if (!m) return null
   const coins = Number(m[1].replace(/,/g, ''))
   if (!Number.isFinite(coins)) return null

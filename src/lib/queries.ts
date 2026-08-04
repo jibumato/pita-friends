@@ -824,15 +824,19 @@ export async function fetchPlayHistoryWith(otherUserId: string): Promise<PlayHis
 export const GIFT_AMOUNTS = [100, 500, 1000, 5000, 10000, 50000] as const
 
 const GIFT_ERROR_MESSAGES: Record<string, string> = {
-  INSUFFICIENT_COINS: '購入コインの残高が足りません。ギフトは購入コインからのみ贈れます',
+  INSUFFICIENT_COINS: '購入コインの残高が足りません。ギフトは購入コインからのみ行えます',
   INVALID_AMOUNT: 'ギフトの金額が正しくありません(1回50,000コインまで)',
-  BLOCKED: 'この相手にはギフトを贈れません',
+  BLOCKED: 'この相手を指定したギフトは行えません',
   THREAD_NOT_FOUND: 'トークが見つかりませんでした',
-  FORBIDDEN: 'このトークではギフトを贈れません',
-  SAME_DEVICE_FORBIDDEN: '同じ端末で使われたアカウント間ではギフトを贈れません',
-  NO_COMPLETED_PLAY: 'ギフトは、一緒に遊んだ(予約が完了した)相手にだけ贈れます',
-  MUTUAL_GIFT_FORBIDDEN: '相手からギフトを受け取っているため、こちらからは贈れません(相互送金の防止)',
-  RECENT_PURCHASE_COOLDOWN: 'コイン購入から24時間はギフトを贈れません',
+  FORBIDDEN: 'このトークではギフトを行えません',
+  SAME_DEVICE_FORBIDDEN: '同じ端末で使われたアカウント間ではギフトを行えません',
+  NO_COMPLETED_PLAY: 'ギフトは、一緒に遊んだ(予約が完了した)ピタメイトを指定してのみ行えます',
+  MUTUAL_GIFT_FORBIDDEN: 'この相手からギフトを受けているため、こちらからは行えません(相互送金の防止)',
+  RECENT_PURCHASE_COOLDOWN: 'コイン購入から24時間はギフトを行えません',
+  // 0097(規約 第7条の2第6項)。役務との牽連性と、送金網化の防止
+  GIFT_WINDOW_CLOSED: 'プレイの完了から30日を過ぎたため、このお相手へのギフトは行えません',
+  RECEIVER_MONTHLY_LIMIT: 'このピタメイトが直近30日に受けたギフトが上限に達しています',
+  PAIR_MONTHLY_LIMIT: '同じお相手へのギフトが直近30日の上限に達しています',
   DAILY_LIMIT: '1日の送信上限(50,000コイン)を超えます',
   MONTHLY_LIMIT: '30日間の送信上限(200,000コイン)を超えます',
   NOT_AUTHENTICATED: 'ログインが必要です',
@@ -896,7 +900,7 @@ export async function sendGift(promiseId: string, coins: number, message?: strin
   })
   if (error) {
     const known = Object.keys(GIFT_ERROR_MESSAGES).find((k) => error.message.includes(k))
-    throw new Error(known ? GIFT_ERROR_MESSAGES[known] : 'ギフトの送信に失敗しました')
+    throw new Error(known ? GIFT_ERROR_MESSAGES[known] : 'ギフトに失敗しました')
   }
 }
 
@@ -1550,7 +1554,7 @@ const PAYOUT_ERROR_MESSAGES: Record<string, string> = {
   NOT_VERIFIED: '換金には本人確認の完了が必要です',
   BANK_ACCOUNT_NOT_REGISTERED: '先にピタメイト設定から振込先口座を登録してください',
   INSUFFICIENT_EARNED_BALANCE: '換金可能な残高が足りません',
-  GIFT_ON_HOLD: '受け取ったギフトは7日間は換金できません。保留が明けるまでお待ちください',
+  GIFT_ON_HOLD: 'ギフトで付与された報酬コインは7日間は換金できません。保留が明けるまでお待ちください',
   // 0077。**理由を詳しく書かない。**チャージバックの存否は決済当事者と当社の間の
   // 情報で、報酬を受け取る側に相手方の決済事情を伝えるべきではない。
   // 「いつ明けるか」も申立ての決着次第なので約束できない。
@@ -1561,7 +1565,7 @@ const PAYOUT_ERROR_MESSAGES: Record<string, string> = {
 /** 換金できる額と保留の内訳(0077)。 */
 export type PayoutHold = {
   earnedBalance: number
-  /** 直近7日に受け取ったギフト(0069) */
+  /** 直近7日にギフトで付与された分(0069) */
   giftHold: number
   /** 係争中のチャージバックに紐づく予約の報酬(0077) */
   disputeHold: number
