@@ -10,6 +10,7 @@
 | `ピタフレプライバシーポリシー.docx` | `../privacy-policy-draft.md` | 照会の別紙2 |
 | `ピタフレ特定商取引法に基づく表記.docx` | `../tokushoho-draft.md` | 照会の別紙3 |
 | `ピタフレ資金決済法に基づく表示.docx` | `../shikin-kessai-draft.md` | 照会の別紙4 |
+| `ピタフレ役務提供に関するガイドライン.docx` | `../service-standard-guideline.md` | 規約第1条2項により**規約の一部**。公開前に掲載場所を決めること |
 
 ## ⚠️ `--fill-business` を付け忘れないこと
 
@@ -50,6 +51,11 @@ node tools/md-to-docx.cjs docs/legal/tokushoho-draft.md docs/legal/word \
 node tools/md-to-docx.cjs docs/legal/shikin-kessai-draft.md docs/legal/word \
   --name ピタフレ資金決済法に基づく表示 --variants keep \
   --title '資金決済法に基づく表示' --fill-business
+
+# ガイドライン（事業者情報の差込みは無いので --fill-business 不要）
+node tools/md-to-docx.cjs docs/legal/service-standard-guideline.md docs/legal/word \
+  --name ピタフレ役務提供に関するガイドライン --variants both \
+  --title '役務提供に関するガイドライン'
 ```
 
 ## 資金決済法に基づく表示だけ、注記の扱いが違います
