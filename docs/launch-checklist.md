@@ -301,9 +301,11 @@
 3-c. ☐ **EMV 3-Dセキュア(3DS2)の確認**
    - コード側は `request_three_d_secure: 'any'` を指定済み(`create-checkout-session`)
    - Stripe の **Radar のルールで 3DS を無効化していないか**だけ確認する
-   - ⚠️ **チャージバックの申立期限は取引日から120日程度**で、当方の防御
-     (7日保留＋週次振込)とは**期間が一桁違う**。**規約では埋まらない穴**なので、
-     3DSのライアビリティシフトが最も効く(`docs/payments-stripe-setup.md` §5-b)
+   - ⚠️ **チャージバックの申立期限は取引日から120日程度**で、換金は数日〜十数日で
+     完了する。**すでに他人に渡した金を後から請求される**構造。**規約では埋まらない**
+     ので、3DSのライアビリティシフトが最も効く(`docs/payments-stripe-setup.md` §5-b)
+   - 現在の防御の全体像（3DS・新規購入上限・新規原資の30日保留・係争中の凍結・相殺）と、
+     **まだ残っているギャップ**は `docs/chargeback-defense.md` に集約
 4. ☐ **(必須)Edge Functionを再デプロイ**:
    ```bash
    supabase functions deploy create-checkout-session
