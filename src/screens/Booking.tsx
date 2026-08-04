@@ -10,6 +10,7 @@ import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchMyTrialDiscount, fetchBusySlots, type BusySlot } from '../lib/queries'
+import { CANCELLATION_POLICY_LINES } from '../content/bookingPolicy'
 import {
   startTimeOptions,
   formatStart,
@@ -469,28 +470,25 @@ export default function Booking({ flow }: { flow: Flow }) {
           }}
         >
           <Shield size={14} style={{ flex: 'none', marginTop: 1 }} />
+          {/* 文面は content/cancellationPolicy.ts が出典。**ここに直接書かない。**
+              申込時に「表示した文面」として policy_consents に記録するので、
+              画面とログが別々にあると、直したときに黙ってずれる（ずれた瞬間、
+              「この文面を見せた」と言えなくなり証跡の価値が消える）。 */}
           <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
-            コインは申し込んだ時点で確保され、相手が承諾すると予約が成立します。
-            <br />
-            ・承諾される<b style={{ color: C.ink }}>前</b>の取り消し → <b style={{ color: C.ink }}>全額戻ります</b>
-            <br />
-            ・<b style={{ color: C.ink }}>ピタメイト都合</b>のキャンセル・無断欠席 → <b style={{ color: C.ink }}>全額戻ります</b>
-            <br />
-            ・<b style={{ color: C.ink }}>あなたの都合</b>のキャンセル
-            <br />
-            　→ 承諾から5分以内、または開始1時間前までは<b style={{ color: C.ink }}>全額戻ります</b>
-            <br />
-            　→ 開始1時間前を切ってから開始までは<b style={{ color: C.ink }}>半額戻ります</b>
-            <br />
-            　→ 開始後・無断欠席は戻らず、コインは相手の報酬になります
-            <br />
-            　※ただし相手の報酬になるのは、
-            <b style={{ color: C.ink }}>すでに経過した時間ぶん＋3時間ぶんまで</b>です。
-            長い予約でも、それを超える分は戻ります。
-            <br />
-            　※戻るのはコインです。日本円での返金はできません。
-            <br />
-            トラブル時はいつでも通報・相談ができます。
+            {CANCELLATION_POLICY_LINES.map((line, i) => (
+              <span key={i}>
+                {i > 0 && <br />}
+                {line.split('**').map((part, j) =>
+                  j % 2 === 1 ? (
+                    <b key={j} style={{ color: C.ink }}>
+                      {part}
+                    </b>
+                  ) : (
+                    <span key={j}>{part}</span>
+                  ),
+                )}
+              </span>
+            ))}
           </span>
         </div>
 

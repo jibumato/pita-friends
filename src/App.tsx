@@ -15,7 +15,11 @@ import {
 } from './flow'
 import type { ReportCategory, PresenceStatus } from './lib/database.types'
 import type { LegalDocKey } from './content/legalDocs'
-import { CANCELLATION_POLICY_VERSION, MAX_LEAD_DAYS } from './content/bookingPolicy'
+import {
+  CANCELLATION_POLICY_VERSION,
+  MAX_LEAD_DAYS,
+  cancellationPolicyText,
+} from './content/bookingPolicy'
 import type { PersonalityResult } from './content/personality'
 import PhoneFrame from './components/PhoneFrame'
 import LoginOverlay from './components/LoginOverlay'
@@ -37,6 +41,7 @@ import {
   updateHostSettingsRemote,
   createBookingRemote,
   createBookingSeriesRemote,
+  recordPolicyConsent,
   checkIsAdmin,
   submitReport as submitReportRemote,
   blockUser as blockUserRemote,
@@ -658,6 +663,11 @@ export default function App() {
         // まとめ予約(0061)は専用のRPCへ。中身は create_booking を回数分呼ぶだけで、
         // どこかで失敗すれば1件も作られない。
         const repeat = state.bookingWhen === 'scheduled' ? state.bookingRepeat : 1
+        // 0106: 申込の直前に、**表示していたキャンセルポリシーの文面ごと**
+        // 同意を残す（弁護士 2026-07-30 Q14 の条件①）。予約行に持たせている
+        // 版番号だけでは、その版が何と書いてあったかを後から示せない。
+        // 記録に失敗しても予約は止めない（recordPolicyConsent が握りつぶす）
+        await recordPolicyConsent('cancellation', cancellationPolicyText())
         if (repeat > 1 && state.bookingStartAt) {
           await createBookingSeriesRemote(
             host.userId,

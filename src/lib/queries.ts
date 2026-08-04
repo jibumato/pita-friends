@@ -352,7 +352,9 @@ async function functionErrorMessage(error: unknown, fallback: string): Promise<s
 export async function createCheckoutSession(packId: string): Promise<string> {
   const { data, error } = await requireSupabase().functions.invoke<{ url?: string; error?: string }>(
     'create-checkout-session',
-    { body: { packId } },
+    // 0106: 購入時点の環境を残すため端末IDも渡す。IPはEdge Function側が
+    // X-Forwarded-For から読む(クライアント申告のIPは信用しない)
+    { body: { packId, deviceId: getDeviceId() } },
   )
   if (error) throw new Error(await functionErrorMessage(error, '決済ページの準備に失敗しました'))
   if (!data?.url) throw new Error(data?.error || '決済ページの準備に失敗しました')
@@ -880,7 +882,10 @@ export async function recordDevice(): Promise<void> {
  */
 export async function recordIp(): Promise<void> {
   try {
-    await requireSupabase().functions.invoke('record-ip', { body: {} })
+    await requireSupabase().functions.invoke('record-ip', {
+      // 0106: アプリ起動の記録に端末IDを添える
+      body: { deviceId: getDeviceId() },
+    })
   } catch {
     /* Edge Function未デプロイ・ネットワーク不通でもユーザー操作は妨げない */
   }
@@ -3571,4 +3576,43 @@ export async function fetchPaymentMethodMix(
     amountYen: Number(r.amount_yen ?? 0),
     sharePercent: r.share_percent == null ? null : Number(r.share_percent),
   }))
+}
+
+/* ============================================================
+ * 証跡(0106)。異議申立てで争うための記録。
+ * ============================================================ */
+
+/**
+ * ポリシーへの同意を、**表示していた文面ごと**記録する。
+ *
+ * 版番号だけでは「その版が何と書いてあったか」を後から示せない。
+ * 弁護士（2026-07-30 Q14）の条件①「同意の痕跡（ログ）を残す」に対応する。
+ *
+ * **失敗しても呼び出し側の処理を止めないこと。** 記録は付随作業で、
+ * ここで例外にすると予約そのものができなくなる。
+ */
+export async function recordPolicyConsent(
+  kind: 'cancellation' | 'purchase' | 'terms',
+  shownText: string,
+  relatedId?: string | null,
+): Promise<void> {
+  try {
+    await requireSupabase().rpc('record_policy_consent', {
+      p_kind: kind,
+      p_shown_text: shownText,
+      p_related_id: relatedId ?? null,
+      p_device_id: getDeviceId(),
+    })
+  } catch (e) {
+    console.error('[recordPolicyConsent]', e)
+  }
+}
+
+/** 異議申立てから証跡一式を取り出す（運営）。 */
+export async function fetchDisputeEvidence(disputeId: string): Promise<unknown> {
+  const { data, error } = await requireSupabase().rpc('admin_dispute_evidence', {
+    p_dispute_id: disputeId,
+  })
+  if (error) throw error
+  return data
 }

@@ -61,7 +61,10 @@ Deno.serve(async (req) => {
     const user = userData.user
 
     // 2) pack_id からサーバー権威の価格・付与数を取得
-    const { packId } = await req.json().catch(() => ({ packId: null }))
+    const { packId, deviceId } = await req.json().catch(() => ({
+      packId: null,
+      deviceId: null,
+    }))
     if (!packId) return json({ error: 'pack_id required' }, 400)
 
     const { data: pack, error: packErr } = await admin
@@ -201,6 +204,37 @@ Deno.serve(async (req) => {
       success_url: `${APP_URL}/?checkout=success`,
       cancel_url: `${APP_URL}/?checkout=cancel`,
     })
+
+    // ----------------------------------------------------------
+    // 購入時点の環境を残す(0106)
+    //
+    // 異議申立てのフォームが最初に聞くのが**購入時のIP**。
+    // user_ips は「最初と最後に見た時刻」しか持たないので、
+    // どの購入のときにどのIPだったかは、ここで残さないと分からない。
+    //
+    // **失敗しても決済は止めない。** 証跡が1件欠けるより、
+    // 決済ページに進めないほうが重い。
+    // ----------------------------------------------------------
+    try {
+      const xff = req.headers.get('x-forwarded-for')
+      const ip =
+        xff?.split(',')[0]?.trim() ||
+        req.headers.get('x-real-ip') ||
+        req.headers.get('cf-connecting-ip') ||
+        null
+      const { error: evErr } = await admin.rpc('record_purchase_evidence', {
+        p_session_id: session.id,
+        p_user_id: user.id,
+        p_ip: ip,
+        p_device_id: typeof deviceId === 'string' ? deviceId : null,
+        p_user_agent: req.headers.get('user-agent'),
+        p_price_yen: pack.price_yen,
+        p_safety_fee_yen: safetyFee,
+      })
+      if (evErr) console.error('[create-checkout-session] evidence', evErr.message)
+    } catch (e) {
+      console.error('[create-checkout-session] evidence', e)
+    }
 
     return json({ url: session.url }, 200)
   } catch (e) {

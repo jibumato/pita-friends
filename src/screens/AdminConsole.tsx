@@ -77,6 +77,7 @@ import {
   updatePlatformLimits,
   fetchBusinessKpis,
   fetchPaymentMethodMix,
+  fetchDisputeEvidence,
   type BusinessKpis,
   type PaymentMethodMixRow,
   type PlatformLimits,
@@ -1138,6 +1139,9 @@ function DisputesTab() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
+  /** 出した証跡。**画面に出したうえでコピーもできるようにする。** */
+  const [evidence, setEvidence] = useState<Record<string, string>>({})
+
   async function run(id: string) {
     if (busy) return
     setBusy(true)
@@ -1150,6 +1154,30 @@ function DisputesTab() {
       setErr(e instanceof Error ? e.message : '解除に失敗しました')
     } finally {
       setBusy(false)
+    }
+  }
+
+  /**
+   * 証跡を1つに束ねて出す（0106）。
+   *
+   * **Stripeの反論期限は短い。** その場で5つのテーブルを引くのは
+   * 期限のある作業として成立しないので、ボタン1つで全部出す。
+   */
+  async function evidenceFor(id: string) {
+    setErr(null)
+    try {
+      const data = await fetchDisputeEvidence(id)
+      const text = JSON.stringify(data, null, 2)
+      setEvidence((e) => ({ ...e, [id]: text }))
+      // クリップボードが使えない環境（http や古いブラウザ）でも、
+      // 下に本文を出しているので手で選択できる
+      try {
+        await navigator.clipboard?.writeText(text)
+      } catch {
+        /* コピーできなくても表示はされている */
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '証跡を取り出せませんでした')
     }
   }
 
@@ -1209,6 +1237,43 @@ function DisputesTab() {
           <Btn disabled={busy} onClick={() => void run(d.id)}>
             凍結を解除する
           </Btn>
+
+          {/* 0106: 争う材料。凍結の解除より先に押す場面が多いので上には置かず、
+              しかし埋もれない位置に出す */}
+          <div style={{ borderTop: `1.5px solid ${C.divider}`, paddingTop: 8 }} />
+          <Btn onClick={() => void evidenceFor(d.id)}>証跡を出す（コピーされます）</Btn>
+          {evidence[d.id] && (
+            <>
+              <Note>
+                Stripeの異議申立てフォームの欄立て（Customer details / Customer IP /
+                Receipt / Refund policy / Service documentation / Activity log）に
+                合わせてあります。
+                <br />
+                <b style={{ color: C.ink }}>メッセージの本文は含めていません。</b>
+                第三者（ピタメイト）の発言が混ざるため、提出するかは個人情報の
+                第三者提供として別に判断してください。
+              </Note>
+              <textarea
+                readOnly
+                value={evidence[d.id]}
+                onFocus={(e) => e.currentTarget.select()}
+                style={{
+                  width: '100%',
+                  height: 220,
+                  boxSizing: 'border-box',
+                  background: C.surface,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  fontSize: 10.5,
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                  lineHeight: 1.5,
+                  color: C.ink,
+                  resize: 'vertical',
+                }}
+              />
+            </>
+          )}
         </Card>
       ))}
     </>
