@@ -73,6 +73,10 @@ import {
   type AccountingJournalRow,
   type AccountingJournalCheckRow,
   type AccountingHostPaymentRow,
+  fetchPlatformLimits,
+  updatePlatformLimits,
+  type PlatformLimits,
+  type PlatformLimitKey,
 } from '../lib/queries'
 
 type Tab =
@@ -85,6 +89,7 @@ type Tab =
   | 'refunds'
   | 'offsets'
   | 'fees'
+  | 'limits'
   | 'accounting'
   | 'health'
   | 'log'
@@ -99,6 +104,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'refunds', label: '返金' },
   { key: 'offsets', label: '相殺' },
   { key: 'fees', label: '料率' },
+  { key: 'limits', label: '制限値' },
   { key: 'accounting', label: '会計' },
   { key: 'health', label: '健全性' },
   { key: 'log', label: '操作記録' },
@@ -191,6 +197,7 @@ export default function AdminConsole({ flow }: { flow: Flow }) {
         {tab === 'refunds' && <RefundsTab onChanged={loadSummary} />}
         {tab === 'offsets' && <OffsetsTab onChanged={loadSummary} />}
         {tab === 'fees' && <FeesTab />}
+        {tab === 'limits' && <LimitsTab />}
         {tab === 'accounting' && <AccountingTab />}
         {tab === 'health' && <HealthTab />}
         {tab === 'log' && <LogTab />}
@@ -1742,6 +1749,216 @@ function FeesTab() {
           </span>
         </Card>
       ))}
+    </>
+  )
+}
+
+// ------------------------------------------------------------
+// 制限値（0101）
+//
+// **条文は幅でしか書いていない**（「一定期間」「最長30日」「具体的な数値は
+// 変更することがあります」）。だから数値はここから動かせる。
+// 天井はサーバの CHECK 制約が持っていて `caps` として降ってくるので、
+// **この画面に天井の数字を書かないこと。**
+// ------------------------------------------------------------
+
+type LimitRow = {
+  key: PlatformLimitKey
+  label: string
+  unit: string
+  capKey?: string
+  hint?: string
+}
+
+const NEW_USER_ROWS: LimitRow[] = [
+  { key: 'newUserDays', label: '新規とみなす期間', unit: '日' },
+  { key: 'newUserPurchaseMaxYen', label: '1回あたりの購入上限', unit: '円' },
+  { key: 'newUserPeriodPurchaseMaxYen', label: '期間中の購入上限', unit: '円' },
+  {
+    key: 'newUserPayoutHoldDays',
+    label: '換金の保留',
+    unit: '日',
+    capKey: 'newUserPayoutHoldDays',
+    hint: '規約が「最長30日間」と画しているため、31日以上は入りません',
+  },
+]
+
+const GIFT_ROWS: LimitRow[] = [
+  { key: 'giftMaxPerTx', label: '1回あたり', unit: 'コイン', capKey: 'giftMaxPerTx' },
+  { key: 'giftMaxPerDay', label: '送り主・24時間', unit: 'コイン', capKey: 'giftMaxPerDay' },
+  { key: 'giftMaxPerMonth', label: '送り主・30日', unit: 'コイン', capKey: 'giftMaxPerMonth' },
+  { key: 'giftMaxRecvMonth', label: '受け取る側・30日', unit: 'コイン', capKey: 'giftMaxRecvMonth' },
+  { key: 'giftMaxPairMonth', label: '同じ相手へ・30日', unit: 'コイン', capKey: 'giftMaxPairMonth' },
+  {
+    key: 'giftWindowDays',
+    label: 'プレイ完了から贈れる期間',
+    unit: '日',
+    capKey: 'giftWindowDays',
+    hint: '短いほど「完了した役務への謝礼」という性格が強まります',
+  },
+]
+
+function LimitsTab() {
+  const [limits, setLimits] = useState<PlatformLimits | null>(null)
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  const load = useCallback(() => {
+    if (!isBackendConfigured) return
+    fetchPlatformLimits()
+      .then((l) => {
+        setLimits(l)
+        setDraft({
+          newUserDays: String(l.newUser.days),
+          newUserPurchaseMaxYen: String(l.newUser.purchaseMaxYen),
+          newUserPeriodPurchaseMaxYen: String(l.newUser.periodPurchaseMaxYen),
+          newUserPayoutHoldDays: String(l.newUser.payoutHoldDays),
+          giftMaxPerTx: String(l.gift.maxPerTx),
+          giftMaxPerDay: String(l.gift.maxPerDay),
+          giftMaxPerMonth: String(l.gift.maxPerMonth),
+          giftMaxRecvMonth: String(l.gift.maxRecvMonth),
+          giftMaxPairMonth: String(l.gift.maxPairMonth),
+          giftWindowDays: String(l.gift.windowDays),
+        })
+      })
+      .catch((e) => setErr(e instanceof Error ? e.message : '読み込めませんでした'))
+  }, [])
+
+  useEffect(load, [load])
+
+  /** いま値が変わっている項目だけ。**変えていないキーは送らない。** */
+  const changed: Partial<Record<PlatformLimitKey, number>> = {}
+  if (limits) {
+    const now: Record<string, number> = {
+      newUserDays: limits.newUser.days,
+      newUserPurchaseMaxYen: limits.newUser.purchaseMaxYen,
+      newUserPeriodPurchaseMaxYen: limits.newUser.periodPurchaseMaxYen,
+      newUserPayoutHoldDays: limits.newUser.payoutHoldDays,
+      giftMaxPerTx: limits.gift.maxPerTx,
+      giftMaxPerDay: limits.gift.maxPerDay,
+      giftMaxPerMonth: limits.gift.maxPerMonth,
+      giftMaxRecvMonth: limits.gift.maxRecvMonth,
+      giftMaxPairMonth: limits.gift.maxPairMonth,
+      giftWindowDays: limits.gift.windowDays,
+    }
+    for (const [k, v] of Object.entries(draft)) {
+      const n = Number(v)
+      if (v.trim() !== '' && Number.isInteger(n) && n !== now[k]) {
+        changed[k as PlatformLimitKey] = n
+      }
+    }
+  }
+  const changedKeys = Object.keys(changed)
+
+  async function run() {
+    if (busy) return
+    setBusy(true)
+    setErr(null)
+    setMsg(null)
+    try {
+      const r = await updatePlatformLimits(reason, changed)
+      setMsg(`変更しました: ${r.changed}`)
+      setReason('')
+      load()
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : ''
+      // 天井はDBの CHECK 制約が持っている。**画面で先回りして判定しない**
+      // （制約を直したときに画面だけ古い天井で止め続ける）
+      setErr(
+        raw.includes('platform_pricing_gift_limits_check') ||
+          raw.includes('platform_pricing_new_user_limits_check')
+          ? '入れられる範囲を超えています。各項目の「上限」と、' +
+              '1回 ≦ 24時間 ≦ 30日 / 同じ相手 ≦ 受け取る側 の順序を確認してください'
+          : {
+              REASON_REQUIRED: '変更の理由は必須です（あとから説明できる記録がこれしかありません）',
+              NO_CHANGES: '変わっている項目がありません',
+              NOT_ADMIN: '権限がありません',
+            }[raw] ?? raw ?? '変更できませんでした',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function rows(list: LimitRow[]) {
+    return list.map((r) => (
+      <Card key={r.key} alert={changed[r.key] != null}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: 12.5, color: C.ink }}>{r.label}</span>
+          <span style={{ fontSize: 11, color: C.muted, flex: 'none' }}>
+            {r.capKey && limits?.caps[r.capKey] != null
+              ? `上限 ${limits.caps[r.capKey].toLocaleString()}${r.unit}`
+              : `単位: ${r.unit}`}
+          </span>
+        </div>
+        <Field
+          value={draft[r.key] ?? ''}
+          onChange={(v) => setDraft((d) => ({ ...d, [r.key]: v }))}
+          placeholder={r.unit}
+        />
+        {r.hint && <Note>{r.hint}</Note>}
+      </Card>
+    ))
+  }
+
+  if (err && !limits) return <ErrorBox>{err}</ErrorBox>
+  if (!limits) return <Note>読み込み中…</Note>
+
+  return (
+    <>
+      <Note>
+        ここの数値は<b style={{ color: C.ink }}>規約に書かれていません</b>。
+        規約は「一定期間」「最長30日」という幅だけを定めていて（第7条の2・第8条の6第5項）、
+        <b style={{ color: C.ink }}>具体的な数値は運営が変更できる</b>という建て付けです。
+        だから変更に告知期間は要りません。
+        <br />
+        代わりに<b style={{ color: C.ink }}>理由が必須</b>で、
+        前後の値とあわせて操作記録に残ります。
+        あとから「理由なく上限を下げた」と言われたときの反証材料はこれだけです。
+        <br />
+        各項目の<b style={{ color: C.ink }}>上限（天井）はDBの制約が持っています</b>。
+        ギフトの天井は、ギフトを「プレイへの謝礼」の範囲に留めるための線です
+        （為替取引に当たらないという整理の一部）。
+        <b style={{ color: C.ink }}>天井そのものを上げるのは弁護士に相談してから。</b>
+      </Note>
+      {err && <ErrorBox>{err}</ErrorBox>}
+      {msg && <Note>{msg}</Note>}
+
+      <span style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+        新規ユーザーの制限（規約 第8条の6第5項・不正利用の防止）
+      </span>
+      {rows(NEW_USER_ROWS)}
+
+      <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>
+        ありがとうギフトの上限（規約 第7条の2）
+      </span>
+      {rows(GIFT_ROWS)}
+      <Note>
+        ギフトの「相手はプレイした人に限る」「贈り合いの禁止」「原資は購入コインのみ」
+        「チャージから24時間は贈れない」「受け取りから7日は換金できない」は
+        <b style={{ color: C.ink }}>数値ではないのでここにありません</b>。
+        これらは変えられません。
+      </Note>
+
+      <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>変更する</span>
+      <Card alert={changedKeys.length > 0}>
+        <Note>
+          {changedKeys.length === 0
+            ? '変更した項目はありません'
+            : `${changedKeys.length}項目を変更します`}
+        </Note>
+        <span style={{ fontSize: 10.5, color: C.muted }}>変更の理由（必須・操作記録に残ります）</span>
+        <Field value={reason} onChange={setReason} placeholder="例: 開業から3か月の実績を見て緩和" />
+        <Btn disabled={busy || changedKeys.length === 0} onClick={() => void run()}>
+          この内容で変更する
+        </Btn>
+      </Card>
+      {limits.updatedAt && (
+        <Note>最終更新: {new Date(limits.updatedAt).toLocaleString('ja-JP')}</Note>
+      )}
     </>
   )
 }

@@ -3375,3 +3375,86 @@ export async function scheduleFeeChange(
     notifiedHosts: Number(r.notified_hosts ?? 0),
   }
 }
+
+/* ============================================================
+ * 運営: 制限値(規約 第7条の2・第8条の6第5項)。schema: 0101。
+ *
+ * 条文は幅でしか書いていない(「一定期間」「最長30日」)ので、
+ * **数値は運営がここから動かせる。** 天井はサーバの CHECK 制約が持ち、
+ * `caps` として返ってくる。画面側に天井を書き写さないこと
+ * (制約を直したときに画面だけ古い数字を出し続ける)。
+ * ============================================================ */
+
+export type PlatformLimits = {
+  newUser: {
+    days: number
+    purchaseMaxYen: number
+    periodPurchaseMaxYen: number
+    payoutHoldDays: number
+  }
+  gift: {
+    maxPerTx: number
+    maxPerDay: number
+    maxPerMonth: number
+    maxRecvMonth: number
+    maxPairMonth: number
+    windowDays: number
+  }
+  caps: Record<string, number>
+  updatedAt: string | null
+}
+
+/** 制限値のキー。`admin_update_platform_limits` が受け付けるものと同じ。 */
+export type PlatformLimitKey =
+  | 'newUserDays'
+  | 'newUserPurchaseMaxYen'
+  | 'newUserPeriodPurchaseMaxYen'
+  | 'newUserPayoutHoldDays'
+  | 'giftMaxPerTx'
+  | 'giftMaxPerDay'
+  | 'giftMaxPerMonth'
+  | 'giftMaxRecvMonth'
+  | 'giftMaxPairMonth'
+  | 'giftWindowDays'
+
+export async function fetchPlatformLimits(): Promise<PlatformLimits> {
+  const { data, error } = await requireSupabase().rpc('admin_platform_limits', {})
+  if (error) throw error
+  const r = (data ?? {}) as Record<string, Record<string, number>>
+  const n = (o: Record<string, number> | undefined, k: string) => Number(o?.[k] ?? 0)
+  return {
+    newUser: {
+      days: n(r.newUser, 'days'),
+      purchaseMaxYen: n(r.newUser, 'purchaseMaxYen'),
+      periodPurchaseMaxYen: n(r.newUser, 'periodPurchaseMaxYen'),
+      payoutHoldDays: n(r.newUser, 'payoutHoldDays'),
+    },
+    gift: {
+      maxPerTx: n(r.gift, 'maxPerTx'),
+      maxPerDay: n(r.gift, 'maxPerDay'),
+      maxPerMonth: n(r.gift, 'maxPerMonth'),
+      maxRecvMonth: n(r.gift, 'maxRecvMonth'),
+      maxPairMonth: n(r.gift, 'maxPairMonth'),
+      windowDays: n(r.gift, 'windowDays'),
+    },
+    caps: (r.caps ?? {}) as Record<string, number>,
+    updatedAt: (r.updatedAt as unknown as string) ?? null,
+  }
+}
+
+/**
+ * 制限値を変える。**変えるキーだけ**を渡す(部分更新)。
+ * 理由は必須で、前後の値とともに運営の操作記録に残る。
+ */
+export async function updatePlatformLimits(
+  reason: string,
+  values: Partial<Record<PlatformLimitKey, number>>,
+): Promise<{ changed: string }> {
+  const { data, error } = await requireSupabase().rpc('admin_update_platform_limits', {
+    p_reason: reason,
+    p_values: values,
+  })
+  if (error) throw error
+  const r = (data ?? {}) as Record<string, unknown>
+  return { changed: String(r.changed ?? '') }
+}

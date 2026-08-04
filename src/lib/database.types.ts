@@ -751,6 +751,13 @@ export type Database = {
         }
         Returns: { effective_from: string; tiers: number; notified_hosts: number }
       }
+      /** 0101: 制限値の現在値と天井(運営)。 */
+      admin_platform_limits: { Args: Record<string, never>; Returns: unknown }
+      /** 0101: 制限値を変える(運営)。変えるキーだけを渡す部分更新。 */
+      admin_update_platform_limits: {
+        Args: { p_reason: string; p_values: unknown }
+        Returns: { changed: string; values: unknown }
+      }
       /** 0090: 直近の購入(運営)。 */
       admin_recent_purchases: { Args: { p_limit?: number }; Returns: unknown }
       /** 0090: 購入を取り消し、代金とサポート料を返金債務にする(運営)。 */
