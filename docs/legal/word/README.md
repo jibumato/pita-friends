@@ -9,10 +9,7 @@
 | `ピタフレ利用規約_全文_注記付き.docx` | 同上 | 弁護士のレビュー用。**なぜその条文があるか**が各条の直後に付きます |
 | `ピタフレプライバシーポリシー.docx` | `../privacy-policy-draft.md` | 照会の別紙2 |
 | `ピタフレ特定商取引法に基づく表記.docx` | `../tokushoho-draft.md` | 照会の別紙3 |
-
-**資金決済法に基づく表示（別紙4）の Word 版はありません。**
-原本が `src/content/legalDocs.ts` の中にあり、Markdown ファイルになっていないためです。
-送付が必要になったら、先に Markdown へ切り出してください。
+| `ピタフレ資金決済法に基づく表示.docx` | `../shikin-kessai-draft.md` | 照会の別紙4 |
 
 ## ⚠️ `--fill-business` を付け忘れないこと
 
@@ -49,7 +46,18 @@ node tools/md-to-docx.cjs docs/legal/privacy-policy-draft.md docs/legal/word \
 node tools/md-to-docx.cjs docs/legal/tokushoho-draft.md docs/legal/word \
   --name ピタフレ特定商取引法に基づく表記 --variants keep \
   --title '特定商取引法に基づく表記' --fill-business
+
+node tools/md-to-docx.cjs docs/legal/shikin-kessai-draft.md docs/legal/word \
+  --name ピタフレ資金決済法に基づく表示 --variants keep \
+  --title '資金決済法に基づく表示' --fill-business
 ```
+
+## 資金決済法に基づく表示だけ、注記の扱いが違います
+
+他の3点は `〔※〕` も本文末尾の `>` 注記も**前付け**（`---` より上）にありますが、
+資金決済法表示は **`>` の注記が本文の一部**で、**画面にもそのまま出ます**。
+切り出しのときにここを前付けへ動かすと、アプリの表示から段落が1つ消えます。
+（実際に一度やりかけて、切り出し前後の本文を突き合わせて気づきました。）
 
 **Word 側を直さないでください。** 次の生成で消えます。条文を直すときは Markdown を直して再生成します。
 
