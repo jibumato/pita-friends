@@ -699,6 +699,42 @@ function ReportsTab({ onChanged }: { onChanged: () => void }) {
 type PayoutIssue = { level: 'block' | 'warn'; text: string }
 
 /**
+ * 受取人名を**半角カナ**にする。
+ *
+ * 口座の登録フォームは**全角カタカナ**で受けている(`host_bank_accounts` の
+ * check 制約が `^[ァ-ヶー0-9A-Z()（）./\- 　]+$`)。一方、総合振込の受取人名は
+ * **半角カナ**が指定である。**この変換をどこかでやらないと銀行に通らない。**
+ *
+ * 以前は「銀行のアップロード画面の変換機能に任せる」と手順書に書いていたが、
+ * 変換機能が無い銀行もあり、そのときにExcelで手作業になる。金額を扱う作業に
+ * 手加工を挟まないという方針(bankTransferCsv のコメント)と食い違うので、
+ * こちらで変換して出す。
+ *
+ * ⚠️ **濁点・半濁点は2文字になる**(ガ → ｶﾞ)。全銀の受取人名は半角30文字までなので、
+ * 全角で15文字でも半角では30文字を超えうる。**長さは変換後で数える。**
+ */
+function toHankakuKana(s: string): string {
+  const MAP: Record<string, string> = {
+    ァ: 'ｧ', ア: 'ｱ', ィ: 'ｨ', イ: 'ｲ', ゥ: 'ｩ', ウ: 'ｳ', ェ: 'ｪ', エ: 'ｴ', ォ: 'ｫ', オ: 'ｵ',
+    カ: 'ｶ', キ: 'ｷ', ク: 'ｸ', ケ: 'ｹ', コ: 'ｺ', サ: 'ｻ', シ: 'ｼ', ス: 'ｽ', セ: 'ｾ', ソ: 'ｿ',
+    タ: 'ﾀ', チ: 'ﾁ', ツ: 'ﾂ', テ: 'ﾃ', ト: 'ﾄ', ナ: 'ﾅ', ニ: 'ﾆ', ヌ: 'ﾇ', ネ: 'ﾈ', ノ: 'ﾉ',
+    ハ: 'ﾊ', ヒ: 'ﾋ', フ: 'ﾌ', ヘ: 'ﾍ', ホ: 'ﾎ', マ: 'ﾏ', ミ: 'ﾐ', ム: 'ﾑ', メ: 'ﾒ', モ: 'ﾓ',
+    ャ: 'ｬ', ヤ: 'ﾔ', ュ: 'ｭ', ユ: 'ﾕ', ョ: 'ｮ', ヨ: 'ﾖ',
+    ラ: 'ﾗ', リ: 'ﾘ', ル: 'ﾙ', レ: 'ﾚ', ロ: 'ﾛ', ワ: 'ﾜ', ヲ: 'ｦ', ン: 'ﾝ',
+    ガ: 'ｶﾞ', ギ: 'ｷﾞ', グ: 'ｸﾞ', ゲ: 'ｹﾞ', ゴ: 'ｺﾞ',
+    ザ: 'ｻﾞ', ジ: 'ｼﾞ', ズ: 'ｽﾞ', ゼ: 'ｾﾞ', ゾ: 'ｿﾞ',
+    ダ: 'ﾀﾞ', ヂ: 'ﾁﾞ', ヅ: 'ﾂﾞ', デ: 'ﾃﾞ', ド: 'ﾄﾞ',
+    バ: 'ﾊﾞ', ビ: 'ﾋﾞ', ブ: 'ﾌﾞ', ベ: 'ﾍﾞ', ボ: 'ﾎﾞ',
+    パ: 'ﾊﾟ', ピ: 'ﾋﾟ', プ: 'ﾌﾟ', ペ: 'ﾍﾟ', ポ: 'ﾎﾟ',
+    ヴ: 'ｳﾞ', ヵ: 'ｶ', ヶ: 'ｹ', ッ: 'ｯ',
+    ー: '-', '　': ' ', '（': '(', '）': ')', '．': '.', '／': '/',
+  }
+  return [...s]
+    .map((c) => MAP[c] ?? (c >= '０' && c <= '９' ? String.fromCharCode(c.charCodeAt(0) - 0xfee0) : c))
+    .join('')
+}
+
+/**
  * 振込を実行する**前に**見つけたい問題。
  *
  * `block` は銀行アップロード用CSVから除外する。**黙って落とさない**こと——
@@ -712,10 +748,13 @@ function payoutIssues(p: AdminPayout): PayoutIssue[] {
   }
   // 全銀の受取人名は半角カナ最大30文字。アプリ側はカナ48文字まで通すので、
   // 長い名義は**銀行のアップロードで初めて弾かれる**。ここで先に気づく。
-  if (p.accountHolderKana.length > 30) {
+  const han = toHankakuKana(p.accountHolderKana).length
+  if (han > 30) {
     out.push({
       level: 'block',
-      text: `受取人名が${p.accountHolderKana.length}文字です。全銀の上限は30文字なので、銀行側で弾かれます。名義の短縮を依頼してください。`,
+      // **半角に直した後の長さで数える。** 濁点は2文字になるので、
+      // 全角で15文字の名義が半角で30文字を超えることがある
+      text: `受取人名が半角${han}文字になります（全銀の上限は30文字）。このままでは銀行側で弾かれるので、名義の短縮を依頼してください。`,
     })
   }
   // ゆうちょ(9900)は通帳の記号・番号のままでは他行から振り込めない。
@@ -754,7 +793,8 @@ function bankTransferCsv(rows: AdminPayout[]): string {
       // account_type は DB 側で '普通' | '当座' に制約済み(0014_bank_payouts.sql:51)
       r.accountType === '当座' ? '2' : '1',
       r.accountNumber,
-      r.accountHolderKana,
+      // 口座は全角カタカナで登録されている。総合振込は半角カナ指定なので変換する
+      toHankakuKana(r.accountHolderKana),
       r.amountYen,
     ]
       .map(esc)
@@ -792,7 +832,8 @@ function payoutsCsv(rows: AdminPayout[]): string {
       r.branchCode,
       r.accountType,
       r.accountNumber,
-      r.accountHolderKana,
+      // 口座は全角カタカナで登録されている。総合振込は半角カナ指定なので変換する
+      toHankakuKana(r.accountHolderKana),
       r.amountYen,
       r.feeYen,
       r.coins,
