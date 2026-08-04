@@ -11,7 +11,12 @@
 //   npm i --no-save docx
 //   node tools/md-to-docx.cjs docs/legal/terms-of-service-draft.md docs/legal/word \
 //     --name ピタフレ利用規約_全文 --variants both --title 'ピタフレ 利用規約' \
-//     --require 第16条の6,第10条の2,改定履歴
+//     --fill-business --require 第16条の6,第10条の2,改定履歴
+//
+// `--fill-business` は【…：公開前に記入】に事業者情報の実値を差し込む。
+// **規約・プライバシー・特商法・資金決済法の4点では必ず付けること。**
+// 付け忘れると、他の箇所には実値が入っているのに一部だけ
+// 「公開前に記入」のまま、という書類が出来る（実際に一度やりました）。
 //
 // `--require` は、メモを落とした版から**消えてはいけない見出し**の検査。
 // 落ちていれば生成を止める。
@@ -39,6 +44,8 @@ const SRC = positional[0];
 const OUT_DIR = positional[1];
 const BASE_NAME = flag('name', path.basename(SRC || '', '.md'));
 const VARIANTS = flag('variants', 'keep');
+/** 【…：公開前に記入】に businessInfo.ts の実値を差し込む(下の fillBusiness) */
+const FILL_BUSINESS = ARGV.includes('--fill-business');
 const DOC_TITLE = flag('title', BASE_NAME);
 const REQUIRED = flag('require', '').split(',').map((s) => s.trim()).filter(Boolean);
 
@@ -361,7 +368,49 @@ function build(md, { withNotes, subtitle, file }) {
   });
 }
 
-const md = fs.readFileSync(SRC, 'utf8');
+/**
+ * 条文中の【…：公開前に記入】に、事業者情報の実値を差し込む。
+ *
+ * アプリは `src/content/legalDocs.ts` の `fillBusiness()` が同じことを表示時に
+ * やっている。**Word を素の Markdown から作ると、そこだけ差し込まれない。**
+ * 実際 2026-08-03 に出した利用規約の Word には
+ * 【事業者名（屋号）：公開前に記入】が4か所残ったまま、他の箇所には実値が
+ * 入っている、という状態で出来ていた。**弁護士に渡す前に気づけてよかった。**
+ *
+ * 値の出どころは `src/content/businessInfo.ts` の1か所だけ。ここでも
+ * 書き写さず、そのファイルから読む(書き写した瞬間にずれ始める)。
+ */
+function fillBusiness(text) {
+  const ts = fs.readFileSync(path.join(__dirname, '..', 'src/content/businessInfo.ts'), 'utf8');
+  const pick = (key) => {
+    const m = ts.match(new RegExp(`\\n\\s*${key}:\\s*'([^']*)'`));
+    if (!m) throw new Error(`businessInfo.ts から ${key} を読めない`);
+    return m[1];
+  };
+  const b = {
+    name: pick('name'), tradeName: pick('tradeName'), postalCode: pick('postalCode'),
+    address: pick('address'), phone: pick('phone'), email: pick('email'),
+  };
+  const open = /ADDRESS_DISCLOSURE[^=]*=\s*'public'/.test(ts);
+  const onRequest = 'ご請求があれば遅滞なく開示します（下記のメールアドレスへご連絡ください）';
+  const pairs = [
+    ['【事業者名（屋号）：公開前に記入】', b.tradeName],
+    ['【氏名（個人事業主本人）：公開前に記入】', b.name],
+    ['【氏名（個人事業主）：公開前に記入】', b.name],
+    ['【サービス専用の問い合わせ用メールアドレス：公開前に記入】', b.email],
+    ['【所在地：公開前に記入】', open ? `〒${b.postalCode} ${b.address}` : onRequest],
+    ['【電話番号：公開前に記入】', open ? b.phone : onRequest],
+  ];
+  const out = pairs.reduce((acc, [from, to]) => acc.split(from).join(to), text);
+
+  // **差し込み漏れは黙って通さない。**「公開前に記入」が残ったまま人に渡すと、
+  // 未確定の書類だと思われるか、そこだけ古い情報のまま出る。
+  const left = out.match(/【[^】]*記入】/g);
+  if (left) throw new Error(`差し込めなかった箇所があります: ${[...new Set(left)].join(' / ')}`);
+  return out;
+}
+
+const md = FILL_BUSINESS ? fillBusiness(fs.readFileSync(SRC, 'utf8')) : fs.readFileSync(SRC, 'utf8');
 const jobs = [];
 
 if (VARIANTS === 'both' || VARIANTS === 'strip') {
