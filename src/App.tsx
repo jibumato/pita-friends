@@ -299,6 +299,8 @@ const LEGAL_PATHS: Record<string, LegalDocKey> = {
   '/legal/privacy': 'privacy',
   '/legal/tokushoho': 'tokushoho',
   '/legal/shikin': 'shikin',
+  '/legal/guideline': 'guideline',
+  '/legal/examples': 'examples',
   '/legal/mimamori': 'mimamori',
 }
 
