@@ -78,6 +78,36 @@ Deno.serve(async (req) => {
       console.error('[record-ip] rpc', error.message)
       return json({ ok: false }, 200)
     }
+
+    // ----------------------------------------------------------
+    // アプリ起動の記録(0106)
+    //
+    // ⚠️ **閲覧の記録ではない。** プライバシーポリシーは「参照そのものの
+    // 全件記録は行っていません」と書いてあり、これは守る。ここで残すのは
+    // セッションの開始だけで、どの画面を見たかは残さない。
+    //
+    // 異議申立てで「購入の前にも後にも本人が使っていた」ことを示すのに使う。
+    // 30分以内の同じIP・端末は record_access_event 側でまとめられる。
+    //
+    // service_role が要る(本人には書かせない記録なので)。
+    // **失敗しても 200 を返す。** 記録は起動の付随作業で、
+    // ここで落とすとアプリが立ち上がらない。
+    // ----------------------------------------------------------
+    const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    if (SERVICE_ROLE) {
+      const { deviceId } = await req.json().catch(() => ({ deviceId: null }))
+      const { error: evErr } = await createClient(SUPABASE_URL, SERVICE_ROLE).rpc(
+        'record_access_event',
+        {
+          p_user_id: userData.user.id,
+          p_ip: ip,
+          p_device_id: typeof deviceId === 'string' ? deviceId : null,
+          p_user_agent: req.headers.get('user-agent'),
+        },
+      )
+      if (evErr) console.error('[record-ip] access event', evErr.message)
+    }
+
     return json({ ok: true, recorded: true }, 200)
   } catch (e) {
     console.error('[record-ip]', e)

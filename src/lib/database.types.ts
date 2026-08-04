@@ -751,6 +751,20 @@ export type Database = {
         }
         Returns: { effective_from: string; tiers: number; notified_hosts: number }
       }
+      /** 0106: ポリシーへの同意を、表示した文面ごと記録する。 */
+      record_policy_consent: {
+        Args: {
+          p_kind: string
+          p_shown_text: string
+          p_related_id?: string | null
+          p_device_id?: string | null
+        }
+        Returns: string
+      }
+      /** 0106: 異議申立てから証跡一式を取り出す(運営)。 */
+      admin_dispute_evidence: { Args: { p_dispute_id: string }; Returns: unknown }
+      /** 0106: 購入から証跡一式を取り出す(運営)。 */
+      admin_purchase_evidence: { Args: { p_purchase_id: string }; Returns: unknown }
       /** 0105: 経営指標(運営)。混合実効率・上位集中・チャージバック比率。 */
       admin_business_kpis: { Args: { p_from: string; p_to: string }; Returns: unknown }
       /** 0105: 決済手段の内訳(運営)。PayPay比率で貢献利益率が変わる。 */
