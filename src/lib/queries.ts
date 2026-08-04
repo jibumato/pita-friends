@@ -3465,3 +3465,110 @@ export async function updatePlatformLimits(
   const r = (data ?? {}) as Record<string, unknown>
   return { changed: String(r.changed ?? '') }
 }
+
+/* ============================================================
+ * 運営: 経営指標(0105)。
+ *
+ * 事業計画書(docs/business-plan-2026-08.md)は
+ *   ・実効利用料率 18%
+ *   ・GMVに対する貢献利益率 19.4%
+ * を前提に置いている。**構造の欠陥を探すためではなく、この前提が
+ * 実績とずれたことに早く気づくため**の数字。
+ * ============================================================ */
+
+export type BusinessKpis = {
+  fees: {
+    grossCoins: number
+    feeCoins: number
+    /** 予約とギフトを合算した実効率(%)。取引が無ければ null */
+    blendedPercent: number | null
+    bookingGrossCoins: number
+    /** 予約だけの実効率(%)。**計画の18%と比べるのはこちら** */
+    bookingPercent: number | null
+    giftGrossCoins: number
+    /** ギフトだけの実効率(%)。一律35%なので、混ざると合算が上がる */
+    giftPercent: number | null
+  }
+  concentration: {
+    activeHosts: number
+    top5Coins: number
+    /** 上位5人が予約GMVに占める割合(%) */
+    top5Percent: number | null
+    /** 最大の1人が占める割合(%)。**この人が抜けたら売上の何割が消えるか** */
+    top1Percent: number | null
+  }
+  chargebacks: {
+    count: number
+    amountYen: number
+    openCount: number
+    lostCount: number
+    purchaseYen: number
+    /** 購入額に対する申立て額の割合(%)。**分母はGMVではなく購入額** */
+    ratePercent: number | null
+  }
+  safetyFeeYen: number
+}
+
+export async function fetchBusinessKpis(from: string, to: string): Promise<BusinessKpis> {
+  const { data, error } = await requireSupabase().rpc('admin_business_kpis', {
+    p_from: from,
+    p_to: to,
+  })
+  if (error) throw error
+  const r = (data ?? {}) as Record<string, Record<string, unknown>>
+  const n = (o: Record<string, unknown> | undefined, k: string) => Number(o?.[k] ?? 0)
+  // **null を 0 に潰さない。**「率が0%」と「まだ何も起きていない」は別のこと
+  const p = (o: Record<string, unknown> | undefined, k: string) =>
+    o?.[k] == null ? null : Number(o[k])
+  return {
+    fees: {
+      grossCoins: n(r.fees, 'grossCoins'),
+      feeCoins: n(r.fees, 'feeCoins'),
+      blendedPercent: p(r.fees, 'blendedPercent'),
+      bookingGrossCoins: n(r.fees, 'bookingGrossCoins'),
+      bookingPercent: p(r.fees, 'bookingPercent'),
+      giftGrossCoins: n(r.fees, 'giftGrossCoins'),
+      giftPercent: p(r.fees, 'giftPercent'),
+    },
+    concentration: {
+      activeHosts: n(r.concentration, 'activeHosts'),
+      top5Coins: n(r.concentration, 'top5Coins'),
+      top5Percent: p(r.concentration, 'top5Percent'),
+      top1Percent: p(r.concentration, 'top1Percent'),
+    },
+    chargebacks: {
+      count: n(r.chargebacks, 'count'),
+      amountYen: n(r.chargebacks, 'amountYen'),
+      openCount: n(r.chargebacks, 'openCount'),
+      lostCount: n(r.chargebacks, 'lostCount'),
+      purchaseYen: n(r.chargebacks, 'purchaseYen'),
+      ratePercent: p(r.chargebacks, 'ratePercent'),
+    },
+    safetyFeeYen: Number((r as Record<string, unknown>).safetyFeeYen ?? 0),
+  }
+}
+
+export type PaymentMethodMixRow = {
+  method: string
+  purchases: number
+  amountYen: number
+  sharePercent: number | null
+}
+
+/** 決済手段の内訳。PayPayの比率が上がるほど貢献利益率が改善する。 */
+export async function fetchPaymentMethodMix(
+  from: string,
+  to: string,
+): Promise<PaymentMethodMixRow[]> {
+  const { data, error } = await requireSupabase().rpc('admin_payment_method_mix', {
+    p_from: from,
+    p_to: to,
+  })
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    method: String(r.method),
+    purchases: Number(r.purchases ?? 0),
+    amountYen: Number(r.amount_yen ?? 0),
+    sharePercent: r.share_percent == null ? null : Number(r.share_percent),
+  }))
+}
