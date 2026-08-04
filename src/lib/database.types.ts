@@ -751,6 +751,10 @@ export type Database = {
         }
         Returns: { effective_from: string; tiers: number; notified_hosts: number }
       }
+      /** 0105: 経営指標(運営)。混合実効率・上位集中・チャージバック比率。 */
+      admin_business_kpis: { Args: { p_from: string; p_to: string }; Returns: unknown }
+      /** 0105: 決済手段の内訳(運営)。PayPay比率で貢献利益率が変わる。 */
+      admin_payment_method_mix: { Args: { p_from: string; p_to: string }; Returns: unknown }
       /** 0101: 制限値の現在値と天井(運営)。 */
       admin_platform_limits: { Args: Record<string, never>; Returns: unknown }
       /** 0101: 制限値を変える(運営)。変えるキーだけを渡す部分更新。 */

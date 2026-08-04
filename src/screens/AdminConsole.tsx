@@ -75,6 +75,10 @@ import {
   type AccountingHostPaymentRow,
   fetchPlatformLimits,
   updatePlatformLimits,
+  fetchBusinessKpis,
+  fetchPaymentMethodMix,
+  type BusinessKpis,
+  type PaymentMethodMixRow,
   type PlatformLimits,
   type PlatformLimitKey,
 } from '../lib/queries'
@@ -91,6 +95,7 @@ type Tab =
   | 'fees'
   | 'limits'
   | 'accounting'
+  | 'kpi'
   | 'health'
   | 'log'
 
@@ -106,6 +111,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'fees', label: '料率' },
   { key: 'limits', label: '制限値' },
   { key: 'accounting', label: '会計' },
+  { key: 'kpi', label: '経営' },
   { key: 'health', label: '健全性' },
   { key: 'log', label: '操作記録' },
 ]
@@ -199,6 +205,7 @@ export default function AdminConsole({ flow }: { flow: Flow }) {
         {tab === 'fees' && <FeesTab />}
         {tab === 'limits' && <LimitsTab />}
         {tab === 'accounting' && <AccountingTab />}
+        {tab === 'kpi' && <KpiTab />}
         {tab === 'health' && <HealthTab />}
         {tab === 'log' && <LogTab />}
       </div>
@@ -2403,6 +2410,255 @@ function AccountingTab() {
           CSVで保存
         </Btn>
       </Card>
+    </>
+  )
+}
+
+// ------------------------------------------------------------
+// 経営（0105）
+//
+// **構造の欠陥を探す画面ではない。** 事業計画書が置いた前提
+// （実効利用料率18% / 貢献利益率19.4%）が実績とずれたことに、
+// 早く気づくためだけの3つ。判断はここではしない。
+// ------------------------------------------------------------
+
+/** 計画の前提。**画面に数字を直書きせず、ここ1か所に置く。** */
+const PLAN = {
+  /** 事業計画書 §3 の実効利用料率 */
+  effectiveFeePercent: 18,
+  /** これを割ったら段の見直しを検討する（§5 の貢献利益率が崩れ始める） */
+  feeWarnPercent: 16,
+  /** 上位5人がこれを超えたら、1人の離脱で売上が大きく動く */
+  concentrationWarnPercent: 60,
+  /** カード会社の監視プログラムは概ね1%が目安。手前で気づくため0.5%で警告 */
+  chargebackWarnPercent: 0.5,
+}
+
+function KpiTab() {
+  const init = lastMonthRange()
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
+  const [range, setRange] = useState(init)
+
+  const [kpi, setKpi] = useState<BusinessKpis | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const mix = useList<PaymentMethodMixRow>(
+    () => fetchPaymentMethodMix(range.from, range.to),
+    [range.from, range.to],
+  )
+
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    let active = true
+    setKpi(null)
+    fetchBusinessKpis(range.from, range.to)
+      .then((k) => active && setKpi(k))
+      .catch((e) => active && setError(e instanceof Error ? e.message : '読み込めませんでした'))
+    return () => {
+      active = false
+    }
+  }, [range.from, range.to])
+
+  /** 率の表示。**null は「0%」ではなく「—」。** 取引が無いだけなのを 0 と読ませない */
+  const pct = (v: number | null) => (v == null ? '—' : `${v.toFixed(2)}%`)
+
+  if (error) return <ErrorBox>{error}</ErrorBox>
+
+  return (
+    <>
+      <Note>
+        事業計画書が置いた前提
+        <b style={{ color: C.ink }}>（実効利用料率{PLAN.effectiveFeePercent}%）</b>
+        が、実績とずれていないかを見る画面です。
+        <br />
+        <b style={{ color: C.ink }}>「—」は0%ではなく、その期間に取引が無かった</b>
+        という意味です。
+      </Note>
+
+      <Card>
+        <b style={{ fontSize: 12.5, color: C.ink }}>期間</b>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <DateField value={from} onChange={setFrom} />
+          <span style={{ fontSize: 12, color: C.body }}>〜</span>
+          <DateField value={to} onChange={setTo} />
+        </div>
+        <Btn onClick={() => setRange({ from, to })}>この期間で表示</Btn>
+      </Card>
+
+      {!kpi ? (
+        <Note>読み込み中…</Note>
+      ) : (
+        <>
+          {/* ① 実効率 */}
+          <span style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+            ① 混合実効率（計画: {PLAN.effectiveFeePercent}%）
+          </span>
+          <Card
+            alert={
+              kpi.fees.bookingPercent != null &&
+              kpi.fees.bookingPercent < PLAN.feeWarnPercent
+            }
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12.5, color: C.ink }}>予約とギフトの合算</span>
+              <b style={{ fontSize: 15, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
+                {pct(kpi.fees.blendedPercent)}
+              </b>
+            </div>
+            <div style={{ borderTop: `1.5px solid ${C.divider}`, paddingTop: 8 }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12, color: C.body }}>
+                予約だけ（{kpi.fees.bookingGrossCoins.toLocaleString()}コイン）
+              </span>
+              <b style={{ fontSize: 13, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
+                {pct(kpi.fees.bookingPercent)}
+              </b>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12, color: C.body }}>
+                ギフトだけ（{kpi.fees.giftGrossCoins.toLocaleString()}コイン）
+              </span>
+              <span style={{ fontSize: 13, color: C.body, fontVariantNumeric: 'tabular-nums' }}>
+                {pct(kpi.fees.giftPercent)}
+              </span>
+            </div>
+            <Note>
+              {/* ギフトは一律35%なので、合算だけ見ていると予約側の下振れが隠れる */}
+              計画の{PLAN.effectiveFeePercent}%と比べるのは
+              <b style={{ color: C.ink }}>「予約だけ」</b>です。ギフトは一律
+              {kpi.fees.giftPercent != null ? `${kpi.fees.giftPercent}%` : '35%'}
+              なので、合算は上に引っぱられます。
+              {kpi.fees.bookingPercent != null &&
+                kpi.fees.bookingPercent < PLAN.feeWarnPercent && (
+                  <>
+                    <br />
+                    <b style={{ color: '#E5484D' }}>
+                      予約の実効率が{PLAN.feeWarnPercent}%を下回っています。
+                    </b>
+                    段の見直しを検討してください（「料率」タブから30日前に予告）。
+                  </>
+                )}
+            </Note>
+          </Card>
+
+          {/* ② 上位集中 */}
+          <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>
+            ② 上位への集中（予約GMV）
+          </span>
+          <Card
+            alert={
+              kpi.concentration.top5Percent != null &&
+              kpi.concentration.top5Percent > PLAN.concentrationWarnPercent
+            }
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12.5, color: C.ink }}>上位5人のシェア</span>
+              <b style={{ fontSize: 15, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
+                {kpi.concentration.top5Percent == null
+                  ? '—'
+                  : `${kpi.concentration.top5Percent.toFixed(1)}%`}
+              </b>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12, color: C.body }}>最大の1人</span>
+              <b style={{ fontSize: 13, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
+                {kpi.concentration.top1Percent == null
+                  ? '—'
+                  : `${kpi.concentration.top1Percent.toFixed(1)}%`}
+              </b>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12, color: C.body }}>稼働したピタメイト</span>
+              <span style={{ fontSize: 13, color: C.body, fontVariantNumeric: 'tabular-nums' }}>
+                {kpi.concentration.activeHosts}人
+              </span>
+            </div>
+            <Note>
+              {/* 集中は実効率が下がる原因であり、同時にチャーンリスクでもある */}
+              <b style={{ color: C.ink }}>最大の1人が抜けたら、売上のその割合が消えます。</b>
+              上位に集中するほど超過累進で率が下がるため、①の下振れの原因にもなります。
+            </Note>
+          </Card>
+
+          {/* ③ チャージバック */}
+          <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>
+            ③ チャージバック（購入額に対する比）
+          </span>
+          <Card
+            alert={
+              kpi.chargebacks.openCount > 0 ||
+              (kpi.chargebacks.ratePercent != null &&
+                kpi.chargebacks.ratePercent > PLAN.chargebackWarnPercent)
+            }
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12.5, color: C.ink }}>申立て額 ÷ 購入額</span>
+              <b style={{ fontSize: 15, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
+                {pct(kpi.chargebacks.ratePercent)}
+              </b>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12, color: C.body }}>件数（うち係争中／敗）</span>
+              <span style={{ fontSize: 13, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
+                {kpi.chargebacks.count}件（{kpi.chargebacks.openCount}／
+                {kpi.chargebacks.lostCount}）
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12, color: C.body }}>購入額 ／ サポート料</span>
+              <span style={{ fontSize: 13, color: C.body, fontVariantNumeric: 'tabular-nums' }}>
+                ¥{kpi.chargebacks.purchaseYen.toLocaleString()} ／ ¥
+                {kpi.safetyFeeYen.toLocaleString()}
+              </span>
+            </div>
+            <Note>
+              {/* 平常時の収支は堅いが、ここだけが一撃で月次を壊せる */}
+              <b style={{ color: C.ink }}>
+                平常時は堅い収支の中で、ここだけが一撃で月次を壊せます。
+              </b>
+              {PLAN.chargebackWarnPercent}%を超えたら、3DSの設定（`STRIPE_3DS`）と
+              「制限値」タブの新規ユーザー上限を見直してください。
+              <br />
+              係争中がある間は、対象の報酬が「相殺」タブで保留されています。
+            </Note>
+          </Card>
+
+          {/* おまけ: 決済手段 */}
+          <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>
+            決済手段の内訳（原価が下がる余地）
+          </span>
+          {mix.error && <ErrorBox>{mix.error}</ErrorBox>}
+          {(mix.items ?? []).length === 0 ? (
+            <Note>この期間に購入がありません。</Note>
+          ) : (
+            <Card>
+              {(mix.items ?? []).map((m) => (
+                <div
+                  key={m.method}
+                  style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}
+                >
+                  <span style={{ fontSize: 12, color: C.body }}>
+                    {m.method}（{m.purchases}件）
+                  </span>
+                  <span style={{ fontSize: 13, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
+                    ¥{m.amountYen.toLocaleString()}
+                    {m.sharePercent != null && ` / ${m.sharePercent.toFixed(1)}%`}
+                  </span>
+                </div>
+              ))}
+              <Note>
+                PayPayはカードより決済手数料が低いため、
+                <b style={{ color: C.ink }}>比率が上がるほど貢献利益率が改善します</b>
+                （計画では19.4%）。
+                <br />
+                <b style={{ color: C.ink }}>「(記録なし)」</b>
+                は0096より前の購入です。公開後にこれが増えるなら、webhookの記録
+                （0104）が効いていません。
+              </Note>
+            </Card>
+          )}
+        </>
+      )}
     </>
   )
 }
