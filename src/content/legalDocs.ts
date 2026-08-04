@@ -1,12 +1,19 @@
 /**
  * アプリ内で表示する規約・ポリシー類。
- * 利用規約/プライバシー/特商法は docs/legal/ のドラフトを唯一の出典として
- * ?raw で読み込む(二重管理を避ける)。表示側で「施行前ドラフト」バナーを出す。
- * 資金決済法表示・みまもり説明はここで直接定義する。
+ * 利用規約/プライバシー/特商法/資金決済法表示は docs/legal/ のドラフトを
+ * 唯一の出典として ?raw で読み込む(二重管理を避ける)。
+ * 表示側で「施行前ドラフト」バナーを出す。
+ *
+ * ⚠️ **人に渡す書類になりうるものは、必ず Markdown 側に置くこと。**
+ * 資金決済法表示は当初ここに文字列で書いていたが、他の3点が
+ * `tools/md-to-docx.cjs` で Word にできるのに**これだけ作れない**、という
+ * 差ができていた。弁護士へ別紙として送る段になって気づいた。
+ * みまもり説明は画面専用の案内文なので、ここに残す。
  */
 import termsRaw from '../../docs/legal/terms-of-service-draft.md?raw'
 import privacyRaw from '../../docs/legal/privacy-policy-draft.md?raw'
 import tokushohoRaw from '../../docs/legal/tokushoho-draft.md?raw'
+import shikinRaw from '../../docs/legal/shikin-kessai-draft.md?raw'
 import { BUSINESS, ADDRESS_DISCLOSURE, TERMS_PARTY_NAME } from './businessInfo'
 
 export type LegalDocKey = 'terms' | 'privacy' | 'tokushoho' | 'shikin' | 'mimamori'
@@ -41,26 +48,6 @@ function fillBusiness(md: string): string {
 }
 
 const doc = (md: string) => fillBusiness(body(md))
-
-const shikinMd = `# 資金決済法に基づく表示（前払式支払手段）
-
-作成日: 2026-07-15
-
----
-
-「コイン」は、本サービス内でのみ利用できる前払式支払手段（自家型）です。
-
-| 項目 | 内容 |
-|---|---|
-| 発行者 | 【氏名（個人事業主）：公開前に記入】 |
-| 支払可能金額等 | 各コインパックの購入画面に表示する金額 |
-| 有効期限 | **取得日から起算して6か月を経過する日の前日まで**（取得日から6か月未満）。期限を過ぎたコインは失効します |
-| 利用可能範囲 | 本サービス内でのピタメイト予約その他当社が定める用途 |
-| 利用上の注意 | コインは日本円その他の金銭への払い戻し・換金・出金はできません。第三者への譲渡・売買もできません |
-| 未使用残高の確認方法 | アプリ内「コインウォレット」で残高・有効期限を確認できます |
-| 苦情・相談窓口 | 【サービス専用の問い合わせ用メールアドレス：公開前に記入】 |
-
-> これは施行前のドラフトです。当社は、コインの有効期限を「発行の日から6か月未満」に設定しており、資金決済法上の適用除外（同法第4条第2号）に該当することを前提としています。この場合、届出・供託・法定の表示義務は生じない整理となりますが、本表示は利用者への情報提供として掲載します。最終的な整理・文言は弁護士の確認を経て確定します。`
 
 const mimamoriMd = `# みまもり（監視）について
 
@@ -115,6 +102,6 @@ export const LEGAL_DOCS: Record<LegalDocKey, { title: string; markdown: string }
   terms: { title: '利用規約', markdown: doc(termsRaw) },
   privacy: { title: 'プライバシーポリシー', markdown: doc(privacyRaw) },
   tokushoho: { title: '特定商取引法に基づく表記', markdown: doc(tokushohoRaw) },
-  shikin: { title: '資金決済法に基づく表示', markdown: doc(shikinMd) },
+  shikin: { title: '資金決済法に基づく表示', markdown: doc(shikinRaw) },
   mimamori: { title: 'みまもり（監視）について', markdown: doc(mimamoriMd) },
 }
