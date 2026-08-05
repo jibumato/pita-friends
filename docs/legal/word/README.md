@@ -4,7 +4,8 @@
 
 | ファイル | 原本 | 渡す相手 |
 |---|---|---|
-| `ご照会_未査読の論点_2026-08-05.docx` | `../lawyer-questions-2026-08-04.md` | **弁護士に送る照会文。まだ誰の査読も受けていない論点（A〜F）だけを抜いたもの** |
+| `ご照会_未査読の論点_2026-08-05.docx` | `../lawyer-questions-2026-08-04.md` | 弁護士に送った照会文（論点A〜F）。**2026-08-05に回答受領済み** |
+| `ご照会_ギフトの構成変更と税務_2026-08-05.docx` | `../tax-questions-gift-recharacterization-2026-08-05.md` | **税理士と弁護士の双方に同送する照会文。**ギフトを「贈与」から「役務の追加対価」に改めることの税務への影響 |
 | `ピタフレ利用規約_全文.docx` | `../terms-of-service-draft.md` | 弁護士・税理士・第三者。そのまま渡せます |
 | `ピタフレ利用規約_全文_注記付き.docx` | 同上 | 弁護士のレビュー用。**なぜその条文があるか**が各条の直後に付きます |
 | `ピタフレプライバシーポリシー.docx` | `../privacy-policy-draft.md` | 照会の別紙2 |
@@ -50,6 +51,12 @@ npm i --no-save docx
 node tools/md-to-docx.cjs docs/legal/lawyer-questions-2026-08-04.md docs/legal/word \
   --name 'ご照会_未査読の論点_2026-08-05' --variants keep \
   --title 'ご照会（未査読の論点）— ピタフレ' --require 論点A,論点B,論点C,論点D,論点E,論点F
+
+# 税務照会（ギフトの構成変更）。**弁護士にも同送する**
+node tools/md-to-docx.cjs docs/legal/tax-questions-gift-recharacterization-2026-08-05.md docs/legal/word \
+  --name 'ご照会_ギフトの構成変更と税務_2026-08-05' --variants keep \
+  --title 'ご照会（ギフトの法的構成の変更と税務への影響）— ピタフレ' \
+  --require Q1,Q2,Q3,Q4,Q5
 
 # 別紙（--fill-business を必ず付ける）
 node tools/md-to-docx.cjs docs/legal/terms-of-service-draft.md docs/legal/word \
