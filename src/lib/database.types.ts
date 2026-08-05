@@ -770,6 +770,25 @@ export type Database = {
       /** 0105: 決済手段の内訳(運営)。PayPay比率で貢献利益率が変わる。 */
       admin_payment_method_mix: { Args: { p_from: string; p_to: string }; Returns: unknown }
       /** 0101: 制限値の現在値と天井(運営)。 */
+      /** 0107: 換金の受付が終了した後も残っている報酬コインの一覧(運営)。 */
+      admin_closed_window_balances: {
+        Args: { p_limit?: number }
+        Returns: {
+          user_id: string
+          nickname: string | null
+          withdrawn_at: string | null
+          payout_deadline: string | null
+          window_closed_at: string | null
+          earned_balance: number
+          has_bank_account: boolean
+          is_verified: boolean
+        }[]
+      }
+      /** 0107: 受付終了後の個別の申出として、運営が換金を起票する。 */
+      admin_payout_on_request: {
+        Args: { p_user_id: string; p_reason: string }
+        Returns: string
+      }
       admin_platform_limits: { Args: Record<string, never>; Returns: unknown }
       /** 0101: 制限値を変える(運営)。変えるキーだけを渡す部分更新。 */
       admin_update_platform_limits: {

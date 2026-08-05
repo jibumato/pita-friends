@@ -107,7 +107,7 @@ begin
 end $$;
 
 -- ------------------------------------------------------------
-do $$ begin raise notice '=== 4. 利用停止: 購入コインは消え、報酬コインは残る(A-3) ==='; end $$;
+do $$ begin raise notice '=== 4. 利用停止: 既定ではどちらのコインも消えない(0108) ==='; end $$;
 -- ------------------------------------------------------------
 insert into public.coin_lots (user_id, kind, remaining, expires_at)
 values ('24000000-0000-0000-0000-000000000002','paid', 3000, now() + interval '3 months');
@@ -122,11 +122,21 @@ begin
 
   select balance, earned_balance into v_paid, v_earned
     from public.coin_wallets where user_id = '24000000-0000-0000-0000-000000000002';
-  if coalesce(v_paid, -1) <> 0 then
-    raise exception 'FAIL 購入コインが消えていない: %', v_paid;
+
+  -- 0108(2026-08-05の弁護士回答 論点A-2): **一律の没収をやめた。**
+  --   「軽微な違反でも数万円分の残高が没収される帰結は、平均的損害との
+  --    均衡を欠くと評価されやすい」
+  -- 消さなかった購入コインは、第7条5項の有効期限で通常どおり失効する。
+  if coalesce(v_paid, -1) <> 3000 then
+    raise exception 'FAIL 購入コインを消してしまった(残 %)。一律没収は 0108 でやめたはず', v_paid;
   end if;
   if coalesce(v_earned, 0) <> 8000 then
     raise exception 'FAIL 報酬コインまで消してしまった: %', v_earned;
+  end if;
+  -- ロットも生きていること(残高だけ合っていてもロットが0なら使えない)
+  if (select coalesce(sum(remaining), 0) from public.coin_lots
+       where user_id = '24000000-0000-0000-0000-000000000002') <> 3000 then
+    raise exception 'FAIL ロットが0にされている(残高だけ残っても使えない)';
   end if;
 
   select payout_claim_deadline into v_deadline
@@ -134,7 +144,24 @@ begin
   if v_deadline is null then
     raise exception 'FAIL 換金の期限が設定されていない(90日枠を与えるはず)';
   end if;
-  raise notice 'OK 購入3000は消え、報酬8000は残り、換金の期限が付いた';
+  raise notice 'OK 購入3000も報酬8000も残り、換金の期限が付いた';
+end $$;
+
+-- 明示したときだけ購入コインが消えること
+do $$
+declare v_paid int; v_lots int;
+begin
+  perform public.admin_suspend_account(
+    '24000000-0000-0000-0000-000000000002',
+    '不正に取得した購入コインのため没収(テスト)', false, true);
+  select balance into v_paid from public.coin_wallets
+   where user_id = '24000000-0000-0000-0000-000000000002';
+  select coalesce(sum(remaining), 0) into v_lots from public.coin_lots
+   where user_id = '24000000-0000-0000-0000-000000000002';
+  if coalesce(v_paid, -1) <> 0 or v_lots <> 0 then
+    raise exception 'FAIL 明示したのに購入コインが残っている(残高% ロット%)', v_paid, v_lots;
+  end if;
+  raise notice 'OK p_forfeit_paid=true のときだけ購入コインが消える';
 end $$;
 
 -- ------------------------------------------------------------

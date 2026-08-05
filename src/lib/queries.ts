@@ -2775,6 +2775,53 @@ export async function fetchAdminPendingPayouts(): Promise<AdminPayout[]> {
   }))
 }
 
+/**
+ * 換金申請の受付が終了した後も残っている報酬コイン(0107)。
+ *
+ * **残高は消していない。** 退会から90日でセルフサービスの窓口は閉じるが、
+ * 報酬コインは既に稼得した金銭債権なので消滅させない
+ * (2026-08-05の弁護士回答 論点A-1・規約 第6条の2第4項)。
+ * 個別の申出を受けたら、この一覧から起票する。
+ */
+export async function fetchClosedWindowBalances(): Promise<ClosedWindowBalance[]> {
+  const { data, error } = await requireSupabase().rpc('admin_closed_window_balances', {
+    p_limit: 200,
+  })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    userId: r.user_id,
+    nickname: r.nickname ?? '(名前なし)',
+    payoutDeadline: r.payout_deadline,
+    windowClosedAt: r.window_closed_at,
+    earnedBalance: Number(r.earned_balance ?? 0),
+    hasBankAccount: !!r.has_bank_account,
+    isVerified: !!r.is_verified,
+  }))
+}
+
+export type ClosedWindowBalance = {
+  userId: string
+  nickname: string
+  payoutDeadline: string | null
+  windowClosedAt: string | null
+  earnedBalance: number
+  hasBankAccount: boolean
+  isVerified: boolean
+}
+
+/**
+ * 受付終了後の個別の申出として、換金を起票する(0107)。
+ * **換金可能な全額**を1回で出す。ギフト・係争の保留はそのまま効く。
+ */
+export async function payoutOnRequest(userId: string, reason: string): Promise<string> {
+  const { data, error } = await requireSupabase().rpc('admin_payout_on_request', {
+    p_user_id: userId,
+    p_reason: reason,
+  })
+  if (error) throw error
+  return data as string
+}
+
 /** ⚠️ 実際に振り込んだ後にだけ押す。取り消す手立ては無い。 */
 export async function markPayoutPaid(payoutId: string, note: string): Promise<void> {
   const { error } = await requireSupabase().rpc('admin_mark_payout_paid', {
