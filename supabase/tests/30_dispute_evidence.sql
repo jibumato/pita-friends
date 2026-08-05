@@ -88,6 +88,30 @@ begin
   raise notice 'OK 空文面と未知の種別は弾かれる';
 end $$;
 
+-- 購入時と登録時の同意も残る（G19・G20。2026-08-05に呼び出しを繋いだ）。
+-- **器だけあって呼ばれていなかった**ので、ここで両方を固定する。
+select public.record_policy_consent(
+  'terms',
+  E'【利用登録時の同意】(規約の版 2026-08-05)\n次の内容に同意して利用登録を行いました。',
+  null, 'dev-abcdefgh');
+select public.record_policy_consent(
+  'purchase',
+  E'【コインの購入について】(版 2026-08-05)\n**購入手続の完了後は返金できません**（法令上返金が必要な場合を除きます）。',
+  null, 'dev-abcdefgh');
+
+do $$
+declare v_kinds text[];
+begin
+  select array_agg(distinct kind order by kind) into v_kinds
+    from public.policy_consents where user_id = '30000000-0000-0000-0000-000000000001';
+  if not (v_kinds @> array['cancellation','purchase','terms']) then
+    raise exception
+      'FAIL 3種の同意がそろっていない(%)。購入時(G19)と登録時(G20)は 0106 で器だけ作って呼んでいなかった',
+      v_kinds;
+  end if;
+  raise notice 'OK キャンセル・購入・登録の3種が残る';
+end $$;
+
 -- ------------------------------------------------------------
 do $$ begin raise notice '=== 3. 役務提供の記録(遊んだ事実)を作る ==='; end $$;
 -- ------------------------------------------------------------
@@ -147,8 +171,24 @@ begin
   if jsonb_array_length(r -> 'consents') < 1 then
     raise exception 'FAIL 同意の記録が出ていない';
   end if;
-  if (r -> 'consents' -> 0 ->> 'shownText') not like '%開始後・無断欠席は戻らず%' then
+  if not exists (
+    select 1 from jsonb_array_elements(r -> 'consents') e
+     where e ->> 'shownText' like '%開始後・無断欠席は戻らず%') then
     raise exception 'FAIL 同意に文面が入っていない(版番号だけでは証明にならない)';
+  end if;
+  -- ★ここが Stripe の「返金ポリシーへの同意」欄に貼る中心の材料。
+  -- **購入時の同意が出てこないと、購入そのものについて反論できない**（G19）
+  if not exists (
+    select 1 from jsonb_array_elements(r -> 'consents') e
+     where e ->> 'kind' = 'purchase'
+       and e ->> 'shownText' like '%購入手続の完了後は返金できません%') then
+    raise exception
+      'FAIL 購入時の同意が証跡に出ていない。表示していても記録が無ければ争えない(G19)';
+  end if;
+  if not exists (
+    select 1 from jsonb_array_elements(r -> 'consents') e
+     where e ->> 'kind' = 'terms') then
+    raise exception 'FAIL 登録時の規約同意が証跡に出ていない(規約 第3条6項・G20)';
   end if;
 
   -- 役務提供(Service documentation / Service date 欄)

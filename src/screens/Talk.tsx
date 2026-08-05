@@ -810,6 +810,40 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
                           ? `いまキャンセルすると、${refundQuote.coins.toLocaleString()}コインは戻らず相手の報酬になります。ドタキャンとして記録されます。`
                           : `いまキャンセルすると、${refundQuote.refundCoins.toLocaleString()}コインが戻ります。残りの${refundQuote.forfeitCoins.toLocaleString()}コインは相手の報酬になり、ドタキャンとして記録されます。`}
               </span>
+              {/* 0109・規約 第9条5の2後段:
+                  「返還されるコインの有効期限が近い場合はその旨を事前に表示します」
+
+                  返還されるコインの期限は**当初の取得日**を基準に計算する（同項前段）。
+                  つまり期限を過ぎていれば戻らずに消える。**押した後に気づくのが
+                  一番まずい**ので、押す前に出す。
+
+                  ⚠️ 枚数は計算し直さない。サーバ（my_booking_refund_quote）が
+                  実際の返還処理と同じ順序・同じ配分で数えた値をそのまま出す。 */}
+              {refundQuote !== null && refundQuote.lapsedCoins > 0 && (
+                <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.avatarPink }}>
+                  ⚠️ このうち{refundQuote.lapsedCoins.toLocaleString()}コインは
+                  <b>有効期限を過ぎているため戻りません</b>。
+                  コインの期限は取得日から数えるので、お戻ししても期限は延びません。
+                  {refundQuote.cashRefundCoins > 0 ? (
+                    <>
+                      <br />
+                      戻らなかった{refundQuote.cashRefundCoins.toLocaleString()}コインに相当する
+                      {refundQuote.cashRefundCoins.toLocaleString()}円は、
+                      <b>金銭でお返しします</b>（お客様に落ち度のないキャンセルのため）。
+                    </>
+                  ) : null}
+                </span>
+              )}
+              {refundQuote !== null &&
+                refundQuote.lapsedCoins === 0 &&
+                refundQuote.soonCoins > 0 &&
+                refundQuote.soonestExpiresAt !== null && (
+                  <span style={{ fontSize: 10.5, lineHeight: 1.6, color: C.body }}>
+                    ⏳ 戻る{refundQuote.soonCoins.toLocaleString()}コインは
+                    <b>{new Date(refundQuote.soonestExpiresAt).toLocaleDateString('ja-JP')}に期限</b>を迎えます。
+                    お戻ししても期限は延びないので、それまでにお使いください。
+                  </span>
+                )}
               <div style={{ display: 'flex', gap: 8 }}>
                 <span
                   onClick={() => setCancelOpen(false)}
