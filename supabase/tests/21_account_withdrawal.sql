@@ -14,8 +14,10 @@
 --   ・有償・無償は消え、**報酬コインは消えない**こと(第4項)
 --   ・退会後もサービスは使えないこと
 --   ・退会後90日以内は換金を申請できること
---   ・90日を過ぎたら申請できず、報酬コインが消えること
---   ・**申請中の換金があるうちは消さない**こと
+--   ・90日を過ぎたらアプリからは申請できないが、**報酬コインは消えない**こと
+--     (0107・2026-08-05の弁護士回答 論点A-1)
+--   ・**申請中の換金があるうちは窓口を閉じない**こと
+--   ・窓口が閉じた後も、運営が個別の申出として換金を起票できること
 -- ============================================================
 \set ON_ERROR_STOP on
 
@@ -233,7 +235,7 @@ begin
 end $$;
 
 -- ------------------------------------------------------------
-\echo '=== 7. 申請中があるうちは報酬コインを消さないこと ==='
+\echo '=== 7. 申請中があるうちは窓口を閉じないこと ==='
 -- 期限を過ぎた状態にしてから走らせる
 update public.account_withdrawals
   set payout_deadline = now() - interval '1 day'
@@ -242,9 +244,9 @@ update public.account_withdrawals
 do $$
 declare v_n int; v_pending int;
 begin
-  v_n := public.expire_withdrawn_earned();
+  v_n := public.close_withdrawn_payout_window();
   if v_n <> 0 then
-    raise exception 'FAIL: 申請中なのに消滅の処理を走らせた(%件)', v_n;
+    raise exception 'FAIL: 申請中なのに窓口を閉じた(%件)', v_n;
   end if;
   -- 0100 で全額を一括申請するようになったため、残高は0になる。
   -- **守るべき不変条件は「残高が残っていること」ではなく
@@ -254,11 +256,17 @@ begin
   if coalesce(v_pending, 0) <> 1 then
     raise exception 'FAIL: 申請中の換金が消えた(%件)', v_pending;
   end if;
-  raise notice 'OK: 申請中は消滅の処理を走らせない(pending %件が生きている)', v_pending;
+  raise notice 'OK: 申請中は窓口を閉じない(pending %件が生きている)', v_pending;
 end $$;
 
 -- ------------------------------------------------------------
-\echo '=== 8. 期限が過ぎたら申請できず、報酬コインが消えること ==='
+\echo '=== 8. 期限が過ぎたら申請できないが、報酬コインは消えないこと ==='
+-- **0107 の中心。** 2026-08-05の弁護士回答（論点A-1）:
+--   「90日の経過により債権そのものを消滅させる条項は、法定の消滅時効
+--    （民法166条1項・5年）を約款で90日に短縮するに等しく、消費者契約法10条
+--    により無効と判断されるリスクが高い類型です。」
+-- したがって守るのは「消えること」ではなく **「消えないこと」**。
+--
 -- 申請を振込済みにして、pending を無くす
 update public.payouts set status = 'paid', paid_at = now()
   where user_id = 'e1000000-0000-0000-0000-000000000001' and status = 'pending';
@@ -278,25 +286,104 @@ begin
     if sqlerrm <> 'PAYOUT_WINDOW_CLOSED' then raise; end if;
   end;
 
-  v_n := public.expire_withdrawn_earned();
+  v_n := public.close_withdrawn_payout_window();
   select earned_balance into v_earned from public.coin_wallets
    where user_id = 'e1000000-0000-0000-0000-000000000001';
-  if v_n <> 1 then raise exception 'FAIL: 消滅の処理が動いていない(%)', v_n; end if;
-  if v_earned <> 0 then raise exception 'FAIL: 報酬コインが残っている(%)', v_earned; end if;
+  if v_n <> 1 then raise exception 'FAIL: 窓口を閉じる処理が動いていない(%)', v_n; end if;
+
+  -- ★ここが 0107 の核心
+  if v_earned <> 5000 then
+    raise exception 'FAIL: 報酬コインが消えた(残 %)。債権を消してはいけない', v_earned;
+  end if;
 
   if not exists (select 1 from public.account_withdrawals
                   where user_id = 'e1000000-0000-0000-0000-000000000001'
-                    and earned_expired_at is not null) then
-    raise exception 'FAIL: 消滅の記録が残っていない';
+                    and payout_window_closed_at is not null) then
+    raise exception 'FAIL: 窓口を閉じた記録が残っていない';
+  end if;
+  -- 消滅の記録は**つかない**こと（つくなら消す処理が生き残っている）
+  if exists (select 1 from public.account_withdrawals
+              where user_id = 'e1000000-0000-0000-0000-000000000001'
+                and earned_expired_at is not null) then
+    raise exception 'FAIL: 消滅の記録がついた。0107 で消滅はやめたはず';
   end if;
 
   -- 二度目は何もしないこと
-  v_n := public.expire_withdrawn_earned();
+  v_n := public.close_withdrawn_payout_window();
   if v_n <> 0 then raise exception 'FAIL: 同じ人を二度処理した(%)', v_n; end if;
-  raise notice 'OK: 申請不可 / 消滅 / 記録あり / 二度は処理しない';
+  raise notice 'OK: 申請不可 / **残高5000は残る** / 記録あり / 二度は処理しない';
+end $$;
+
+-- 通知の文面が「消えていない」ことを伝えているか。
+-- **ここが「消滅しました」に戻ったら、実装が巻き戻った合図。**
+do $$
+declare v_body text;
+begin
+  select body into v_body from public.notifications
+   where user_id = 'e1000000-0000-0000-0000-000000000001'
+     and title like '換金申請の受付期間%' order by created_at desc limit 1;
+  if v_body is null then raise exception 'FAIL: 窓口終了の通知が出ていない'; end if;
+  if v_body not like '%消えていません%' then
+    raise exception 'FAIL: 通知が残高の存続を伝えていない(%)', v_body;
+  end if;
+  raise notice 'OK: 通知が「消えていません」と伝えている';
 end $$;
 
 -- ------------------------------------------------------------
+\echo '=== 8の2. 窓口が閉じた後も、運営が個別の申出で換金を起票できること ==='
+-- 残高を残しても、**出す経路が無ければ約束を果たせない**。
+-- 規約 第6条の2第4項の「個別の申出により換金の申請を行うことができる」の実装。
+insert into auth.users (id) values ('e1000000-0000-0000-0000-00000000000a')
+  on conflict (id) do nothing;
+insert into public.profiles (id, nickname) values
+  ('e1000000-0000-0000-0000-00000000000a','運営A') on conflict (id) do nothing;
+insert into public.admins (user_id) values ('e1000000-0000-0000-0000-00000000000a')
+  on conflict (user_id) do nothing;
+
+do $$
+declare v_uid uuid := 'e1000000-0000-0000-0000-000000000001'; v_n int;
+begin
+  set local test.uid = 'e1000000-0000-0000-0000-00000000000a';
+
+  -- 運営コンソールの一覧に出ること（SQL Editor を開かずに気づける）
+  select count(*) into v_n from public.admin_closed_window_balances()
+   where user_id = v_uid;
+  if v_n <> 1 then raise exception 'FAIL: 残高の一覧に出ない(%)', v_n; end if;
+
+  -- 理由なしは通らないこと
+  begin
+    perform public.admin_payout_on_request(v_uid, '  ');
+    raise exception 'FAIL: 理由なしで起票できた';
+  exception when others then
+    if sqlerrm <> 'REASON_REQUIRED' then raise; end if;
+  end;
+end $$;
+
+do $$
+declare
+  v_uid uuid := 'e1000000-0000-0000-0000-000000000001';
+  v_pid uuid; v_earned int; v_amount int;
+begin
+  set local test.uid = 'e1000000-0000-0000-0000-00000000000a';
+  v_pid := public.admin_payout_on_request(v_uid, 'メールで個別の申出あり');
+
+  select earned_balance into v_earned from public.coin_wallets where user_id = v_uid;
+  if coalesce(v_earned, -1) <> 0 then
+    raise exception 'FAIL: 全額を出していない(残 %)', v_earned;
+  end if;
+
+  select amount_yen into v_amount from public.payouts where id = v_pid;
+  if v_amount <> 5000 - 300 then
+    raise exception 'FAIL: 振込額が手数料控除後になっていない(%)', v_amount;
+  end if;
+
+  if not exists (select 1 from public.admin_actions
+                  where kind = 'payout_on_request' and target_id = v_pid) then
+    raise exception 'FAIL: 運営の操作記録が残っていない';
+  end if;
+  raise notice 'OK: 個別の申出で % 円を起票し、記録も残った', v_amount;
+end $$;
+
 \echo '=== 9. 会計仕訳に、退会で消えた分が出ること ==='
 -- **仕訳に出ないと前受金・預り金が過大に残る**(0079のJ16が拾わない note)
 insert into auth.users (id) values ('e1000000-0000-0000-0000-000000000009');
@@ -314,12 +401,15 @@ begin
     raise exception 'FAIL: 退会のコイン消滅が仕訳に出ない(%)', v_paid;
   end if;
 
-  select 金額円 into v_earned from public.accounting_journal('2000-01-01','2100-01-01')
+  -- 0107: 退会から90日での**報酬コインの消滅はもう起きない**ので、
+  -- J23 に行が立たないのが正しい。**立っていたら消す処理が生き残っている。**
+  select coalesce(sum(金額円), 0) into v_earned
+    from public.accounting_journal('2000-01-01','2100-01-01')
    where 摘要 like '退会から90日経過%';
-  if coalesce(v_earned, 0) <= 0 then
-    raise exception 'FAIL: 報酬コインの消滅が仕訳に出ない(%)', v_earned;
+  if v_earned <> 0 then
+    raise exception 'FAIL: 報酬コインの消滅が仕訳に出た(%円)。0107で消滅はやめたはず', v_earned;
   end if;
-  raise notice 'OK: J22 %円 / J23 %円', v_paid, v_earned;
+  raise notice 'OK: J22 %円 / 報酬コインの消滅は発生しない', v_paid;
 end $$;
 
 \echo '=== 21: 退会(第6条の2) すべて通過 ==='

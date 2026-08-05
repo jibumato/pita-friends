@@ -27,6 +27,8 @@ import {
   fetchAdminReports,
   fetchAdminHeldBookings,
   fetchAdminPendingPayouts,
+  fetchClosedWindowBalances,
+  payoutOnRequest,
   fetchAdminAccountRequests,
   fetchAdminHealth,
   fetchAdminActions,
@@ -40,6 +42,7 @@ import {
   type AdminReport,
   type AdminHeldBooking,
   type AdminPayout,
+  type ClosedWindowBalance,
   type AdminAccountRequest,
   type AdminHealth,
   type AdminAction,
@@ -1055,6 +1058,123 @@ function PayoutsTab({ onChanged }: { onChanged: () => void }) {
           ))}
         </>
       )}
+      <ClosedWindowSection onChanged={onChanged} />
+    </>
+  )
+}
+
+/**
+ * 換金の受付が終了した後も残っている報酬コイン(0107)。
+ *
+ * **退会から90日で残高を消していたのをやめた。** 報酬コインは既に稼得した
+ * 金銭債権で、90日で消す条項は消滅時効(5年)を約款で短縮するに等しく
+ * 消費者契約法10条で無効になりうる、という指摘による
+ * (2026-08-05の弁護士回答 論点A-1)。
+ *
+ * 残高を残す以上、**出す経路が要る**。個別の申出はここから起票する。
+ */
+function ClosedWindowSection({ onChanged }: { onChanged: () => void }) {
+  const { items, error, reload } = useList<ClosedWindowBalance>(fetchClosedWindowBalances, [])
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  if (error) return <ErrorBox>{error}</ErrorBox>
+  if (!items || items.length === 0) return null
+
+  async function submit(userId: string) {
+    if (busy) return
+    setBusy(true)
+    setActionError(null)
+    try {
+      await payoutOnRequest(userId, reason.trim())
+      setOpenId(null)
+      setReason('')
+      reload()
+      onChanged()
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : '起票できませんでした')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <h3 style={{ fontSize: 12.5, color: C.ink, margin: '18px 0 0' }}>
+        受付終了後も残っている報酬コイン（{items.length}件）
+      </h3>
+      <Note>
+        退会から90日でアプリからの申請は締め切りますが、
+        <b style={{ color: C.ink }}>報酬コインは消していません</b>
+        （規約 第6条の2第4項）。本人からお申し出があったら、ここから起票します。
+        <br />
+        起票すると<b style={{ color: C.ink }}>換金可能な全額</b>が1件の申請になり、
+        上の一覧に並びます。ギフトの7日保留と係争中の凍結はそのまま効きます。
+      </Note>
+      {items.map((r) => (
+        <Card key={r.userId} alert={!r.hasBankAccount || !r.isVerified}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontSize: 12.5, color: C.ink }}>{r.nickname}</span>
+            <span
+              style={{ fontSize: 13, color: C.ink, flex: 'none', fontVariantNumeric: 'tabular-nums' }}
+            >
+              {r.earnedBalance.toLocaleString()}コイン
+            </span>
+          </div>
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.8 }}>
+            受付期限 {r.payoutDeadline ? jst(r.payoutDeadline) : '—'}
+            {r.windowClosedAt ? ` / 締切済 ${jst(r.windowClosedAt)}` : ' / 締切処理はまだ'}
+          </span>
+          {!r.hasBankAccount && (
+            <span style={{ fontSize: 11, color: '#E5484D', lineHeight: 1.7 }}>
+              ⚠️ 振込先口座が登録されていません。<b>先に口座を伺ってください。</b>
+              このまま押すと BANK_ACCOUNT_NOT_REGISTERED で止まります。
+            </span>
+          )}
+          {!r.isVerified && (
+            <span style={{ fontSize: 11, color: C.body, lineHeight: 1.7 }}>
+              本人確認が未了です。
+              <span style={{ color: C.muted }}>
+                {' '}
+                終了時の本人確認を「返せない口実」にしないこと（docs/service-termination-runbook.md）。
+                犯収法上の確認が要る場面を除き、登録済みの情報で振り込みます。
+              </span>
+            </span>
+          )}
+          {openId === r.userId ? (
+            <>
+              <Field
+                value={reason}
+                onChange={setReason}
+                placeholder="申出を受けた経緯（例: 8/20 メールで申出）"
+              />
+              {actionError && <ErrorBox>{actionError}</ErrorBox>}
+              <Btn
+                danger
+                disabled={busy || reason.trim().length === 0}
+                onClick={() => void submit(r.userId)}
+              >
+                全額（{r.earnedBalance.toLocaleString()}コイン）を起票する
+              </Btn>
+              <span
+                onClick={() => {
+                  setOpenId(null)
+                  setActionError(null)
+                }}
+                role="button"
+                tabIndex={0}
+                style={{ cursor: 'pointer', fontSize: 11, color: C.muted, textAlign: 'center' }}
+              >
+                やめる
+              </span>
+            </>
+          ) : (
+            <Btn onClick={() => setOpenId(r.userId)}>お申し出により換金する</Btn>
+          )}
+        </Card>
+      ))}
     </>
   )
 }
