@@ -7,6 +7,8 @@ import { ChevronLeft } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { signUpWithEmail, authErrorMessage, byteLength, PASSWORD_MAX_BYTES, PASSWORD_MIN_LENGTH } from '../lib/auth'
 import LegalLinks from '../components/LegalLinks'
+import { recordPolicyConsent } from '../lib/queries'
+import { termsConsentText } from '../content/purchasePolicy'
 
 const inputStyle = {
   background: C.white,
@@ -31,6 +33,19 @@ export default function SignUp({ flow }: { flow: Flow }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [needsConfirmation, setNeedsConfirmation] = useState(false)
+  /**
+   * 規約への同意（規約 第3条6項・2026-08-05新設）。
+   *
+   * 弁護士（2026-08-05 論点A(c)2）:
+   *   「定型約款の組入れ（民法548条の2）自体は表示で足りますが、第4条5項が
+   *    監視への**個別同意**を丁寧に設計しているのと対照的に、**規約本体への
+   *    同意手続を明記していません。**」
+   *
+   * 表示だけでも組入れは足りるが、**同意の日時と版を記録する**と約束した以上、
+   * 押した事実が要る。管轄合意が電磁的記録で行われたことの立証
+   * （民訴11条2項・3項）にも効く。
+   */
+  const [agreedTerms, setAgreedTerms] = useState(false)
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
 
   const tooShort = password.length > 0 && password.length < PASSWORD_MIN_LENGTH
@@ -41,6 +56,7 @@ export default function SignUp({ flow }: { flow: Flow }) {
     password.length >= PASSWORD_MIN_LENGTH &&
     !tooLong &&
     password === confirm &&
+    agreedTerms &&
     !loading
 
   async function handleSubmit() {
@@ -50,6 +66,10 @@ export default function SignUp({ flow }: { flow: Flow }) {
     try {
       const { user, session } = await signUpWithEmail(email, password)
       if (session) {
+        // 規約 第3条6項: 同意の日時と版を記録する。
+        // **ログインできてから**でないと auth.uid() が無く記録できないので、
+        // セッションが立った直後に置く。記録に失敗しても登録は止めない。
+        await recordPolicyConsent('terms', termsConsentText())
         await flow.hydrateAccount(user.id)
         flow.go('consent')
       } else {
@@ -207,6 +227,49 @@ export default function SignUp({ flow }: { flow: Flow }) {
             </div>
           )}
 
+          {/* 規約 第3条6項。**押した事実を残すためのチェック。**
+              文面は content/purchasePolicy.ts の termsConsentText() が出典で、
+              同じ内容を policy_consents に残す。 */}
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+              cursor: 'pointer',
+              fontSize: 11,
+              lineHeight: 1.7,
+              color: C.body,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={agreedTerms}
+              onChange={(e) => setAgreedTerms(e.target.checked)}
+              style={{ marginTop: 3, flex: 'none', width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <span>
+              <span
+                onClick={(e) => {
+                  e.preventDefault()
+                  flow.openLegalDoc('terms')
+                }}
+                style={{ color: C.lavender, textDecoration: 'underline' }}
+              >
+                利用規約
+              </span>
+              と
+              <span
+                onClick={(e) => {
+                  e.preventDefault()
+                  flow.openLegalDoc('privacy')
+                }}
+                style={{ color: C.lavender, textDecoration: 'underline' }}
+              >
+                プライバシーポリシー
+              </span>
+              に同意します
+            </span>
+          </label>
           <button
             type="submit"
             className="pita-press"

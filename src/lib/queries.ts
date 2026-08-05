@@ -2127,6 +2127,25 @@ export type RefundQuote = {
    * **画面で作り直さないこと**(判定はサーバの1か所にある)。
    */
   played: boolean
+  /**
+   * 戻るはずだが**当初の期限を過ぎていて戻らない**枚数(0109)。
+   *
+   * 規約 第9条5の2: 返還されるコインの期限は**当初の取得日**を基準に計算する。
+   * したがって期限を過ぎていれば返還されずに消える。**押す前に知らせる**。
+   */
+  lapsedCoins: number
+  /** 戻るが、期限が `soonDays` 日以内に来る枚数 */
+  soonCoins: number
+  /** 戻る分のうち最も早い期限(ISO)。無ければ null */
+  soonestExpiresAt: string | null
+  /** 「期限が近い」の目安の日数(失効の事前通知と同じ値) */
+  soonDays: number
+  /**
+   * 消えた分のうち**金銭で返す**枚数(1コイン=1円)。
+   * 第9条5の3 は**ゲスト無帰責の場合のみ**なので、
+   * ゲストが自分でキャンセルするときは0になる。
+   */
+  cashRefundCoins: number
 }
 
 /**
@@ -2149,6 +2168,11 @@ export async function fetchMyRefundQuote(bookingId: string): Promise<RefundQuote
     basePercent: Number(q.base_percent ?? 0),
     capped: Boolean(q.capped),
     played: Boolean(q.played),
+    lapsedCoins: Number(q.lapsed_coins ?? 0),
+    soonCoins: Number(q.soon_coins ?? 0),
+    soonestExpiresAt: (q.soonest_expires_at as string | null) ?? null,
+    soonDays: Number(q.soon_days ?? 14),
+    cashRefundCoins: Number(q.cash_refund_coins ?? 0),
   }
 }
 

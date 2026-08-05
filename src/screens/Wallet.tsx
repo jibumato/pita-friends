@@ -7,12 +7,14 @@ import { SubHeader } from '../components/Ui'
 import { Coin, Shield } from '../components/Icon'
 import { COIN_PACKS, type CoinPack } from '../flow'
 import { safetyFeeYen, SAFETY_FEE_RATE } from '../content/pricing'
+import { PURCHASE_POLICY_LINES, purchasePolicyText } from '../content/purchasePolicy'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import SignedOutPrompt from '../components/SignedOutPrompt'
 import {
   createCheckoutSession,
+  recordPolicyConsent,
   fetchMyCoinExpiry,
   type CoinExpiry,
   fetchCoinPacks,
@@ -345,6 +347,11 @@ export default function Wallet({ flow }: { flow: Flow }) {
     setRedirecting(true)
     setError(null)
     try {
+      // 0106・G19: **決済ページへ送る直前に、示した文面を記録する。**
+      // 記録に失敗しても購入は止めない（recordPolicyConsent が握りつぶす）。
+      // 順序が逆だと「同意の記録はあるが購入は無い」行が溜まるので、
+      // 購入の直前に置く。
+      await recordPolicyConsent('purchase', purchasePolicyText())
       const url = await createCheckoutSession(pack.id)
       window.location.href = url
     } catch (e) {
@@ -425,6 +432,39 @@ export default function Wallet({ flow }: { flow: Flow }) {
         {isBackendConfigured && <EarningsSection />}
 
         <span style={{ fontSize: 13, color: C.ink }}>▶ コインを購入</span>
+        {/* 0106・G19: 購入の前に示す説明。**畳まない・購入ボタンの直前に置く。**
+            文面は content/purchasePolicy.ts が出典で、購入手続の直前に
+            **この文面のまま** policy_consents へ残す（`shown_text`）。
+            画面とログが別々にあると、直したときに黙ってずれる。
+            ずれた瞬間、「返金不可と示していた」と言えなくなり、
+            チャージバックで反論できなくなる。 */}
+        {isBackendConfigured && (
+          <div
+            style={{
+              background: C.surface,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 8,
+              padding: '9px 11px',
+            }}
+          >
+            <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
+              {PURCHASE_POLICY_LINES.map((line, i) => (
+                <span key={i}>
+                  {i > 0 && <br />}
+                  {line.split('**').map((part, j) =>
+                    j % 2 === 1 ? (
+                      <b key={j} style={{ color: C.ink }}>
+                        {part}
+                      </b>
+                    ) : (
+                      <span key={j}>{part}</span>
+                    ),
+                  )}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
         {redirecting && (
           <div
             style={{
