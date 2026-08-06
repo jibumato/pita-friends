@@ -3564,6 +3564,17 @@ export type BusinessKpis = {
     giftGrossCoins: number
     /** ギフトだけの実効率(%)。一律35%なので、混ざると合算が上がる */
     giftPercent: number | null
+    /**
+     * ギフト流通総額 ÷ 予約対価総額(%)。**法務の指標**（0110）。
+     *
+     * ギフトを「為替取引に当たらない」と整理する根拠のひとつは、
+     * **ギフトが主たる収益源ではなく、役務に付随する任意の追加対価**である
+     * ことにある。条文で宣言するだけでは足りず、実績で示せなければ
+     * 財務局への照会でも紛争でも通らない（2026-08-05の弁護士回答 論点B(b)2）。
+     *
+     * **上がり続けているのに放置しないこと。**
+     */
+    giftToBookingPercent: number | null
   }
   concentration: {
     activeHosts: number
@@ -3605,6 +3616,7 @@ export async function fetchBusinessKpis(from: string, to: string): Promise<Busin
       bookingPercent: p(r.fees, 'bookingPercent'),
       giftGrossCoins: n(r.fees, 'giftGrossCoins'),
       giftPercent: p(r.fees, 'giftPercent'),
+      giftToBookingPercent: p(r.fees, 'giftToBookingPercent'),
     },
     concentration: {
       activeHosts: n(r.concentration, 'activeHosts'),

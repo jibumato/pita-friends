@@ -2726,6 +2726,37 @@ function KpiTab() {
             </Note>
           </Card>
 
+          {/* ①の2 ギフトが従たる地位に留まっているか（0110・法務の指標）。
+              経営の数字と同じ場所に置く。**別画面にすると見なくなる。** */}
+          <Card alert={kpi.fees.giftToBookingPercent != null && kpi.fees.giftToBookingPercent > 50}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12.5, color: C.ink }}>ギフト ÷ 予約対価</span>
+              <b style={{ fontSize: 15, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
+                {kpi.fees.giftToBookingPercent == null
+                  ? '—'
+                  : `${kpi.fees.giftToBookingPercent.toFixed(1)}%`}
+              </b>
+            </div>
+            <Note>
+              <b style={{ color: C.ink }}>これは売上の指標ではなく、法務の指標です。</b>
+              ギフトを「為替取引に当たらない」と整理する根拠のひとつが、
+              <b style={{ color: C.ink }}>ギフトは主たる収益源ではない</b>
+              ことだからです。条文に書くだけでは足りず、
+              実績で示せないと財務局への照会でも紛争でも通りません
+              （2026-08-05の弁護士回答 論点B(b)2）。
+              {kpi.fees.giftToBookingPercent != null && kpi.fees.giftToBookingPercent > 50 && (
+                <>
+                  <br />
+                  <b style={{ color: '#E5484D' }}>
+                    ギフトが予約対価の半分を超えています。
+                  </b>
+                  「付随する任意の追加対価」という説明が苦しくなる水準です。
+                  上限の引き下げや、ギフト可能期間の短縮を検討してください。
+                </>
+              )}
+            </Note>
+          </Card>
+
           {/* ② 上位集中 */}
           <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>
             ② 上位への集中（予約GMV）
