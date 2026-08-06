@@ -4,6 +4,10 @@
 文面そのものは `sns-launch-kit.md`、画像は `image-prompts.md` が持ちます。
 **この文書は「型」を扱います。**
 
+**海外編は [`competitor-pr-research-overseas-2026-08-06.md`](competitor-pr-research-overseas-2026-08-06.md)。**
+米国・中国・韓国を見ています。**中国で陪玩アプリが市場ごと下架された経緯**は、
+ピタフレが守っている一線の裏付けになるので、法務側の判断にも関わります。
+
 > ⚠️ **一次情報は取れていません。** この調査時点で、作業環境の外向き通信が
 > `game-room.jp` / `apps.apple.com` / `play.google.com` / `goplayone-jp.com` /
 > `x.com` / `bcnretail.com` を遮断しており、**各社のページ本文を直接読めていません**。
