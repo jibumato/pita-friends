@@ -690,7 +690,7 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
         >
           <span style={{ fontSize: 11.5, color: C.ink }}>ピタメイトとして遊ぶときのルール</span>
           <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.body }}>
-            ・提供するのは「ゲームを一緒に遊ぶ時間」です。出会い・恋愛目的の勧誘は禁止
+            ・提供するのは「ゲームを一緒に遊ぶ時間」です。本来の目的以外の利用・勧誘は禁止
             <br />
             ・受け取りはコイン決済のみ。アプリ外での金銭要求は禁止
             <br />
