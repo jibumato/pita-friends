@@ -5,7 +5,9 @@
 | ファイル | 原本 | 渡す相手 |
 |---|---|---|
 | `ご照会_未査読の論点_2026-08-05.docx` | `../lawyer-questions-2026-08-04.md` | 弁護士に送った照会文（論点A〜F）。**2026-08-05に回答受領済み** |
-| `ご照会_ギフトの構成変更と税務_2026-08-05.docx` | `../tax-questions-gift-recharacterization-2026-08-05.md` | **税理士と弁護士の双方に同送する照会文。**ギフトを「贈与」から「役務の追加対価」に改めることの税務への影響 |
+| `ご照会_ギフトの構成変更と税務_2026-08-05.docx` | `../tax-questions-gift-recharacterization-2026-08-05.md` | 税理士と弁護士の双方に同送した照会文。**2026-08-05に回答受領済み** |
+| `ご相談_ギフトの為替取引該当性_2026-08-06.docx` | `../finance-bureau-inquiry-gift-2026-08-06.md` | **財務局へ持っていく版（注記なし）。**⚠️ **注記付きのほうを提出しないこと**——内部メモに「該当のおそれがあれば機能を外す」等の手の内が入っています |
+| `ご相談_ギフトの為替取引該当性_2026-08-06_注記付き.docx` | 同上 | **社内用。**提出しない |
 | `ピタフレ利用規約_全文.docx` | `../terms-of-service-draft.md` | 弁護士・税理士・第三者。そのまま渡せます |
 | `ピタフレ利用規約_全文_注記付き.docx` | 同上 | 弁護士のレビュー用。**なぜその条文があるか**が各条の直後に付きます |
 | `ピタフレプライバシーポリシー.docx` | `../privacy-policy-draft.md` | 照会の別紙2 |
@@ -57,6 +59,12 @@ node tools/md-to-docx.cjs docs/legal/tax-questions-gift-recharacterization-2026-
   --name 'ご照会_ギフトの構成変更と税務_2026-08-05' --variants keep \
   --title 'ご照会（ギフトの法的構成の変更と税務への影響）— ピタフレ' \
   --require Q1,Q2,Q3,Q4,Q5
+
+# 財務局への事前相談。**--variants both（提出用は注記なしの版）**
+node tools/md-to-docx.cjs docs/legal/finance-bureau-inquiry-gift-2026-08-06.md docs/legal/word \
+  --name 'ご相談_ギフトの為替取引該当性_2026-08-06' --variants both \
+  --title 'ご相談（事前相談）— ありがとうギフトの為替取引該当性' \
+  --require 第2部,第3部,第4部,第5部
 
 # 別紙（--fill-business を必ず付ける）
 node tools/md-to-docx.cjs docs/legal/terms-of-service-draft.md docs/legal/word \
