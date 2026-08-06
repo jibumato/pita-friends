@@ -109,7 +109,7 @@ export default function VoiceRecorder() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
-        15秒までのボイスプロフィールを載せられます。外部連絡先の交換・出会い目的・不適切な発言は禁止です（違反は削除・利用停止の対象）。
+        15秒までのボイスプロフィールを載せられます。外部連絡先の交換・本来の目的以外の勧誘・不適切な発言は禁止です（違反は削除・利用停止の対象）。
       </span>
 
       {loading ? (
