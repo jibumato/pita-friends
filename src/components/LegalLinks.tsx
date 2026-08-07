@@ -16,6 +16,14 @@
  *   ・登録画面
  *
  * URLで直接開く場合は `/legal/tokushoho` 等(`App.tsx` の `LEGAL_PATHS`)。
+ *
+ * ⚠️ **先頭の「ピタフレとは」(`/about`)だけは法務文書ではない**(2026-08-07追加)。
+ * ここに同居させているのは、この列が**未ログインで必ず出る唯一の場所**だから。
+ * 銀行の口座開設審査で「ホームページの情報量が少なく、実際に事業活動を
+ * 行っていることが確認できない」という不備を受けており、価格・購入方法・
+ * サービスの流れに**ログインせず辿り着けること**自体が要件になっている
+ * (`docs/銀行_書類不備の対応.txt` 3(b))。
+ * 紹介ページ自身では `showAbout={false}` で落とす(自分への導線は要らない)。
  */
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
@@ -39,14 +47,40 @@ export default function LegalLinks({
   align = 'center',
   size = 11,
   gap = '6px 16px',
+  showAbout = true,
 }: {
   flow: Flow
   align?: 'center' | 'flex-start' | 'flex-end'
   size?: number
   gap?: string
+  /** 紹介ページ自身では false。それ以外は必ず出す。 */
+  showAbout?: boolean
 }) {
+  const linkStyle = {
+    cursor: 'pointer',
+    fontSize: size,
+    color: C.muted,
+    textDecoration: 'underline',
+  } as const
+
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: align, gap }}>
+      {showAbout && (
+        <span
+          role="link"
+          tabIndex={0}
+          onClick={() => flow.go('about')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              flow.go('about')
+            }
+          }}
+          style={{ ...linkStyle, color: C.body, fontWeight: 700 }}
+        >
+          ピタフレとは（料金・使い方）
+        </span>
+      )}
       {LEGAL_LINKS.map(({ label, key }) => (
         <span
           key={key}
@@ -59,7 +93,7 @@ export default function LegalLinks({
               flow.openLegalDoc(key)
             }
           }}
-          style={{ cursor: 'pointer', fontSize: size, color: C.muted, textDecoration: 'underline' }}
+          style={linkStyle}
         >
           {label}
         </span>

@@ -93,6 +93,7 @@ import BlockList from './screens/BlockList'
 import Withdraw from './screens/Withdraw'
 import LegalDoc from './screens/LegalDoc'
 import Personality from './screens/Personality'
+import About from './screens/About'
 
 /** デモ調整パラメータ(ハンドオフの props に対応)。 */
 const MATCH_SCORE = 92
@@ -132,6 +133,7 @@ const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
   'legalDoc',
   'boardCreate',
   'personality',
+  'about',
 ])
 
 /**
@@ -313,9 +315,20 @@ const LEGAL_PATHS: Record<string, LegalDocKey> = {
 const bootLegalKey: LegalDocKey | null =
   LEGAL_PATHS[window.location.pathname.replace(/\/+$/, '')] ?? null
 
+/**
+ * `/about` = サービス紹介。**法務ページと同じ理由で、ログインの外に置く。**
+ *
+ * 銀行の口座開設審査で「ホームページの情報量が少なく、実際に事業活動を
+ * 行っていることが確認できない」という不備通知を受けたのが直接のきっかけ
+ * (2026-08-07。`docs/銀行_書類不備の対応.txt` 3(b))。価格・購入方法・
+ * サービスの流れが、それまでログインの内側にしか無かった。
+ * **審査の相手はアプリを使ってくれない。URLを開いて読めることが要件。**
+ */
+const bootAbout = window.location.pathname.replace(/\/+$/, '') === '/about'
+
 const INITIAL = {
   // URLで直接開かれたときは、セッションの有無にかかわらずその文書を出す
-  screen: (bootLegalKey ? 'legalDoc' : 'home') as ScreenKey,
+  screen: (bootLegalKey ? 'legalDoc' : bootAbout ? 'about' : 'home') as ScreenKey,
   welcomeLoginOpen: false,
   game: 'Apex',
   when: '今夜 22:00〜',
@@ -472,8 +485,9 @@ export default function App() {
             // オンボーディング完了はaccount.updated Webhookで反映されるため、
             // ピタメイト設定画面に戻して(その画面が自分で状況を再取得する)
             setState((p) => ({ ...p, screen: 'hostSettings' }))
-          } else if (!bootLegalKey) {
-            // 法務ページのURLで開かれたときは、ログイン済みでもその文書のままにする
+          } else if (!bootLegalKey && !bootAbout) {
+            // 法務ページ・サービス紹介のURLで開かれたときは、
+            // ログイン済みでもそのページのままにする
             setState((p) => ({ ...p, screen: 'home' }))
           }
         }
@@ -1045,6 +1059,7 @@ export default function App() {
         {state.screen === 'withdraw' && <Withdraw flow={flow} />}
         {state.screen === 'legalDoc' && <LegalDoc flow={flow} />}
         {state.screen === 'personality' && <Personality flow={flow} />}
+        {state.screen === 'about' && <About flow={flow} />}
         {flow.reportTarget && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
         <LoginOverlay flow={flow} />
