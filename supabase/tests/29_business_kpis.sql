@@ -74,6 +74,17 @@ declare r jsonb; v_from date := (now() at time zone 'Asia/Tokyo')::date;
 begin
   r := public.admin_business_kpis(v_from, v_from);
 
+  -- ★先に「値が入っていること」を見る。
+  -- 母数0のとき各指標は null を返す設計なので、`null <> 17.73` は null になり、
+  -- `if null then` は発火しない。**集計の窓がずれて空になっても、
+  -- 下の比較だけでは黙って通ってしまう**（0111 で直した不具合を、
+  -- このテストが3回のリリースにわたって見逃していた）。
+  if (r -> 'fees' ->> 'blendedPercent') is null
+     or (r -> 'fees' ->> 'bookingPercent') is null
+     or (r -> 'fees' ->> 'giftPercent') is null then
+    raise exception 'FAIL 実効率が null。集計の窓に手数料が1件も入っていない: %', r -> 'fees';
+  end if;
+
   -- 混合: (12000+4000+3500) / (80000+20000+10000) = 19500/110000 = 17.73%
   if (r -> 'fees' ->> 'blendedPercent')::numeric <> 17.73 then
     raise exception 'FAIL 混合実効率が違う: %(17.73のはず)', r -> 'fees' ->> 'blendedPercent';
@@ -104,6 +115,13 @@ do $$
 declare r jsonb; v_from date := (now() at time zone 'Asia/Tokyo')::date;
 begin
   r := public.admin_business_kpis(v_from, v_from);
+
+  -- 返ってきた期間が、渡した JST の日付と一致しているか。
+  -- ここがずれていると、以下の数字は全部別の日のものになる（0111）
+  if (r ->> 'from') <> v_from::text or (r ->> 'to') <> v_from::text then
+    raise exception 'FAIL 集計期間が渡した日付と違う: % 〜 %(% のはず)',
+      r ->> 'from', r ->> 'to', v_from;
+  end if;
 
   if (r -> 'concentration' ->> 'activeHosts')::int <> 2 then
     raise exception 'FAIL 稼働ピタメイト数が違う: %', r -> 'concentration' ->> 'activeHosts';
