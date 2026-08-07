@@ -42,6 +42,9 @@ export type ScreenKey =
   | 'withdraw'
   | 'legalDoc'
   | 'personality'
+  // サービス紹介(/about)。**未ログインで読めること**が要件
+  // (銀行の口座開設審査。docs/銀行_書類不備の対応.txt 3(b))
+  | 'about'
 
 export const screenNames: Record<ScreenKey, string> = {
   signUp: 'アカウント作成',
@@ -82,6 +85,7 @@ export const screenNames: Record<ScreenKey, string> = {
   withdraw: '退会',
   legalDoc: '規約・ポリシー',
   personality: 'ゲーム相性診断',
+  about: 'ピタフレとは',
 }
 
 /** 性別(任意公開)。 */
@@ -301,6 +305,7 @@ export const stepOf: Record<ScreenKey, number> = {
   withdraw: -1,
   legalDoc: -1,
   personality: -1,
+  about: -1,
 }
 
 /** 下部タブと画面キーの対応。 */
