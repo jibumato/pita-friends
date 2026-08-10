@@ -1070,6 +1070,32 @@ export type Database = {
           reported_report_count: number
         }[]
       }
+      // 0112: 募集投稿のモデレーション(突合表G21)
+      admin_board_posts: {
+        Args: { p_status?: string; p_limit?: number }
+        Returns: {
+          id: string
+          creator_id: string
+          creator_nickname: string | null
+          game: string
+          mood: string
+          when_text: string
+          capacity: number
+          vc: string
+          audience: string
+          verified_only: boolean
+          note: string | null
+          status: string
+          participants: number
+          created_at: string
+          cancelled_at: string | null
+          cancel_reason: string | null
+        }[]
+      }
+      admin_remove_board_post: {
+        Args: { p_post_id: string; p_reason: string }
+        Returns: undefined
+      }
       admin_held_bookings: {
         Args: { p_limit?: number }
         Returns: {

@@ -85,11 +85,15 @@ import {
   type PaymentMethodMixRow,
   type PlatformLimits,
   type PlatformLimitKey,
+  fetchAdminBoardPosts,
+  removeBoardPostAsAdmin,
+  type AdminBoardPost,
 } from '../lib/queries'
 
 type Tab =
   | 'summary'
   | 'reports'
+  | 'board'
   | 'holds'
   | 'payouts'
   | 'requests'
@@ -107,6 +111,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'summary', label: 'やること' },
   { key: 'holds', label: '保留' },
   { key: 'reports', label: '通報' },
+  { key: 'board', label: '募集' },
   { key: 'payouts', label: '換金' },
   { key: 'requests', label: '請求' },
   { key: 'disputes', label: '異議申立て' },
@@ -201,6 +206,7 @@ export default function AdminConsole({ flow }: { flow: Flow }) {
         {tab === 'summary' && <SummaryTab summary={summary} onGo={setTab} onReload={loadSummary} />}
         {tab === 'holds' && <HoldsTab onChanged={loadSummary} />}
         {tab === 'reports' && <ReportsTab onChanged={loadSummary} />}
+        {tab === 'board' && <BoardTab />}
         {tab === 'payouts' && <PayoutsTab onChanged={loadSummary} />}
         {tab === 'requests' && <RequestsTab onChanged={loadSummary} />}
         {tab === 'disputes' && <DisputesTab />}
@@ -706,6 +712,138 @@ function ReportsTab({ onChanged }: { onChanged: () => void }) {
           )}
         </Card>
       ))}
+    </>
+  )
+}
+
+// ------------------------------------------------------------
+// 募集投稿(0112・突合表G21)
+//
+// **通報は「人」に対するもので、投稿を指せない。** ここが無いと、
+// 不適切な募集を見つけても消す手段が SQL Editor しか無くなる。
+// 行は消さず status=cancelled にするので、通報の裏取りに使える。
+// ------------------------------------------------------------
+function BoardTab() {
+  // 既定は募集中だけ。取り下げ済みは「消えているか」を確かめたいときに出す
+  const [scope, setScope] = useState<'open' | 'all'>('open')
+  const { items, error, reload } = useList<AdminBoardPost>(
+    () => fetchAdminBoardPosts(scope),
+    [scope],
+  )
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  async function remove(id: string) {
+    if (busy) return
+    if (reason.trim().length === 0) {
+      setActionError('取り下げの理由を入力してください（記録に残り、投稿者にも伝わります）')
+      return
+    }
+    setBusy(true)
+    setActionError(null)
+    try {
+      await removeBoardPostAsAdmin(id, reason.trim())
+      setOpenId(null)
+      setReason('')
+      reload()
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : '取り下げできませんでした')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <Note>
+        取り下げると投稿は募集中から外れます。<b>投稿者には理由がそのまま届きます</b>
+        （参加表明していた人には、理由を伏せて「取り下げられた」ことだけ伝わります）。
+        投稿は削除せず記録として残します。
+      </Note>
+      <div style={{ display: 'grid', gridAutoFlow: 'column', gap: 6 }}>
+        {(['open', 'all'] as const).map((s) => (
+          <Btn key={s} disabled={scope === s} onClick={() => setScope(s)}>
+            {s === 'open' ? '募集中' : 'すべて（取り下げ済みを含む）'}
+          </Btn>
+        ))}
+      </div>
+      {error && <ErrorBox>{error}</ErrorBox>}
+      {!items ? (
+        <Note>読み込み中…</Note>
+      ) : items.length === 0 ? (
+        <Note>{scope === 'open' ? '募集中の投稿はありません。' : '投稿はありません。'}</Note>
+      ) : (
+        items.map((b) => (
+          <Card key={b.id}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12.5, color: C.ink }}>
+                {b.game}・{b.mood}・{b.whenText}
+              </span>
+              <span style={{ fontSize: 10.5, color: C.muted, flex: 'none' }}>
+                {jst(b.createdAt)}
+              </span>
+            </div>
+            <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+              {b.creatorNickname ?? '（名前なし）'} / 定員{b.capacity} / 参加{b.participants}人 /
+              VC{b.vc} / {b.audience}
+              {b.verifiedOnly ? ' / 本人確認済みのみ' : ''}
+            </span>
+            {b.note && (
+              <span
+                style={{
+                  fontSize: 11.5,
+                  color: C.body,
+                  lineHeight: 1.8,
+                  background: C.surface,
+                  border: `1.5px solid ${C.divider}`,
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {b.note}
+              </span>
+            )}
+
+            {b.status === 'cancelled' ? (
+              <span style={{ fontSize: 11, color: C.muted }}>
+                取り下げ済み（{b.cancelledAt ? jst(b.cancelledAt) : '—'}）
+                {b.cancelReason ? ` — ${b.cancelReason}` : ''}
+              </span>
+            ) : b.status !== 'open' ? (
+              <span style={{ fontSize: 11, color: C.muted }}>状態: {b.status}</span>
+            ) : openId === b.id ? (
+              <>
+                <Field
+                  value={reason}
+                  onChange={setReason}
+                  placeholder="取り下げの理由（投稿者に届きます）"
+                />
+                {actionError && <ErrorBox>{actionError}</ErrorBox>}
+                <Btn disabled={busy} onClick={() => void remove(b.id)}>
+                  取り下げる
+                </Btn>
+                <span
+                  onClick={() => {
+                    setOpenId(null)
+                    setActionError(null)
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: 'pointer', fontSize: 11, color: C.muted, textAlign: 'center' }}
+                >
+                  やめる
+                </span>
+              </>
+            ) : (
+              <Btn onClick={() => setOpenId(b.id)}>取り下げる</Btn>
+            )}
+          </Card>
+        ))
+      )}
     </>
   )
 }

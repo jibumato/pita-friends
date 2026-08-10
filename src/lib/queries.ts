@@ -2689,6 +2689,68 @@ export async function resolveReportAsAdmin(
   if (error) throw error
 }
 
+/* ------------------------------------------------------------
+ * 募集投稿のモデレーション(0112・突合表G21)
+ *
+ * それまで運営に消す手段が無かった。`cancelBoardPost` は投稿者専用で、
+ * 通報は**人**に対するものなので投稿を指せない。
+ * ------------------------------------------------------------ */
+
+export type AdminBoardPost = {
+  id: string
+  creatorId: string
+  creatorNickname: string | null
+  game: string
+  mood: string
+  whenText: string
+  capacity: number
+  vc: string
+  audience: string
+  verifiedOnly: boolean
+  note: string | null
+  status: string
+  participants: number
+  createdAt: string
+  cancelledAt: string | null
+  cancelReason: string | null
+}
+
+/** `status` に 'all' を渡すと取り下げ済みも含む。 */
+export async function fetchAdminBoardPosts(status = 'open'): Promise<AdminBoardPost[]> {
+  const { data, error } = await requireSupabase().rpc('admin_board_posts', {
+    p_status: status,
+    p_limit: 100,
+  })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    creatorId: r.creator_id,
+    creatorNickname: r.creator_nickname,
+    game: r.game,
+    mood: r.mood,
+    whenText: r.when_text,
+    capacity: r.capacity,
+    vc: r.vc,
+    audience: r.audience,
+    verifiedOnly: r.verified_only,
+    note: r.note,
+    status: r.status,
+    participants: r.participants,
+    createdAt: r.created_at,
+    cancelledAt: r.cancelled_at,
+    cancelReason: r.cancel_reason,
+  }))
+}
+
+/** 運営が募集を取り下げる。**理由は必須**(サーバ側でも REASON_REQUIRED で弾く)。 */
+export async function removeBoardPostAsAdmin(postId: string, reason: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_remove_board_post', {
+    p_post_id: postId,
+    p_reason: reason,
+  })
+  if (error) throw error
+}
+
 export type AdminHeldBooking = {
   id: string
   guestName: string
