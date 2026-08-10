@@ -33,6 +33,11 @@ import { safetyFeeYen } from '../content/pricing'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchFeeRates, type FeeRates } from '../lib/queries'
 import {
+  SYSTEM_REQUIREMENTS,
+  MINIMUM_BROWSERS,
+  REQUIREMENTS_NOTE,
+} from '../content/systemRequirements'
+import {
   OVERVIEW_LEAD,
   OVERVIEW_SCOPE,
   OVERVIEW_STEPS,
@@ -297,6 +302,25 @@ export default function About({ flow }: { flow: Flow }) {
               </li>
             ))}
           </ul>
+        </Section>
+
+        {/* 推奨環境は**規約 第3条7項が表示を約束している**もの。
+            紹介ページに置くのは、購入や登録より前に読める場所がここだけだから
+            （設定画面はログインの内側にある）。 */}
+        <Section title="推奨環境">
+          {SYSTEM_REQUIREMENTS.map((g) => (
+            <div key={g.title} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <strong style={{ fontSize: 12, color: C.ink }}>{g.title}</strong>
+              <DefRows rows={g.rows} />
+            </div>
+          ))}
+          <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.8, color: C.body }}>
+            <strong style={{ color: C.ink }}>動作の下限：</strong>
+            {MINIMUM_BROWSERS}
+          </p>
+          <span style={{ fontSize: 10.5, lineHeight: 1.7, color: C.muted }}>
+            {REQUIREMENTS_NOTE}
+          </span>
         </Section>
 
         <Section title="事業者情報・規約">

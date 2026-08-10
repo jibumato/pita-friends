@@ -415,6 +415,13 @@ export default function Settings({ flow }: { flow: Flow }) {
 
         <SectionLabel>規約・ポリシー</SectionLabel>
         <Card>
+          {/* 推奨環境は規約 第3条7項が「本サービス上に表示します」と約束している。
+              本体は紹介ページ(/about)にあり、未ログインでも読める。
+              ここからも辿れないと、規約を読んでいる最中に確かめられない */}
+          <ListRow
+            label="ピタフレとは（料金・使い方・推奨環境）"
+            onClick={() => flow.go('about')}
+          />
           <ListRow label="利用規約" onClick={() => flow.openLegalDoc('terms')} />
           <ListRow label="プライバシーポリシー" onClick={() => flow.openLegalDoc('privacy')} />
           <ListRow label="特定商取引法に基づく表記" onClick={() => flow.openLegalDoc('tokushoho')} />
