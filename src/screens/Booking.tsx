@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
@@ -40,7 +40,19 @@ export default function Booking({ flow }: { flow: Flow }) {
   const hostUserId = host?.userId ?? null
   // 開始時刻の候補は画面を開いた時点で固定する(毎描画で作り直すと、
   // 選んだ時刻のオブジェクトが候補側と一致しなくなり選択が外れる)
-  const [startOptions] = useState(() => startTimeOptions(new Date()))
+  const [allStartOptions] = useState(() => startTimeOptions(new Date()))
+  // 0114: 募集板から来た場合、その募集が受け付けている範囲に候補を絞る。
+  // **開始だけでなく終了も範囲に収まること**——告知した時間を超える申込みは
+  // サーバ側(create_booking_from_board)でも弾かれる。
+  const startOptions = useMemo(() => {
+    const from = host?.boardWindowStart
+    const to = host?.boardWindowEnd
+    if (!from || !to) return allStartOptions
+    return allStartOptions.filter((d) => {
+      const end = new Date(d.getTime() + flow.bookingDuration * 60_000)
+      return d >= from && end <= to
+    })
+  }, [allStartOptions, host?.boardWindowStart, host?.boardWindowEnd, flow.bookingDuration])
   // 既に埋まっている時間帯(0049)。ここに重なる開始時刻は選べない。
   // 判定はサーバでも行われるので、これは「申し込む前に分かる」ための表示。
   const [busy, setBusy] = useState<BusySlot[]>([])

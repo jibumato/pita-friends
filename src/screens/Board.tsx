@@ -13,6 +13,23 @@ import { fetchBoardPosts, cancelBoardPost, type BoardPostItem } from '../lib/que
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { clickable } from '../hooks/clickable'
 
+/**
+ * 受付の範囲のラベル（0114）。
+ *
+ * **同じ日に収まるなら「8/12 20:00〜24:00」、またぐなら日付を両方出す。**
+ * 「8/12 20:00〜8/12 24:00」は読みにくいだけで、情報が増えていない。
+ */
+function windowLabel(from: Date | null, to: Date | null): string {
+  if (!from || !to) return '日時は相談で'
+  const d = (x: Date) => `${x.getMonth() + 1}/${x.getDate()}`
+  const t = (x: Date) =>
+    `${x.getHours()}:${x.getMinutes().toString().padStart(2, '0')}`
+  const sameDay = from.toDateString() === to.toDateString()
+  return sameDay
+    ? `${d(from)} ${t(from)}〜${t(to)}`
+    : `${d(from)} ${t(from)}〜${d(to)} ${t(to)}`
+}
+
 const DEMO_FILTERS = ['すべて', '自分の募集', '今夜', 'Apex', 'まったり']
 const REAL_FILTERS = ['すべて', '自分の募集', '今夜', 'Apex', 'エンジョイ']
 
@@ -62,6 +79,8 @@ function RealPostCard({
         hourlyRate: p.creatorHourlyRate,
         userId: p.creatorId,
         fromBoardPostId: p.id,
+        boardWindowStart: p.windowStart ?? undefined,
+        boardWindowEnd: p.windowEnd ?? undefined,
       },
       p.durationMinutes,
     )
@@ -118,7 +137,13 @@ function RealPostCard({
         </span>
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {[p.whenText, `VC${p.vc}`, p.audience === '同性のみ' ? '同性のみ' : null, p.verifiedOnly ? '本人確認済みのみ' : null]
+        {[
+          windowLabel(p.windowStart, p.windowEnd),
+          p.whenText || null,
+          `VC${p.vc}`,
+          p.audience === '同性のみ' ? '同性のみ' : null,
+          p.verifiedOnly ? '本人確認済みのみ' : null,
+        ]
           .filter((t): t is string => !!t)
           .map((t) => (
             <span

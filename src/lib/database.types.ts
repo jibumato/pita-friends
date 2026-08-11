@@ -404,6 +404,8 @@ export type Database = {
           mood: BoardMood
           when_text: string
           duration_minutes: number
+          window_start: string | null
+          window_end: string | null
           vc: BoardVc
           audience: BoardAudience
           verified_only: boolean
@@ -418,6 +420,8 @@ export type Database = {
           mood?: BoardMood
           when_text: string
           duration_minutes?: number
+          window_start?: string | null
+          window_end?: string | null
           vc?: BoardVc
           audience?: BoardAudience
           verified_only?: boolean
@@ -1082,6 +1086,8 @@ export type Database = {
           mood: string
           when_text: string
           duration_minutes: number
+          window_start: string | null
+          window_end: string | null
           vc: string
           audience: string
           verified_only: boolean

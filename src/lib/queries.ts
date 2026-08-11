@@ -968,9 +968,13 @@ export type BoardPostItem = {
   id: string
   game: string
   mood: BoardMood
+  /** 自由記述の一言（「深夜寄りだと助かります」等）。日時の権威ではない。 */
   whenText: string
   /** 募集している1枠の長さ(分)。予約画面の初期値になる。 */
   durationMinutes: number
+  /** 受付の範囲。null なら「日時は相談で」(0114)。 */
+  windowStart: Date | null
+  windowEnd: Date | null
   vc: BoardVc
   audience: BoardAudience
   verifiedOnly: boolean
@@ -995,7 +999,7 @@ export async function fetchBoardPosts(): Promise<BoardPostItem[]> {
   const { data: posts, error } = await sb
     .from('board_posts')
     .select(
-      'id, creator_id, game, mood, when_text, duration_minutes, vc, audience, verified_only, note, created_at',
+      'id, creator_id, game, mood, when_text, duration_minutes, window_start, window_end, vc, audience, verified_only, note, created_at',
     )
     .eq('status', 'open')
     .order('created_at', { ascending: false })
@@ -1021,6 +1025,8 @@ export async function fetchBoardPosts(): Promise<BoardPostItem[]> {
       mood: p.mood,
       whenText: p.when_text,
       durationMinutes: p.duration_minutes,
+      windowStart: p.window_start ? new Date(p.window_start) : null,
+      windowEnd: p.window_end ? new Date(p.window_end) : null,
       vc: p.vc,
       audience: p.audience,
       verifiedOnly: p.verified_only,
@@ -1042,6 +1048,9 @@ export async function createBoardPost(input: {
   mood: BoardMood
   whenText: string
   durationMinutes: number
+  /** 受付の範囲。両方 null で「相談で」。 */
+  windowStart: Date | null
+  windowEnd: Date | null
   vc: BoardVc
   audience: BoardAudience
   verifiedOnly: boolean
@@ -1057,6 +1066,8 @@ export async function createBoardPost(input: {
     mood: input.mood,
     when_text: input.whenText,
     duration_minutes: input.durationMinutes,
+    window_start: input.windowStart ? input.windowStart.toISOString() : null,
+    window_end: input.windowEnd ? input.windowEnd.toISOString() : null,
     vc: input.vc,
     audience: input.audience,
     verified_only: input.verifiedOnly,
@@ -1121,6 +1132,12 @@ export async function createBookingFromBoard(
   if (msg.includes('CANNOT_BOOK_OWN_POST')) throw new Error('自分の募集には申し込めません')
   if (msg.includes('POST_NOT_OPEN')) throw new Error('この募集は締め切られました')
   if (msg.includes('POST_NOT_FOUND')) throw new Error('募集が見つかりませんでした')
+  // 0114: 受付の範囲
+  if (msg.includes('START_TIME_REQUIRED')) throw new Error('開始時刻を選んでください')
+  if (msg.includes('OUTSIDE_BOARD_WINDOW')) {
+    throw new Error('募集が受け付けている時間帯に収まりません。開始時刻か長さを変えてください')
+  }
+  if (msg.includes('BOARD_WINDOW_PASSED')) throw new Error('この募集は受付を終了しました')
   throwMapped(error)
   throw error
 }
@@ -2736,6 +2753,8 @@ export type AdminBoardPost = {
   mood: string
   whenText: string
   durationMinutes: number
+  windowStart: string | null
+  windowEnd: string | null
   vc: string
   audience: string
   verifiedOnly: boolean
@@ -2762,6 +2781,8 @@ export async function fetchAdminBoardPosts(status = 'open'): Promise<AdminBoardP
     mood: r.mood,
     whenText: r.when_text,
     durationMinutes: r.duration_minutes,
+    windowStart: r.window_start,
+    windowEnd: r.window_end,
     vc: r.vc,
     audience: r.audience,
     verifiedOnly: r.verified_only,

@@ -8,7 +8,7 @@ import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import { createBoardPost, recordContentFlag } from '../lib/queries'
 import { inspectText, guardWarningText, type GuardHit } from '../lib/contentGuard'
-import { GAMES, WHENS } from '../flow'
+import { GAMES } from '../flow'
 import type { BoardMood, BoardVc, BoardAudience } from '../lib/database.types'
 
 function SegRow({
@@ -60,7 +60,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export default function BoardCreate({ flow }: { flow: Flow }) {
   const [game, setGame] = useState<string>(GAMES[0])
   const [mood, setMood] = useState('エンジョイ')
-  const [whenText, setWhenText] = useState<string>(WHENS[0])
+  /**
+   * 0114: 日時は「相談で」か「範囲を決める」の2本立て。
+   *
+   * 1点固定にしないのは、22:00ちょうどしか取れないと少しズレただけで
+   * 成立しないから。範囲なら、広く取れば「相談で」に近づき、
+   * 狭く取れば「この時間だけ」になる。**柔軟さの度合いを本人が決められる。**
+   */
+  const [whenMode, setWhenMode] = useState<'相談で' | '日時を決める'>('相談で')
+  const [windowStart, setWindowStart] = useState('')
+  const [windowEnd, setWindowEnd] = useState('')
+  /** 日時の補足（「深夜寄りだと助かります」等）。日時の権威ではない。 */
+  const [whenText, setWhenText] = useState('')
   const [vc, setVc] = useState('どちらでも')
   // 0113: 募集人数 → 1枠の長さ。募集は「空き枠の告知」で、予約は1対1なので
   const [duration, setDuration] = useState(60)
@@ -101,8 +112,10 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
       await createBoardPost({
         game,
         mood: mood as BoardMood,
-        whenText,
+        whenText: whenText.trim(),
         durationMinutes: duration,
+        windowStart: whenMode === '日時を決める' && windowStart ? new Date(windowStart) : null,
+        windowEnd: whenMode === '日時を決める' && windowEnd ? new Date(windowEnd) : null,
         vc: vc as BoardVc,
         audience: audience as BoardAudience,
         verifiedOnly,
@@ -136,13 +149,85 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
         <Field label="目的・温度感">
           <SegRow options={['エンジョイ', 'ランク上げ', 'ガチ']} value={mood} onPick={setMood} />
         </Field>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-          <div style={{ flex: 1 }}>
-            <Field label="日時">
-              <SegRow options={[...WHENS]} value={whenText} onPick={setWhenText} />
-            </Field>
-          </div>
-        </div>
+        <Field label="日時">
+          <SegRow
+            options={['相談で', '日時を決める']}
+            value={whenMode}
+            onPick={(v) => setWhenMode(v as '相談で' | '日時を決める')}
+          />
+        </Field>
+        {whenMode === '相談で' ? (
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6, marginTop: -8 }}>
+            ゲストが、あなたの遊べる時間帯の中から自由に選びます。
+          </span>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 180px' }}>
+                <Field label="受付の開始">
+                  <input
+                    type="datetime-local"
+                    value={windowStart}
+                    onChange={(e) => setWindowStart(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: C.white,
+                      color: C.ink,
+                      border: `1.5px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: '9px 10px',
+                      fontSize: 13,
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </Field>
+              </div>
+              <div style={{ flex: '1 1 180px' }}>
+                <Field label="受付の締め切り">
+                  <input
+                    type="datetime-local"
+                    value={windowEnd}
+                    onChange={(e) => setWindowEnd(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: C.white,
+                      color: C.ink,
+                      border: `1.5px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: '9px 10px',
+                      fontSize: 13,
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </Field>
+              </div>
+            </div>
+            <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6, marginTop: -8 }}>
+              この範囲の中から、ゲストが開始時刻を選びます。
+              <b style={{ color: C.ink }}>広く取るほど申し込まれやすくなります</b>
+              （「土日のどこかで」なら、土曜の朝から日曜の夜まで）。
+              締め切りを過ぎた募集は自動的に閉じます。
+            </span>
+          </>
+        )}
+        <Field label="ひとこと（任意）">
+          <input
+            value={whenText}
+            onChange={(e) => setWhenText(e.target.value)}
+            placeholder="深夜寄りだと助かります／初心者歓迎 など"
+            maxLength={40}
+            style={{
+              width: '100%',
+              background: C.white,
+              color: C.ink,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 8,
+              padding: '9px 10px',
+              fontSize: 13,
+              fontFamily: 'inherit',
+            }}
+          />
+        </Field>
         <Field label="1枠の長さ">
           <SegRow
             options={['30分', '60分', '90分', '120分']}

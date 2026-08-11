@@ -174,6 +174,15 @@ export type BookingHost = {
    * さがす画面から来たときは undefined で、従来どおり `create_booking`。
    */
   fromBoardPostId?: string
+  /**
+   * 募集が受け付けている範囲(0114)。予約画面の開始時刻の候補をここに絞る。
+   * 両方 undefined なら「相談で」＝絞らない。
+   *
+   * ⚠️ **表示を絞るだけで、守っているのはサーバ**
+   * (`create_booking_from_board` が OUTSIDE_BOARD_WINDOW で弾く)。
+   */
+  boardWindowStart?: Date
+  boardWindowEnd?: Date
 }
 
 /** 全画面が受け取るフローコンテキスト。 */

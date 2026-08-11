@@ -174,3 +174,137 @@ begin
 end $$;
 
 \echo '==== 70: すべて通過 ===='
+
+-- ============================================================
+-- 0114: 受付の範囲
+-- ============================================================
+\echo '=== 範囲を指定した募集は、その中でしか申し込めない ==='
+do $$
+declare v_pid uuid; v_from timestamptz; v_to timestamptz;
+begin
+  -- 明日の 20:00〜24:00 で募集する
+  v_from := date_trunc('day', now()) + interval '1 day 20 hours';
+  v_to   := date_trunc('day', now()) + interval '2 days';
+
+  perform set_config('test.uid','d1111111-1111-1111-1111-111111111111', false);
+  insert into public.board_posts
+    (creator_id, game, when_text, duration_minutes, window_start, window_end)
+  values ('d1111111-1111-1111-1111-111111111111','Apex','', 60, v_from, v_to)
+  returning id into v_pid;
+
+  perform set_config('test.uid','d3333333-3333-3333-3333-333333333333', false);
+
+  -- 範囲より前
+  begin
+    perform public.create_booking_from_board(v_pid, 'v1', v_from - interval '1 hour');
+    raise exception 'NG: 範囲より前で申し込めた';
+  exception when others then
+    if sqlerrm not like '%OUTSIDE_BOARD_WINDOW%' then raise; end if;
+  end;
+
+  -- ★開始は範囲内だが、終了がはみ出す。告知した時間を超えるので通さない
+  begin
+    perform public.create_booking_from_board(v_pid, 'v1', v_to - interval '30 minutes');
+    raise exception 'NG: 終了が範囲からはみ出しても申し込めた';
+  exception when others then
+    if sqlerrm not like '%OUTSIDE_BOARD_WINDOW%' then raise; end if;
+  end;
+
+  -- 開始時刻を渡さない
+  begin
+    perform public.create_booking_from_board(v_pid, 'v1', null);
+    raise exception 'NG: 開始時刻なしで申し込めた';
+  exception when others then
+    if sqlerrm not like '%START_TIME_REQUIRED%' then raise; end if;
+  end;
+
+  -- 範囲にきっちり収まる
+  perform public.create_booking_from_board(v_pid, 'v1', v_from);
+  if (select status from public.board_posts where id = v_pid) <> 'closed' then
+    raise exception 'NG: 申込みが通ったのに closed にならない';
+  end if;
+  raise notice 'OK: 前後・はみ出し・時刻なしは弾き、収まるものだけ通す';
+end $$;
+
+\echo '=== 相談で（範囲なし）は時刻を選ばなくても申し込める ==='
+-- ここまでの予約で d1 の枠が埋まっているので、別のピタメイトを立てる
+insert into auth.users (id) values ('d4444444-4444-4444-4444-444444444444');
+insert into public.profiles (id, nickname) values
+  ('d4444444-4444-4444-4444-444444444444','ぬし2')
+  on conflict (id) do update set nickname = excluded.nickname;
+update public.profile_trust_stats set is_verified = true
+  where user_id = 'd4444444-4444-4444-4444-444444444444';
+insert into public.host_settings (user_id, is_host, hourly_rate)
+values ('d4444444-4444-4444-4444-444444444444', true, 2000)
+  on conflict (user_id) do update set is_host = true, hourly_rate = 2000;
+
+do $$
+declare v_pid uuid; v_id uuid;
+begin
+  perform set_config('test.uid','d4444444-4444-4444-4444-444444444444', false);
+  insert into public.board_posts (creator_id, game, when_text, duration_minutes)
+  values ('d4444444-4444-4444-4444-444444444444','スプラ','', 60)
+  returning id into v_pid;
+
+  -- ゲストも枠が埋まっているので、新しいゲストを立てる
+  insert into auth.users (id) values ('d5555555-5555-5555-5555-555555555555');
+  insert into public.profiles (id, nickname) values
+    ('d5555555-5555-5555-5555-555555555555','ゲスト3')
+    on conflict (id) do nothing;
+  update public.profile_trust_stats set is_verified = true
+    where user_id = 'd5555555-5555-5555-5555-555555555555';
+  insert into public.coin_lots (user_id, kind, remaining, expires_at)
+  values ('d5555555-5555-5555-5555-555555555555','paid',50000, public.coin_expiry_from(now()));
+  update public.coin_wallets set balance = 50000
+    where user_id = 'd5555555-5555-5555-5555-555555555555';
+
+  perform set_config('test.uid','d5555555-5555-5555-5555-555555555555', false);
+  v_id := public.create_booking_from_board(v_pid, 'v1');
+  if v_id is null then raise exception 'NG: 相談での募集に申し込めない'; end if;
+  raise notice 'OK: 範囲なしなら「今すぐ」でも通る';
+end $$;
+
+\echo '=== 片方だけの範囲は作れない ==='
+do $$ begin
+  perform set_config('test.uid','d1111111-1111-1111-1111-111111111111', false);
+  begin
+    insert into public.board_posts
+      (creator_id, game, when_text, window_start)
+    values ('d1111111-1111-1111-1111-111111111111','Apex','', now() + interval '1 day');
+    raise exception 'NG: 開始だけの範囲が作れてしまった';
+  exception when others then
+    if sqlerrm not like '%board_posts_window_pair%' then raise; end if;
+    raise notice 'OK: 片方だけは CHECK で止まる';
+  end;
+end $$;
+
+\echo '=== 締め切りを過ぎた募集は閉じる ==='
+do $$
+declare v_pid uuid; v_n int;
+begin
+  perform set_config('test.uid','d1111111-1111-1111-1111-111111111111', false);
+  insert into public.board_posts
+    (creator_id, game, when_text, duration_minutes, window_start, window_end)
+  values ('d1111111-1111-1111-1111-111111111111','モンハン','', 60,
+          now() + interval '1 hour', now() + interval '3 hours')
+  returning id into v_pid;
+
+  -- 時間の経過を作る（cron を待てないので締め切りを過去に倒す）
+  update public.board_posts
+    set window_start = now() - interval '3 hours', window_end = now() - interval '1 hour'
+    where id = v_pid;
+
+  perform set_config('test.uid','', false);
+  v_n := public.close_expired_board_posts();
+  if v_n < 1 then raise exception 'NG: 1件も閉じられていない'; end if;
+  if (select status from public.board_posts where id = v_pid) <> 'closed' then
+    raise exception 'NG: 締め切りを過ぎても open のまま';
+  end if;
+  -- ★cancelled にはしない。投稿者が下ろしたわけではない
+  if (select cancelled_at from public.board_posts where id = v_pid) is not null then
+    raise exception 'NG: 取り消し扱いになっている';
+  end if;
+  raise notice 'OK: closed になり、取り消し扱いにはならない';
+end $$;
+
+\echo '==== 70(0114分): すべて通過 ===='
