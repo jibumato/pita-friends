@@ -13,6 +13,7 @@ import { fetchMyTrialDiscount, fetchBusySlots, type BusySlot } from '../lib/quer
 import { CANCELLATION_POLICY_LINES } from '../content/bookingPolicy'
 import {
   startTimeOptions,
+  startTimeOptionsInRange,
   formatStart,
   formatStartRange,
   MIN_LEAD_MINUTES,
@@ -48,11 +49,16 @@ export default function Booking({ flow }: { flow: Flow }) {
     const from = host?.boardWindowStart
     const to = host?.boardWindowEnd
     if (!from || !to) return allStartOptions
-    return allStartOptions.filter((d) => {
-      const end = new Date(d.getTime() + flow.bookingDuration * 60_000)
-      return d >= from && end <= to
-    })
+    // ★絞り込みではなく作り直す。`startTimeOptions` はいまから8時間ぶんしか
+    //   作らないので、「来週の土日」のような範囲だと候補がゼロになる
+    return startTimeOptionsInRange(from, to, flow.bookingDuration)
   }, [allStartOptions, host?.boardWindowStart, host?.boardWindowEnd, flow.bookingDuration])
+  // 募集の範囲があるときは、選べる時間の説明をそちらに差し替える。
+  // 「30分後〜35日先まで」のままだと、実際に押せる範囲と食い違って読める
+  const boardWindow =
+    host?.boardWindowStart && host?.boardWindowEnd
+      ? { from: host.boardWindowStart, to: host.boardWindowEnd }
+      : null
   // 既に埋まっている時間帯(0049)。ここに重なる開始時刻は選べない。
   // 判定はサーバでも行われるので、これは「申し込む前に分かる」ための表示。
   const [busy, setBusy] = useState<BusySlot[]>([])
@@ -231,8 +237,16 @@ export default function Booking({ flow }: { flow: Flow }) {
                 )
               })}
             </div>
+            {boardWindow && startOptions.length === 0 && (
+              <span style={{ fontSize: 11, color: C.ink, lineHeight: 1.7 }}>
+                いまの「あそぶ時間」だと、この募集の受付時間に収まる開始時刻がありません。
+                あそぶ時間を短くするか、別の募集をさがしてください。
+              </span>
+            )}
             <span style={{ fontSize: 10, color: C.muted, lineHeight: 1.6, marginTop: -6 }}>
-              {MIN_LEAD_MINUTES}分後〜{MAX_LEAD_DAYS}日先まで選べます。
+              {boardWindow
+                ? `この募集は ${formatStart(boardWindow.from)}〜${formatStart(boardWindow.to)} のあいだで受け付けています。`
+                : `${MIN_LEAD_MINUTES}分後〜${MAX_LEAD_DAYS}日先まで選べます。`}
               {busy.length > 0 && '　取り消し線の時刻は、あそぶ時間のぶんが埋まっています。'}
               {flow.bookingStartAt && `　選択中: ${formatStartRange(flow.bookingStartAt, flow.bookingDuration)}`}
             </span>

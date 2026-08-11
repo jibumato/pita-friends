@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import Screen from '../components/Screen'
@@ -6,9 +6,15 @@ import StatusBar from '../components/StatusBar'
 import { SubHeader, Toggle } from '../components/Ui'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
-import { createBoardPost, recordContentFlag } from '../lib/queries'
+import {
+  createBoardPost,
+  recordContentFlag,
+  fetchMyAvailability,
+  type AvailabilitySlot,
+} from '../lib/queries'
 import { inspectText, guardWarningText, type GuardHit } from '../lib/contentGuard'
 import { GAMES } from '../flow'
+import { MIN_LEAD_MINUTES } from '../content/bookingPolicy'
 import type { BoardMood, BoardVc, BoardAudience } from '../lib/database.types'
 
 function SegRow({
@@ -72,9 +78,73 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
   const [windowEnd, setWindowEnd] = useState('')
   /** 日時の補足（「深夜寄りだと助かります」等）。日時の権威ではない。 */
   const [whenText, setWhenText] = useState('')
-  const [vc, setVc] = useState('どちらでも')
   // 0113: 募集人数 → 1枠の長さ。募集は「空き枠の告知」で、予約は1対1なので
   const [duration, setDuration] = useState(60)
+  /** 自分の遊べる時間帯（0051）。範囲と突き合わせて警告を出すためだけに使う。 */
+  const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
+
+  useEffect(() => {
+    if (!isBackendConfigured) return
+    let active = true
+    fetchMyAvailability()
+      .then((rows) => {
+        if (active) setSlots(rows)
+      })
+      .catch(() => {
+        // 取れなくても投稿はできる。警告が出ないだけ
+        if (active) setSlots(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  /**
+   * 範囲と「遊べる時間帯」の突き合わせ（0114）。
+   *
+   * ■ なぜ弾かずに警告か
+   *   枠は後から足せる。「この範囲で募集したいから枠を開ける」という順番も
+   *   ありうるので、**投稿は止めない。**ただし黙って通すと、ゲストの
+   *   予約画面で候補がゼロになって理由が分からない。
+   *
+   * ■ 枠が1件も無いときは警告しない
+   *   `booking_fits_availability`（0051）は枠が未登録の相手を「制限なし」と
+   *   扱う。つまり予約は通るので、ここで警告するのは嘘になる。
+   *   （その状態自体への注意は、ホームの帯が別に出している）
+   */
+  const windowWarning = useMemo<string | null>(() => {
+    if (whenMode !== '日時を決める') return null
+    if (!windowStart || !windowEnd) return null
+    if (!slots || slots.length === 0) return null
+
+    const from = new Date(windowStart)
+    const to = new Date(windowEnd)
+    if (!(to > from)) return '受付の締め切りは、開始より後にしてください。'
+
+    const open = new Set(slots.map((x) => `${x.weekday}-${x.hour}`))
+    const earliest = new Date(Date.now() + MIN_LEAD_MINUTES * 60_000)
+
+    // 予約できる開始時刻が1つでもあるか。30分刻みで、
+    // その予約が触るすべての「時」が枠に入っていること
+    const step = 30 * 60_000
+    for (let t = from.getTime(); t + duration * 60_000 <= to.getTime(); t += step) {
+      if (t < earliest.getTime()) continue
+      let ok = true
+      for (let m = 0; m < duration; m += 60) {
+        const at = new Date(t + m * 60_000)
+        if (!open.has(`${at.getDay()}-${at.getHours()}`)) {
+          ok = false
+          break
+        }
+      }
+      // 終了の直前の時も見る（60分区切りで割り切れない長さのため）
+      const end = new Date(t + duration * 60_000 - 1)
+      if (ok && !open.has(`${end.getDay()}-${end.getHours()}`)) ok = false
+      if (ok) return null
+    }
+    return 'この範囲に、あなたの「遊べる時間帯」と重なる枠がありません。このまま出すと、ゲストが選べる時間が1つも出ません。範囲を変えるか、ピタメイト設定で時間帯を足してください。'
+  }, [whenMode, windowStart, windowEnd, duration, slots])
+  const [vc, setVc] = useState('どちらでも')
   const [audience, setAudience] = useState('全員')
   const [verifiedOnly, setVerifiedOnly] = useState(true)
   const [note, setNote] = useState('')
@@ -208,6 +278,22 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
               （「土日のどこかで」なら、土曜の朝から日曜の夜まで）。
               締め切りを過ぎた募集は自動的に閉じます。
             </span>
+            {windowWarning && (
+              <div
+                style={{
+                  background: C.avatarPink,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  fontSize: 11,
+                  lineHeight: 1.7,
+                  color: C.ink,
+                  marginTop: -8,
+                }}
+              >
+                {windowWarning}
+              </div>
+            )}
           </>
         )}
         <Field label="ひとこと（任意）">

@@ -74,6 +74,48 @@ export function startTimeOptions(from: Date, count = 16): Date[] {
   return Array.from({ length: count }, (_, i) => new Date(first.getTime() + i * 30 * 60_000))
 }
 
+/**
+ * 募集板の「受付の範囲」に収まる開始時刻の候補（0114）。
+ *
+ * ■ なぜ `startTimeOptions` では足りないか
+ *   あちらは**いまから8時間ぶん**（30分刻み×16）しか作らない。さがす画面から
+ *   「今夜どこかで」を選ぶ用途にはそれで足りるが、募集の範囲は
+ *   「来週の土日」のように**何日も先**を指せる。そのまま絞り込むと、
+ *   候補が1つも残らず「押せる時間が無い」画面になる。
+ *
+ * ■ 返すもの
+ *   [from, to) のうち、`start + minutes <= to` に収まる :00 / :30 だけ。
+ *   いまより `MIN_LEAD_MINUTES` 以内の時刻は落とす（サーバが START_TOO_SOON で弾く）。
+ *
+ * ■ 上限を置く理由
+ *   範囲を1週間で出されると 336 個になる。**選ぶ画面としては使えない**ので
+ *   頭から `cap` 個で切る。切ったことは呼び出し側で伝える。
+ */
+export function startTimeOptionsInRange(
+  from: Date,
+  to: Date,
+  minutes: number,
+  now = new Date(),
+  cap = 96,
+): Date[] {
+  const earliest = new Date(now.getTime() + MIN_LEAD_MINUTES * 60_000)
+  const begin = new Date(Math.max(from.getTime(), earliest.getTime()))
+  // :00 / :30 に**切り上げる**。ただし既にキリのよい時刻ならそのまま。
+  // ここを `startTimeOptions` と同じ「<= 30 なら 30」にすると、20:00〜と
+  // 書いた募集の先頭 20:00 が落ちて 20:30 からになる（範囲の始まりは
+  // たいてい :00 ちょうどなので、常に起きる）
+  const m = begin.getMinutes() + (begin.getSeconds() > 0 || begin.getMilliseconds() > 0 ? 1 : 0)
+  begin.setSeconds(0, 0)
+  begin.setMinutes(m === 0 ? 0 : m <= 30 ? 30 : 60)
+
+  const out: Date[] = []
+  for (let t = begin.getTime(); out.length < cap; t += 30 * 60_000) {
+    if (t + minutes * 60_000 > to.getTime()) break
+    out.push(new Date(t))
+  }
+  return out
+}
+
 /** 「今日 21:30」のような表示。 */
 export function formatStart(d: Date, now = new Date()): string {
   const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
