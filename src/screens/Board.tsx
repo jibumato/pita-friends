@@ -9,7 +9,7 @@ import { EmptyState } from '../components/States'
 import { boardPosts } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
 import SignedOutPrompt from '../components/SignedOutPrompt'
-import { fetchBoardPosts, joinBoardPost, cancelBoardPost, type BoardPostItem } from '../lib/queries'
+import { fetchBoardPosts, cancelBoardPost, type BoardPostItem } from '../lib/queries'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { clickable } from '../hooks/clickable'
 
@@ -18,16 +18,15 @@ const REAL_FILTERS = ['すべて', '自分の募集', '今夜', 'Apex', 'エン�
 
 function RealPostCard({
   p,
-  onJoined,
+  flow,
   onCancelled,
 }: {
   p: BoardPostItem
-  onJoined: (id: string, full: boolean) => void
+  flow: Flow
   onCancelled: (id: string) => void
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [joined, setJoined] = useState(p.hasJoined)
   /** 取り消しは戻せないので、一度確認を挟む。 */
   const [confirmingCancel, setConfirmingCancel] = useState(false)
 
@@ -46,22 +45,27 @@ function RealPostCard({
     }
   }
 
-  async function handleJoin() {
-    if (busy || joined || p.isMine) return
-    setBusy(true)
-    setError(null)
-    try {
-      await joinBoardPost(p.id)
-      setJoined(true)
-      onJoined(p.id, p.joinedCount + 1 >= p.capacity)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '参加に失敗しました')
-    } finally {
-      setBusy(false)
-    }
+  /**
+   * 予約画面へ送る（0113）。
+   *
+   * **ここで予約を作らない。** コインの残高・キャンセルポリシーの同意・
+   * 開始時刻の選択は、すべて予約画面が持っている。板から直接作ると、
+   * それらを板の上にもう一組作ることになる。
+   */
+  function handleBook() {
+    if (busy || p.isMine) return
+    flow.startBooking(
+      {
+        name: p.creatorName,
+        initial: p.creatorInitial,
+        color: p.creatorColor,
+        hourlyRate: p.creatorHourlyRate,
+        userId: p.creatorId,
+        fromBoardPostId: p.id,
+      },
+      p.durationMinutes,
+    )
   }
-
-  const remaining = Math.max(0, p.capacity - p.joinedCount)
 
   return (
     <div
@@ -109,7 +113,8 @@ function RealPostCard({
             borderRadius: 4,
           }}
         >
-          あと{remaining}人
+          {p.durationMinutes}分・
+          {Math.round((p.creatorHourlyRate * p.durationMinutes) / 60).toLocaleString()}コイン
         </span>
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -178,20 +183,21 @@ function RealPostCard({
           </span>
         ) : (
           <span
-            onClick={handleJoin}
+            onClick={handleBook}
+            {...clickable(handleBook, '予約を申し込む')}
             style={{
-              cursor: joined || busy ? 'default' : 'pointer',
+              cursor: busy ? 'default' : 'pointer',
               opacity: busy ? 0.6 : 1,
               fontSize: 12,
-              color: joined ? C.ink : C.ctaFg,
-              background: joined ? C.disabledBg : C.ctaBg,
-              border: joined ? `1.5px solid ${C.disabledBorder}` : 'none',
+              color: C.ctaFg,
+              background: C.ctaBg,
+              border: 'none',
               padding: '7px 16px',
               borderRadius: 4,
-              boxShadow: joined ? 'none' : `2px 2px 0 ${C.lavender}`,
+              boxShadow: `2px 2px 0 ${C.lavender}`,
             }}
           >
-            {joined ? '✓ 参加済み' : busy ? '処理中…' : '参加する'}
+            予約を申し込む
           </span>
         )}
       </div>
@@ -209,12 +215,9 @@ function RealPostCard({
         >
           <span style={{ fontSize: 11.5, color: C.ink, lineHeight: 1.7 }}>
             この募集を取り消します。
-            {p.joinedCount > 0 && (
-              <>
-                <br />
-                すでに <b>{p.joinedCount}人</b> が参加表明しています。取り消すとその方々に通知が届きます。
-              </>
-            )}
+            <br />
+            すでにこの募集から予約を申し込まれている場合、その方に通知が届きます。
+            <b>お申し込み済みの予約は取り消されません</b>（予約のキャンセルは別の操作です）。
           </span>
           <div style={{ display: 'flex', gap: 8 }}>
             <span
@@ -277,11 +280,9 @@ export default function Board({ flow }: { flow: Flow }) {
     setRealPosts((xs) => (xs ? xs.filter((x) => x.id !== postId) : xs))
   }
 
-  const handleJoined = (postId: string, full: boolean) => {
-    if (!full) return
-    // 定員に達した募集はサーバー側でclosedになる(0011: join_board_post)ので一覧から外す
-    setRealPosts((xs) => (xs ? xs.filter((x) => x.id !== postId) : xs))
-  }
+  // 0113: 参加表明が無くなったので「定員に達したら一覧から外す」も無くなった。
+  // 申込みが入ると募集はサーバー側で closed になり(create_booking_from_board)、
+  // 次に一覧を取り直したときに消える。予約画面へ遷移するので、その場では触らない。
 
   const filteredReal = (realPosts ?? []).filter((p) => {
     if (filter === '自分の募集') return p.isMine
@@ -298,7 +299,7 @@ export default function Board({ flow }: { flow: Flow }) {
   const empty = isBackendConfigured ? realPosts !== null && filteredReal.length === 0 : demoEmpty
 
   if (!signedIn) {
-    // 募集の閲覧も参加もログインが要る(0011のRLSは to authenticated)。
+    // 募集の閲覧も申込みもログインが要る(0011のRLSは to authenticated)。
     // 取得失敗のエラー文をそのまま出すのではなく、何をすればよいかを示す。
     return (
       <Screen background={C.surface}>
@@ -307,8 +308,8 @@ export default function Board({ flow }: { flow: Flow }) {
           <span style={{ fontSize: 21, color: C.ink }}>▶ 募集板</span>
           <SignedOutPrompt
             flow={flow}
-            title="募集の閲覧・参加にはログインが必要です"
-            body="「今夜Apexを一緒に」のような募集を出したり、参加したりできます。安心のため、参加できるのは本人確認を済ませた方に限っています。"
+            title="募集板の閲覧にはログインが必要です"
+            body="ピタメイトが「今夜このゲームで空いています」と枠を出す板です。気になる枠から、そのまま予約を申し込めます。募集を出せるのはピタメイトだけです。"
           />
         </div>
         <BottomTabs current={flow.screen} onNavigate={flow.go} />
@@ -322,7 +323,8 @@ export default function Board({ flow }: { flow: Flow }) {
       <div style={{ padding: '12px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 21, color: C.ink }}>▶ 募集板</span>
-          {!mobile && (
+          {/* 0113: 募集を出せるのはピタメイトだけ。押せないボタンを見せない */}
+          {!mobile && flow.hostSettings.isHost && (
             <div
               onClick={() => flow.go('boardCreate')}
               style={{
@@ -388,14 +390,22 @@ export default function Board({ flow }: { flow: Flow }) {
             </>
           }
           desc={
-            <>
-              最初の募集を出すと、
-              <br />
-              いちばん上に表示されます
-            </>
+            flow.hostSettings.isHost ? (
+              <>
+                最初の募集を出すと、
+                <br />
+                いちばん上に表示されます
+              </>
+            ) : (
+              <>
+                ピタメイトが空き枠を出すと
+                <br />
+                ここに並びます
+              </>
+            )
           }
-          cta="＋ 募集をつくる"
-          onCta={() => flow.go('boardCreate')}
+          cta={flow.hostSettings.isHost ? '＋ 募集をつくる' : undefined}
+          onCta={flow.hostSettings.isHost ? () => flow.go('boardCreate') : undefined}
         />
       ) : (
         <div
@@ -411,7 +421,9 @@ export default function Board({ flow }: { flow: Flow }) {
         >
           <div className="search-grid">
           {isBackendConfigured
-            ? filteredReal.map((p) => <RealPostCard key={p.id} p={p} onJoined={handleJoined} onCancelled={handleCancelled} />)
+            ? filteredReal.map((p) => (
+                <RealPostCard key={p.id} p={p} flow={flow} onCancelled={handleCancelled} />
+              ))
             : demoPosts.map((p) => (
                 <div
                   key={p.title}
@@ -526,7 +538,7 @@ export default function Board({ flow }: { flow: Flow }) {
                           boxShadow: `2px 2px 0 ${C.lavender}`,
                         }}
                       >
-                        参加する
+                        予約を申し込む
                       </span>
                     )}
                   </div>
@@ -536,7 +548,7 @@ export default function Board({ flow }: { flow: Flow }) {
         </div>
       )}
 
-      {mobile && !empty && (
+      {mobile && !empty && flow.hostSettings.isHost && (
         <div
           onClick={() => flow.go('boardCreate')}
           style={{

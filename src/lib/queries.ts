@@ -952,7 +952,16 @@ export function subscribeToMessages(promiseId: string, onInsert: (m: ChatMessage
 }
 
 /* ============================================================
- * 募集板。schema: 0011_board。
+ * 募集板。schema: 0011_board → **0113_board_is_for_hosts で作り直した**。
+ *
+ * 0113 以降、募集板は「**ピタメイトが空き枠を告知して、ゲストを呼ぶ場**」。
+ *   ・投稿できるのは掲載中のピタメイトだけ（DBのトリガーで止める）
+ *   ・ゲストの操作は「参加表明」ではなく**予約の申込み**
+ *   ・1募集＝1枠。申込みが入ったら板から下りる
+ *
+ * ⚠️ **無料で参加する経路を作り直さないこと。** ピタフレの役務は予約＝有償で
+ * 成り立っていて、税務・規約 第8条・利用料の徴収がすべてその前提に乗っている。
+ * 板に無料の抜け道を作ると、いちばん使われる導線がその抜け道になる。
  * ============================================================ */
 
 export type BoardPostItem = {
@@ -960,9 +969,9 @@ export type BoardPostItem = {
   game: string
   mood: BoardMood
   whenText: string
+  /** 募集している1枠の長さ(分)。予約画面の初期値になる。 */
+  durationMinutes: number
   vc: BoardVc
-  capacity: number
-  joinedCount: number
   audience: BoardAudience
   verifiedOnly: boolean
   note: string
@@ -971,7 +980,8 @@ export type BoardPostItem = {
   creatorInitial: string
   creatorColor: string
   creatorManner: number
-  hasJoined: boolean
+  /** 30分あたりの料金。**投稿には持たせず host_settings から出す**（写すと板だけ古くなる）。 */
+  creatorHourlyRate: number
   isMine: boolean
 }
 
@@ -984,27 +994,24 @@ export async function fetchBoardPosts(): Promise<BoardPostItem[]> {
 
   const { data: posts, error } = await sb
     .from('board_posts')
-    .select('id, creator_id, game, mood, when_text, capacity, vc, audience, verified_only, note, created_at')
+    .select(
+      'id, creator_id, game, mood, when_text, duration_minutes, vc, audience, verified_only, note, created_at',
+    )
     .eq('status', 'open')
     .order('created_at', { ascending: false })
   if (error) throw error
   if (!posts || posts.length === 0) return []
 
-  const postIds = posts.map((p) => p.id)
   const creatorIds = posts.map((p) => p.creator_id)
-  const [{ data: profiles }, { data: stats }, { data: participants }] = await Promise.all([
+  const [{ data: profiles }, { data: stats }, { data: hosts }] = await Promise.all([
     sb.from('profiles').select('id, nickname, avatar_initial, avatar_color').in('id', creatorIds),
     sb.from('profile_trust_stats').select('user_id, manner_score').in('user_id', creatorIds),
-    sb.from('board_participants').select('post_id, user_id').in('post_id', postIds),
+    // 料金は投稿ではなくここから出す
+    sb.from('host_settings').select('user_id, hourly_rate').in('user_id', creatorIds),
   ])
   const pMap = new Map((profiles ?? []).map((p) => [p.id, p]))
   const sMap = new Map((stats ?? []).map((s) => [s.user_id, s]))
-  const countByPost = new Map<string, number>()
-  const joinedByMe = new Set<string>()
-  for (const pp of participants ?? []) {
-    countByPost.set(pp.post_id, (countByPost.get(pp.post_id) ?? 0) + 1)
-    if (pp.user_id === me) joinedByMe.add(pp.post_id)
-  }
+  const hMap = new Map((hosts ?? []).map((h) => [h.user_id, h]))
 
   return posts.map((p) => {
     const creator = pMap.get(p.creator_id)
@@ -1013,9 +1020,8 @@ export async function fetchBoardPosts(): Promise<BoardPostItem[]> {
       game: p.game,
       mood: p.mood,
       whenText: p.when_text,
+      durationMinutes: p.duration_minutes,
       vc: p.vc,
-      capacity: p.capacity,
-      joinedCount: countByPost.get(p.id) ?? 0,
       audience: p.audience,
       verifiedOnly: p.verified_only,
       note: p.note,
@@ -1024,7 +1030,7 @@ export async function fetchBoardPosts(): Promise<BoardPostItem[]> {
       creatorInitial: creator?.avatar_initial || creator?.nickname?.charAt(0) || '?',
       creatorColor: creator?.avatar_color || '#B3E5F2',
       creatorManner: sMap.get(p.creator_id)?.manner_score ?? 4.5,
-      hasJoined: joinedByMe.has(p.id),
+      creatorHourlyRate: hMap.get(p.creator_id)?.hourly_rate ?? 0,
       isMine: p.creator_id === me,
     }
   })
@@ -1035,7 +1041,7 @@ export async function createBoardPost(input: {
   game: string
   mood: BoardMood
   whenText: string
-  capacity: number
+  durationMinutes: number
   vc: BoardVc
   audience: BoardAudience
   verifiedOnly: boolean
@@ -1050,16 +1056,24 @@ export async function createBoardPost(input: {
     game: input.game,
     mood: input.mood,
     when_text: input.whenText,
-    capacity: input.capacity,
+    duration_minutes: input.durationMinutes,
     vc: input.vc,
     audience: input.audience,
     verified_only: input.verifiedOnly,
     note: input.note,
   })
-  if (error) throwMapped(error)
+  if (error) {
+    // 0113: 投稿できるのは掲載中のピタメイトだけ
+    if (/HOST_ONLY/.test(error.message)) {
+      throw new Error('募集を出せるのはピタメイトだけです。ピタメイト設定から掲載を始めてください')
+    }
+    if (/HOURLY_RATE_REQUIRED/.test(error.message)) {
+      throw new Error('先にピタメイト設定で料金を決めてください')
+    }
+    throwMapped(error)
+  }
 }
 
-/** 募集に参加する。定員・本人確認要件等はDB側(join_board_post RPC)でアトミックに検証される。 */
 /**
  * 自分の募集を取り消す(論理削除)。参加者にはサーバ側で通知が飛ぶ。
  * 物理削除はしない(参加履歴・通報の追跡を残すため)。
@@ -1079,18 +1093,36 @@ export async function cancelBoardPost(postId: string, reason?: string): Promise<
   throw error
 }
 
-export async function joinBoardPost(postId: string): Promise<void> {
-  const { error } = await requireSupabase().rpc('join_board_post', { p_post_id: postId })
-  if (!error) return
+/**
+ * 募集から予約を申し込む（0113）。
+ *
+ * **無料の「参加」ではない。** 通常の予約とまったく同じ扱いで、
+ * コインを預け、ピタメイトの承認を待つ。板の条件（本人確認・対象・ブロック）を
+ * 見たうえで `create_booking` に渡すので、リードタイム・枠・重複・残高の検証は
+ * すべて予約側の一箇所に集まっている。
+ */
+export async function createBookingFromBoard(
+  postId: string,
+  policyVersion: string,
+  scheduledAt: Date | null,
+  durationMinutes: number | null,
+): Promise<string> {
+  const { data, error } = await requireSupabase().rpc('create_booking_from_board', {
+    p_post_id: postId,
+    p_policy_version: policyVersion,
+    p_scheduled_at: scheduledAt ? scheduledAt.toISOString() : null,
+    p_duration_minutes: durationMinutes,
+  })
+  if (!error) return data as string
   const msg = error.message
-  if (msg.includes('VERIFICATION_REQUIRED')) throw new Error('本人確認済みの方のみ参加できます')
-  if (msg.includes('AUDIENCE_RESTRICTED')) throw new Error('参加条件（同性のみ）を満たしていません')
-  if (msg.includes('POST_FULL')) throw new Error('定員に達しました')
-  if (msg.includes('ALREADY_JOINED')) throw new Error('すでに参加しています')
-  if (msg.includes('BLOCKED')) throw new Error('参加できません')
-  if (msg.includes('CANNOT_JOIN_OWN_POST')) throw new Error('自分の募集には参加できません')
+  if (msg.includes('VERIFICATION_REQUIRED')) throw new Error('本人確認済みの方のみ申し込めます')
+  if (msg.includes('AUDIENCE_RESTRICTED')) throw new Error('募集の条件（同性のみ）を満たしていません')
+  if (msg.includes('BLOCKED')) throw new Error('この募集には申し込めません')
+  if (msg.includes('CANNOT_BOOK_OWN_POST')) throw new Error('自分の募集には申し込めません')
   if (msg.includes('POST_NOT_OPEN')) throw new Error('この募集は締め切られました')
+  if (msg.includes('POST_NOT_FOUND')) throw new Error('募集が見つかりませんでした')
   throwMapped(error)
+  throw error
 }
 
 /* ============================================================
@@ -2703,13 +2735,13 @@ export type AdminBoardPost = {
   game: string
   mood: string
   whenText: string
-  capacity: number
+  durationMinutes: number
   vc: string
   audience: string
   verifiedOnly: boolean
   note: string | null
   status: string
-  participants: number
+  bookings: number
   createdAt: string
   cancelledAt: string | null
   cancelReason: string | null
@@ -2729,13 +2761,13 @@ export async function fetchAdminBoardPosts(status = 'open'): Promise<AdminBoardP
     game: r.game,
     mood: r.mood,
     whenText: r.when_text,
-    capacity: r.capacity,
+    durationMinutes: r.duration_minutes,
     vc: r.vc,
     audience: r.audience,
     verifiedOnly: r.verified_only,
     note: r.note,
     status: r.status,
-    participants: r.participants,
+    bookings: r.bookings,
     createdAt: r.created_at,
     cancelledAt: r.cancelled_at,
     cancelReason: r.cancel_reason,

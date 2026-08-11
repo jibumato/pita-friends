@@ -41,6 +41,7 @@ import {
   updateHostSettingsRemote,
   createBookingRemote,
   createBookingSeriesRemote,
+  createBookingFromBoard,
   recordPolicyConsent,
   checkIsAdmin,
   submitReport as submitReportRemote,
@@ -165,6 +166,14 @@ export type BookingHost = {
   hourlyRate: number
   /** 実データのピタメイト(Supabase)の場合のみ設定される。デモのモックピタメイトにはない。 */
   userId?: string
+  /**
+   * 募集板から来た場合、その募集のID(0113)。
+   *
+   * **入っていると、確定は `create_booking_from_board` を通る。** 板の条件
+   * (本人確認・対象・ブロック)を見て、予約を募集に紐づけ、募集を締める。
+   * さがす画面から来たときは undefined で、従来どおり `create_booking`。
+   */
+  fromBoardPostId?: string
 }
 
 /** 全画面が受け取るフローコンテキスト。 */
@@ -248,7 +257,8 @@ export type Flow = {
   /** ゲーム相性診断の結果を保存する(nullでクリア)。 */
   setPersonalityResult: (r: PersonalityResult | null) => void
   setHostPref: <K extends keyof HostSettings>(key: K, value: HostSettings[K]) => void
-  startBooking: (host: BookingHost) => void
+  /** `durationMinutes` は募集板から来たときに、その枠の長さを初期値にするため。 */
+  startBooking: (host: BookingHost, durationMinutes?: number) => void
   setBookingDuration: (min: BookingDuration) => void
   setBookingWhen: (w: 'now' | 'scheduled') => void
   setBookingStartAt: (d: Date | null) => void
@@ -682,7 +692,16 @@ export default function App() {
         // 版番号だけでは、その版が何と書いてあったかを後から示せない。
         // 記録に失敗しても予約は止めない（recordPolicyConsent が握りつぶす）
         await recordPolicyConsent('cancellation', cancellationPolicyText())
-        if (repeat > 1 && state.bookingStartAt) {
+        if (host.fromBoardPostId) {
+          // 0113: 募集板から来た申込み。**まとめ予約はしない**——
+          // 募集は1枠なので、複数回ぶんを一度に取るのは意味が合わない
+          await createBookingFromBoard(
+            host.fromBoardPostId,
+            CANCELLATION_POLICY_VERSION,
+            state.bookingWhen === 'scheduled' ? state.bookingStartAt : null,
+            state.bookingDuration,
+          )
+        } else if (repeat > 1 && state.bookingStartAt) {
           await createBookingSeriesRemote(
             host.userId,
             state.bookingDuration,
@@ -698,7 +717,9 @@ export default function App() {
             state.bookingWhen === 'scheduled' ? state.bookingStartAt : null,
           )
         }
-        const cost = coinsForDuration(host.hourlyRate, state.bookingDuration) * repeat
+        const cost =
+          coinsForDuration(host.hourlyRate, state.bookingDuration) *
+          (host.fromBoardPostId ? 1 : repeat)
         clearTimer()
         setState((p) => ({
           ...p,
@@ -957,11 +978,11 @@ export default function App() {
         })
       }
     },
-    startBooking: (host) =>
+    startBooking: (host, durationMinutes) =>
       setState((p) => ({
         ...p,
         bookingHost: host,
-        bookingDuration: 60,
+        bookingDuration: durationMinutes ?? 60,
         bookingWhen: 'now',
         bookingStartAt: null,
         bookingRepeat: 1,

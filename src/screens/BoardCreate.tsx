@@ -62,7 +62,8 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
   const [mood, setMood] = useState('エンジョイ')
   const [whenText, setWhenText] = useState<string>(WHENS[0])
   const [vc, setVc] = useState('どちらでも')
-  const [count, setCount] = useState(2)
+  // 0113: 募集人数 → 1枠の長さ。募集は「空き枠の告知」で、予約は1対1なので
+  const [duration, setDuration] = useState(60)
   const [audience, setAudience] = useState('全員')
   const [verifiedOnly, setVerifiedOnly] = useState(true)
   const [note, setNote] = useState('')
@@ -101,7 +102,7 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
         game,
         mood: mood as BoardMood,
         whenText,
-        capacity: count,
+        durationMinutes: duration,
         vc: vc as BoardVc,
         audience: audience as BoardAudience,
         verifiedOnly,
@@ -117,7 +118,7 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:47" />
-      <SubHeader title="募集を作成" onBack={() => flow.go('board')} />
+      <SubHeader title="空き枠を募集する" onBack={() => flow.go('board')} />
       <div
         className="pita-scroll"
         style={{
@@ -142,38 +143,21 @@ export default function BoardCreate({ flow }: { flow: Flow }) {
             </Field>
           </div>
         </div>
-        <Field label="募集人数">
-          <div
-            style={{
-              width: 140,
-              background: C.white,
-              border: `1.5px solid ${C.border}`,
-              borderRadius: 8,
-              padding: '9px 12px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <span
-              onClick={() => setCount((n) => Math.max(1, n - 1))}
-              style={{ cursor: 'pointer', fontSize: 16, color: C.ink, userSelect: 'none' }}
-            >
-              −
-            </span>
-            <span style={{ fontSize: 14, color: C.ink }}>{count}</span>
-            <span
-              onClick={() => setCount((n) => Math.min(4, n + 1))}
-              style={{ cursor: 'pointer', fontSize: 16, color: C.ink, userSelect: 'none' }}
-            >
-              ＋
-            </span>
-          </div>
+        <Field label="1枠の長さ">
+          <SegRow
+            options={['30分', '60分', '90分', '120分']}
+            value={`${duration}分`}
+            onPick={(v) => setDuration(Number(v.replace('分', '')))}
+          />
         </Field>
+        <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6, marginTop: -8 }}>
+          ゲストが予約を申し込むときの初期値になります。申し込みが1件入ると、この募集は
+          自動的に締め切られます。
+        </span>
         <Field label="ボイスチャット">
           <SegRow options={['必須', 'どちらでも', 'なし']} value={vc} onPick={setVc} />
         </Field>
-        <Field label="参加を受け付ける範囲">
+        <Field label="申し込みを受け付ける範囲">
           <SegRow options={['全員', '同性のみ']} value={audience} onPick={setAudience} />
         </Field>
         <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6, marginTop: -8 }}>

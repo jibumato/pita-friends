@@ -403,7 +403,7 @@ export type Database = {
           game: string
           mood: BoardMood
           when_text: string
-          capacity: number
+          duration_minutes: number
           vc: BoardVc
           audience: BoardAudience
           verified_only: boolean
@@ -417,7 +417,7 @@ export type Database = {
           game: string
           mood?: BoardMood
           when_text: string
-          capacity?: number
+          duration_minutes?: number
           vc?: BoardVc
           audience?: BoardAudience
           verified_only?: boolean
@@ -426,12 +426,7 @@ export type Database = {
         Update: { status?: BoardStatus }
         Relationships: []
       }
-      board_participants: {
-        Row: { post_id: string; user_id: string; joined_at: string }
-        Insert: Record<string, never>
-        Update: Record<string, never>
-        Relationships: []
-      }
+      // 0113: board_participants は廃止（無料の参加表明を無くした）
       notifications: {
         Row: {
           id: string
@@ -577,9 +572,15 @@ export type Database = {
         Args: { p_invite_id: string }
         Returns: void
       }
-      join_board_post: {
-        Args: { p_post_id: string }
-        Returns: void
+      // 0113: 参加表明は廃止。募集からは予約を申し込む
+      create_booking_from_board: {
+        Args: {
+          p_post_id: string
+          p_policy_version: string
+          p_scheduled_at?: string | null
+          p_duration_minutes?: number | null
+        }
+        Returns: string
       }
       complete_booking: {
         Args: { p_booking_id: string }
@@ -1080,13 +1081,13 @@ export type Database = {
           game: string
           mood: string
           when_text: string
-          capacity: number
+          duration_minutes: number
           vc: string
           audience: string
           verified_only: boolean
           note: string | null
           status: string
-          participants: number
+          bookings: number
           created_at: string
           cancelled_at: string | null
           cancel_reason: string | null

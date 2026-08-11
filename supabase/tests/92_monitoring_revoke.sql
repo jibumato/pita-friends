@@ -185,6 +185,14 @@ insert into auth.users (id) values ('f3000000-0000-0000-0000-000000000003');
 insert into public.profiles (id, nickname) values
   ('f3000000-0000-0000-0000-000000000003','記録なし')
   on conflict (id) do nothing;
+-- 0113: 募集を出せるのは本人確認を済ませたピタメイトだけになった。
+-- ここで見たいのは「同意の記録が無い人を締め出さないか」なので、
+-- 投稿の前提だけそろえる
+update public.profile_trust_stats set is_verified = true
+  where user_id = 'f3000000-0000-0000-0000-000000000003';
+insert into public.host_settings (user_id, is_host, hourly_rate)
+values ('f3000000-0000-0000-0000-000000000003', true, 2000)
+  on conflict (user_id) do update set is_host = true, hourly_rate = 2000;
 do $$
 begin
   if public._monitoring_consent_revoked('f3000000-0000-0000-0000-000000000003') then

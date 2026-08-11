@@ -25,15 +25,33 @@ insert into public.profiles (id, nickname) values
 insert into public.admins (user_id) values ('33000000-0000-0000-0000-0000000000ad')
   on conflict do nothing;
 
--- 募集を1件立てて、1人が参加表明する
+-- 0113: 投稿できるのはピタメイトだけ。ピタメイトになるには本人確認が要る
+update public.profile_trust_stats set is_verified = true
+  where user_id in ('33000000-0000-0000-0000-000000000001',
+                    '33000000-0000-0000-0000-000000000002');
+insert into public.host_settings (user_id, is_host, hourly_rate)
+values ('33000000-0000-0000-0000-000000000001', true, 2000)
+  on conflict (user_id) do update set is_host = true, hourly_rate = 2000;
+
+-- ゲストが予約を申し込めるようコインを積む
+insert into public.coin_lots (user_id, kind, remaining, expires_at) values
+  ('33000000-0000-0000-0000-000000000002','paid',50000, public.coin_expiry_from(now()));
+update public.coin_wallets set balance = 50000
+  where user_id = '33000000-0000-0000-0000-000000000002';
+
+-- 募集を1件立てて、ゲストが1件申し込む
 insert into public.board_posts
-  (id, creator_id, game, mood, when_text, capacity, vc, audience, verified_only, note)
+  (id, creator_id, game, mood, when_text, duration_minutes, vc, audience, verified_only, note)
 values
   ('33000000-0000-0000-0000-0000000000b1',
    '33000000-0000-0000-0000-000000000001',
-   'Apex', 'エンジョイ', '今夜 22:00〜', 3, 'どちらでも', '全員', false, 'まったりやります');
-insert into public.board_participants (post_id, user_id)
-  values ('33000000-0000-0000-0000-0000000000b1','33000000-0000-0000-0000-000000000002');
+   'Apex', 'エンジョイ', '今夜 22:00〜', 60, 'どちらでも', '全員', false, 'まったりやります');
+set test.uid = '33000000-0000-0000-0000-000000000002';
+select public.create_booking_from_board('33000000-0000-0000-0000-0000000000b1', 'v1');
+-- 申込みで closed になるので、取り下げを試すために open に戻す
+-- （運営が取り下げるのは open のものとは限らない。状態にかかわらず効く）
+update public.board_posts set status = 'open'
+  where id = '33000000-0000-0000-0000-0000000000b1';
 
 -- 通知の件数を数えやすくするため、ここまでの分を消しておく
 delete from public.notifications;
@@ -106,7 +124,7 @@ begin
 end $$;
 
 -- ------------------------------------------------------------
-do $$ begin raise notice '=== 4. 投稿者と参加者の双方に届く ==='; end $$;
+do $$ begin raise notice '=== 4. 投稿者と申込者の双方に届く ==='; end $$;
 -- ------------------------------------------------------------
 do $$
 declare v_poster text; v_joiner text; v_n int;
@@ -120,17 +138,17 @@ begin
     where user_id = '33000000-0000-0000-0000-000000000002' and type = 'board_cancelled';
 
   if v_poster is null then raise exception 'FAIL 投稿者に届いていない'; end if;
-  if v_joiner is null then raise exception 'FAIL 参加者に届いていない'; end if;
+  if v_joiner is null then raise exception 'FAIL 申込者に届いていない'; end if;
 
   -- ★投稿者には理由を渡す。渡さないと同じ投稿をもう一度出してくる
   if v_poster not like '%外部サービスへの誘導%' then
     raise exception 'FAIL 投稿者への通知に理由が無い: %', v_poster;
   end if;
-  -- ★参加者には渡さない。運営の判断の内容を第三者に配らない
+  -- ★申込者には渡さない。運営の判断の内容を第三者に配らない
   if v_joiner like '%外部サービスへの誘導%' then
-    raise exception 'FAIL 参加者への通知に理由が漏れている: %', v_joiner;
+    raise exception 'FAIL 申込者への通知に理由が漏れている: %', v_joiner;
   end if;
-  raise notice 'OK 投稿者には理由つき / 参加者には理由なし';
+  raise notice 'OK 投稿者には理由つき / 申込者には理由なし';
 end $$;
 
 -- ------------------------------------------------------------
@@ -170,10 +188,11 @@ begin
   if r.creator_nickname <> '投稿者' then
     raise exception 'FAIL 投稿者の名前が引けていない: %', r.creator_nickname;
   end if;
-  if r.participants <> 1 then
-    raise exception 'FAIL 参加人数が合わない: %', r.participants;
+  -- 0113: 参加人数ではなく「この募集から入った予約の件数」
+  if r.bookings <> 1 then
+    raise exception 'FAIL 予約の件数が合わない: %', r.bookings;
   end if;
-  raise notice 'OK open=0 / all=1・投稿者名と参加人数が出る';
+  raise notice 'OK open=0 / all=1・投稿者名と予約件数が出る';
 end $$;
 
 \echo '==== 33: すべて通過 ===='

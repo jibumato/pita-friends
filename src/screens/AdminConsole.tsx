@@ -786,7 +786,7 @@ function BoardTab() {
               </span>
             </div>
             <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
-              {b.creatorNickname ?? '（名前なし）'} / 定員{b.capacity} / 参加{b.participants}人 /
+              {b.creatorNickname ?? '（名前なし）'} / {b.durationMinutes}分 / 申込{b.bookings}件 /
               VC{b.vc} / {b.audience}
               {b.verifiedOnly ? ' / 本人確認済みのみ' : ''}
             </span>
