@@ -116,6 +116,57 @@ export function startTimeOptionsInRange(
   return out
 }
 
+/**
+ * 探す画面の「いつ遊ぶか」(0115)。
+ *
+ * ■ なぜ時間から探せるようにするか
+ *   ゲストが買っているのは「今夜21時に、確実に、気楽に遊べる状態」であって
+ *   人そのものではない。それなのに探す画面は、時間を条件として持っていなかった。
+ *
+ * ■ 範囲の切り方
+ *   夜に寄せている。ゲームの同行は夜に集中していて、「今日の15時」を
+ *   探す人より「今夜」を探す人のほうが桁違いに多い。
+ *   終わりを翌03:00にしているのは、日付が変わってからの申し込みを
+ *   「今夜」から締め出さないため。
+ */
+export type TimeWindowKey = 'tonight' | 'tomorrowNight' | 'weekend'
+
+export const TIME_WINDOWS: { key: TimeWindowKey; label: string }[] = [
+  { key: 'tonight', label: '今夜' },
+  { key: 'tomorrowNight', label: '明日の夜' },
+  { key: 'weekend', label: '今週末' },
+]
+
+/** その範囲の [開始, 終了]。開始が現在より前なら現在に寄せる。 */
+export function timeWindowRange(key: TimeWindowKey, now = new Date()): { from: Date; to: Date } {
+  const at = (dayOffset: number, hour: number) => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset)
+    d.setHours(hour, 0, 0, 0)
+    return d
+  }
+
+  let from: Date
+  let to: Date
+  if (key === 'tonight') {
+    from = at(0, 18)
+    to = at(1, 3)
+  } else if (key === 'tomorrowNight') {
+    from = at(1, 18)
+    to = at(2, 3)
+  } else {
+    // 土曜の昼から月曜の未明まで。**週末の最中なら、その週末を指す**
+    // (日曜の夜に「今週末」を押して来週末が出てくるのは、まず求めていない)
+    const dow = now.getDay() // 0=日
+    const toSat = dow === 0 ? -1 : 6 - dow
+    from = at(toSat, 12)
+    to = at(toSat + 2, 3)
+  }
+
+  // 過ぎている部分は落とす。「今夜」を22時に押したら22時から見る
+  if (from.getTime() < now.getTime()) from = new Date(now.getTime())
+  return { from, to }
+}
+
 /** 「今日 21:30」のような表示。 */
 export function formatStart(d: Date, now = new Date()): string {
   const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
