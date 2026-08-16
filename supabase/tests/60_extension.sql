@@ -25,4 +25,18 @@ from public.platform_fees where booking_id = :'e1';
 \echo '(3000コインに対して手数料がかかっていればOK)'
 
 \echo '=== 完了後は延長できないか(BOOKING_NOT_EXTENDABLE を期待) ==='
-select public.extend_booking(:'e1', 30);
+-- 以前はここで素の select を投げ、**出た例外を目で見て正しさを判断**していた。
+-- そのままだと psql が異常終了するので、自動で流すと必ず失敗として数えられる。
+-- 期待している例外なら通す形に変える(他のテストと同じ書き方に揃える)。
+-- psql の :'e1' は $$ ... $$ の中では展開されないので、設定値として渡す
+select set_config('test.booking_id', :'e1', false);
+do $$
+begin
+  begin
+    perform public.extend_booking(current_setting('test.booking_id')::uuid, 30);
+    raise exception 'FAIL 完了後なのに延長できてしまった';
+  exception when others then
+    if sqlerrm not like '%BOOKING_NOT_EXTENDABLE%' then raise; end if;
+  end;
+  raise notice 'OK 完了後は BOOKING_NOT_EXTENDABLE で止まる';
+end $$;

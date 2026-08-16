@@ -9,7 +9,13 @@ import { EmptyState, ErrorState, SkeletonCard } from '../components/States'
 import { searchUsers } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
 import SignedOutPrompt from '../components/SignedOutPrompt'
-import { fetchDiscoverableHosts } from '../lib/queries'
+import { fetchDiscoverableHosts, fetchHostsOpenAt, type OpenHost } from '../lib/queries'
+import {
+  TIME_WINDOWS,
+  timeWindowRange,
+  formatStart,
+  type TimeWindowKey,
+} from '../content/bookingPolicy'
 import { subscribeOnlineUsers } from '../lib/presence'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { clickable } from '../hooks/clickable'
@@ -75,6 +81,47 @@ export default function Search({ flow }: { flow: Flow }) {
   const query = flow.searchQuery
   const [realCards, setRealCards] = useState<DisplayCard[] | null>(null)
   const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set())
+  // 0115: 「いつ遊ぶか」で絞る。null なら時間で絞らない(従来どおり)
+  const [timeWindow, setTimeWindow] = useState<TimeWindowKey | null>(null)
+  const [openHosts, setOpenHosts] = useState<Map<string, OpenHost> | null>(null)
+  const [openLoading, setOpenLoading] = useState(false)
+
+  /**
+   * 選んだ範囲で予約を受けられる人を引く(0115)。
+   *
+   * サーバ側の判定は create_booking と同じなので、**ここに出た時刻は
+   * そのまま申し込める**。人ごとに空きを問い合わせる作りにすると、
+   * 一覧の人数だけ往復が増えるので、まとめて1回で取る。
+   */
+  useEffect(() => {
+    if (!isBackendConfigured || flow.userId === null) return
+    if (!timeWindow) {
+      setOpenHosts(null)
+      setOpenLoading(false)
+      return
+    }
+    let active = true
+    setOpenLoading(true)
+    const { from, to } = timeWindowRange(timeWindow)
+    fetchHostsOpenAt(from, to, flow.bookingDuration)
+      .then((rows) => {
+        if (!active) return
+        setOpenHosts(new Map(rows.map((r) => [r.hostUserId, r])))
+        setOpenLoading(false)
+      })
+      .catch((err) => {
+        console.warn('[pita-friends] 空き時間の取得に失敗:', err)
+        // 取れなかったときは**絞り込みを解除する**。空の一覧を出すと
+        // 「誰も空いていない」と読めてしまい、事実と違う
+        if (!active) return
+        setOpenHosts(null)
+        setOpenLoading(false)
+        setTimeWindow(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [timeWindow, flow.userId, flow.bookingDuration])
 
   // オンライン状態(カードのオンラインドット表示用)。安心設定で公開している人のみ届く。
   useEffect(() => {
@@ -147,6 +194,11 @@ export default function Search({ flow }: { flow: Flow }) {
   // 実データ時のみ、検索語・ゲーム・本人確認済みで実際に絞り込む
   const cards = isBackendConfigured
     ? allCards.filter((c) => {
+        // 時間で絞っているあいだは、その範囲で予約できる人だけ。
+        // 並び順は変えない——`fetchDiscoverableHosts` の並びは未ログインの
+        // 掲載カードと揃える約束になっており、ここで組み替えると
+        // 「さっき見た人がいない」が起きる
+        if (timeWindow && openHosts && !openHosts.has(c.key)) return false
         if (selected[VERIFIED_FILTER] && !c.verified) return false
         const activeGames = GAMES.filter((g) => selected[g])
         if (activeGames.length > 0 && !activeGames.some((g) => c.tags.includes(g))) return false
@@ -256,6 +308,44 @@ export default function Search({ flow }: { flow: Flow }) {
                 <span style={{ fontSize: 13, color: C.placeholder }}>ゲーム名・プレイスタイルで検索</span>
               )}
             </div>
+            {/* 0115: 「いつ遊ぶか」。ゲストが買っているのは「その時間に確実に
+                遊べる状態」なので、ゲームより先に置く。実データのときだけ
+                (デモには空き枠のデータが無く、押しても何も変わらない) */}
+            {isBackendConfigured && (
+              <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
+                {TIME_WINDOWS.map((w) => {
+                  const sel = timeWindow === w.key
+                  const toggle = () => setTimeWindow(sel ? null : w.key)
+                  return (
+                    <span
+                      key={w.key}
+                      onClick={toggle}
+                      {...clickable(toggle, `${w.label}に遊べる人で絞り込む`)}
+                      aria-pressed={sel}
+                      style={{
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        fontSize: 12,
+                        color: sel ? C.ink : C.body,
+                        background: sel ? C.lime : C.white,
+                        border: `1.5px solid ${C.border}`,
+                        padding: '7px 13px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      {w.label}
+                    </span>
+                  )
+                })}
+                {timeWindow && (
+                  <span style={{ fontSize: 10.5, color: C.muted }}>
+                    {openLoading
+                      ? '空きを調べています…'
+                      : `${flow.bookingDuration}分あそべる人だけ`}
+                  </span>
+                )}
+              </div>
+            )}
             {/* ゲームの絞り込みは実データだと27件あり、折り返すと画面の大半を
                 占めて結果や空状態が押し出されてしまう。高さ1行の横スクロールに
                 固定し、「本人確認済みのみ」は常に見える別行に置く。 */}
@@ -343,13 +433,18 @@ export default function Search({ flow }: { flow: Flow }) {
             </span>
           </div>
           {isBackendConfigured && allCards.length > 0 && cards.length === 0 && (
-            <span style={{ fontSize: 12, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
-              条件に合うピタメイトが見つかりませんでした
+            <span style={{ fontSize: 12, color: C.muted, textAlign: 'center', padding: '20px 0', lineHeight: 1.8, whiteSpace: 'pre-line' }}>
+              {openLoading
+                ? '空きを調べています…'
+                : timeWindow
+                  ? `その時間に${flow.bookingDuration}分あそべるピタメイトが見つかりませんでした。\n時間を変えるか、あそぶ時間を短くしてみてください。`
+                  : '条件に合うピタメイトが見つかりませんでした'}
             </span>
           )}
           <div className="search-grid">
           {cards.map((u, i) => {
             const online = isBackendConfigured ? onlineIds.has(u.key) : i % 3 !== 2
+            const open = timeWindow ? openHosts?.get(u.key) : undefined
             return (
             <div
               key={u.key}
@@ -477,6 +572,37 @@ export default function Search({ flow }: { flow: Flow }) {
                   </span>
                 ))}
               </div>
+              {/* 0115: その範囲で最初に取れる時刻。押すとその時刻が入った状態で
+                  予約画面に着く——「良さそうな人を開いて空きを見て閉じる」を
+                  繰り返させないための近道 */}
+              {open && u.bookingHost && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    flow.startBooking(u.bookingHost!, flow.bookingDuration)
+                    flow.setBookingWhen('scheduled')
+                    flow.setBookingStartAt(open.nextOpenAt)
+                  }}
+                  {...clickable(() => {
+                    flow.startBooking(u.bookingHost!, flow.bookingDuration)
+                    flow.setBookingWhen('scheduled')
+                    flow.setBookingStartAt(open.nextOpenAt)
+                  }, `${u.name}さんに ${formatStart(open.nextOpenAt)} から申し込む`)}
+                  style={{
+                    cursor: 'pointer',
+                    alignSelf: 'flex-start',
+                    fontSize: 11,
+                    color: C.ink,
+                    background: C.surfaceLavender,
+                    border: `1.5px solid ${C.lavender}`,
+                    padding: '5px 10px',
+                    borderRadius: 6,
+                  }}
+                >
+                  {formatStart(open.nextOpenAt)}〜 空き
+                  {open.openStarts > 1 && `（ほか${open.openStarts - 1}枠）`}
+                </span>
+              )}
               {u.hourlyRate != null && u.bookingHost && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
                   <span style={{ fontSize: 12.5, color: C.ink }}>

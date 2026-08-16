@@ -692,6 +692,18 @@ export type Database = {
         Args: { p_host_id: string; p_days?: number }
         Returns: Record<string, unknown>[]
       }
+      /**
+       * 0115: 指定した範囲で、その長さの予約を受けられるピタメイトを一度に引く。
+       * host_schedule が1人ぶんなのに対し、こちらは範囲から人を引く(探す画面用)。
+       */
+      hosts_open_at: {
+        Args: { p_from: string; p_to: string; p_minutes?: number }
+        Returns: {
+          host_id: string
+          next_open_at: string
+          open_starts: number
+        }[]
+      }
       /** 0053: お気に入り登録の追加・解除。 */
       set_favorite: {
         Args: { p_host_id: string; p_on: boolean }

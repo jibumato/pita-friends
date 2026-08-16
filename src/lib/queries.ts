@@ -2069,6 +2069,40 @@ export async function fetchHostSchedule(hostUserId: string, days = 7): Promise<S
   }))
 }
 
+/** 0115: ある範囲で予約を受けられるピタメイトと、その最初の開始時刻。 */
+export type OpenHost = {
+  hostUserId: string
+  /** その範囲で最初に予約できる開始時刻(1時間刻み)。 */
+  nextOpenAt: Date
+  /** 範囲の中にある開始時刻の候補数。「空き3枠」の表示に使う。 */
+  openStarts: number
+}
+
+/**
+ * 指定した範囲で、その長さの予約を受けられるピタメイトを一度に引く(0115)。
+ *
+ * 人ごとに `fetchHostSchedule` を呼ぶと一覧の人数だけ往復が増えるので、
+ * サーバ側でまとめて判定させている。判定は `create_booking` と同じものが
+ * 同じ順で見られるため、**ここに出た時刻はそのまま申し込める**。
+ */
+export async function fetchHostsOpenAt(
+  from: Date,
+  to: Date,
+  minutes = 60,
+): Promise<OpenHost[]> {
+  const { data, error } = await requireSupabase().rpc('hosts_open_at', {
+    p_from: from.toISOString(),
+    p_to: to.toISOString(),
+    p_minutes: minutes,
+  })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    hostUserId: r.host_id,
+    nextOpenAt: new Date(r.next_open_at),
+    openStarts: r.open_starts,
+  }))
+}
+
 /** 募集枠(曜日0=日〜6=土 × 時0〜23)。日本時間で解釈される。 */
 export type AvailabilitySlot = { weekday: number; hour: number }
 
