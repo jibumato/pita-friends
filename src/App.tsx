@@ -225,6 +225,12 @@ export type Flow = {
   /** 指定した開始時刻(bookingWhen==='scheduled' のときだけ使う)。 */
   bookingStartAt: Date | null
   bookingInsufficient: boolean
+  /**
+   * 0117: この予約に足りていないコイン数。ウォレットへ持っていって
+   * 「これを買えば予約できる」パックを名指しするために使う。
+   * ウォレット以外へ移ると null に戻る(古い不足額を出さないため)。
+   */
+  coinNeed: number | null
   /** 予約確定の失敗理由(残高不足以外)。実データの予約でのみ発生しうる。 */
   bookingError: string | null
   /** バックエンド接続時、サインイン済みならSupabaseのユーザーID。デモモード/未サインインはnull。 */
@@ -300,6 +306,11 @@ export type Flow = {
   setSafetyPref: <K extends keyof SafetyPrefs>(key: K, value: SafetyPrefs[K]) => void
   applyRecommendedFemalePrefs: () => void
   go: (s: ScreenKey) => void
+  /**
+   * 0117: 不足額を持ったままウォレットへ行く。
+   * 「あと◯コイン」という数字を、買う画面まで運ぶためだけの導線。
+   */
+  goCharge: (need: number) => void
   /** ようこそ画面をログインフォーム表示状態で開く(専用のログイン画面は廃止済み)。 */
   openLogin: () => void
   /** ようこそ画面のログインフォームを閉じ、通常のトップ表示に戻す。 */
@@ -382,6 +393,7 @@ const INITIAL = {
   // まとめ予約の回数(0061)。1で単発。
   bookingRepeat: 1,
   bookingInsufficient: false,
+  coinNeed: null as number | null,
   bookingError: null as string | null,
   userId: null as string | null,
   nickname: 'あおい',
@@ -625,7 +637,25 @@ export default function App() {
         profileUserId: s === 'profile' ? null : p.profileUserId,
         profileReturn: s === 'profile' ? p.screen : p.profileReturn,
         inviteTarget: s === 'invite' ? null : p.inviteTarget,
+        // 0117: 「予約にあと◯コイン」はウォレットへ行くあいだだけ持つ。
+        // 残したままだと、後日マイページから開いたウォレットに
+        // 前の予約の不足額が出てしまう
+        coinNeed: s === 'wallet' ? p.coinNeed : null,
       }))
+    },
+    [clearTimer],
+  )
+
+  /**
+   * 不足額を持ったままウォレットへ(0117)。
+   *
+   * 「コインが足りません」→「ウォレット」→**パックの一覧の前で止まる**、が
+   * これまでの動線だった。いくら買えば足りるのかを、利用者に暗算させていた。
+   */
+  const goCharge = useCallback(
+    (need: number) => {
+      clearTimer()
+      setState((p) => ({ ...p, screen: 'wallet', coinNeed: Math.max(0, need) }))
     },
     [clearTimer],
   )
@@ -1015,6 +1045,7 @@ export default function App() {
     setBookingRepeat: (n) => setState((p) => ({ ...p, bookingRepeat: n, bookingError: null })),
     confirmBooking,
     go,
+    goCharge,
     openLogin,
     closeLogin,
     sendInvite,

@@ -34,11 +34,14 @@ function PackCard({
   coins,
   priceYen,
   disabled,
+  recommended,
   onBuy,
 }: {
   coins: number
   priceYen: number
   disabled?: boolean
+  /** 0117: 「これを買えば、待たせている予約ができる」パック。 */
+  recommended?: boolean
   onBuy: () => void
 }) {
   const press = usePress(`3px 3px 0 ${C.shadowCol}`)
@@ -51,7 +54,7 @@ function PackCard({
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.55 : 1,
         background: C.white,
-        border: `1.5px solid ${C.border}`,
+        border: `1.5px solid ${recommended ? C.lime : C.border}`,
         borderRadius: 12,
         padding: 14,
         display: 'flex',
@@ -77,7 +80,9 @@ function PackCard({
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span style={{ fontSize: 16, color: C.ink }}>{coins.toLocaleString()} コイン</span>
-        <span style={{ fontSize: 10.5, color: C.muted }}>1コイン ≒ 1円</span>
+        <span style={{ fontSize: 10.5, color: recommended ? C.ink : C.muted }}>
+          {recommended ? 'これで、待っている予約ができます' : '1コイン ≒ 1円'}
+        </span>
       </div>
       {/* サポート料込みの総額を出す。ここでコイン価格だけを見せると、決済画面で
           初めて総額を知ることになり、申込前の価格表示として不十分になる。 */}
@@ -316,6 +321,18 @@ export default function Wallet({ flow }: { flow: Flow }) {
   const [error, setError] = useState<string | null>(null)
   const [soonestExpiry, setSoonestExpiry] = useState<string | null>(null)
 
+  /**
+   * 0117: 予約から「あと◯コイン」を持って来たとき、それを満たす
+   * いちばん小さいパックに印を付ける。
+   *
+   * **並べ替えはしない。** 順番が変わると、前に見た位置の記憶が効かなくなり、
+   * 意図しないパックを押させてしまう。印を付けるだけにとどめる。
+   */
+  const neededPackId =
+    flow.coinNeed != null
+      ? (packs.find((p) => p.coins >= flow.coinNeed!)?.id ?? null)
+      : null
+
   useEffect(() => {
     if (!isBackendConfigured || flow.userId === null) return
     let active = true
@@ -431,6 +448,28 @@ export default function Wallet({ flow }: { flow: Flow }) {
 
         {isBackendConfigured && <EarningsSection />}
 
+        {/* 0117: 予約から来たときだけ、何のために買うのかを画面の上で示す。
+            残高不足で弾かれたあと、パックの一覧の前で「いくら買えばいいのか」を
+            暗算させていた */}
+        {flow.coinNeed != null && flow.coinNeed > 0 && (
+          <div
+            style={{
+              background: C.avatarPink,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 8,
+              padding: '11px 13px',
+              fontSize: 12,
+              lineHeight: 1.7,
+              color: C.ink,
+            }}
+          >
+            予約にあと<b>{flow.coinNeed.toLocaleString()}コイン</b>足りません。
+            {neededPackId
+              ? '下の枠が付いたパックを購入すると、そのまま予約できます。'
+              : '複数のパックを組み合わせて購入してください。'}
+          </div>
+        )}
+
         <span style={{ fontSize: 13, color: C.ink }}>▶ コインを購入</span>
         {/* 0106・G19: 購入の前に示す説明。**畳まない・購入ボタンの直前に置く。**
             文面は content/purchasePolicy.ts が出典で、購入手続の直前に
@@ -537,6 +576,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
               coins={p.coins}
               priceYen={p.priceYen}
               disabled={redirecting}
+              recommended={p.id === neededPackId}
               onBuy={() => buy(p)}
             />
           ))}

@@ -2103,6 +2103,43 @@ export async function fetchHostsOpenAt(
   }))
 }
 
+/* ------------------------------------------------------------
+ * 0116: 検索に出さない相手(ブロックより軽い出口)
+ *
+ * ブロックと混ぜないこと。非表示は**相手に何の影響も与えない**——
+ * 予約もトークもこれまでどおりでき、相手には伝わらない。
+ * 運営の判断材料にもしない(好みの問題を安全の指標に混ぜないため)。
+ * ------------------------------------------------------------ */
+export type HiddenHost = {
+  hostUserId: string
+  nickname: string
+  avatarInitial: string
+  avatarColor: string
+  avatarUrl: string | null
+  createdAt: string
+}
+
+export async function setHostHidden(hostUserId: string, on: boolean): Promise<void> {
+  const { error } = await requireSupabase().rpc('set_host_hidden', {
+    p_host_id: hostUserId,
+    p_on: on,
+  })
+  if (error) throw error
+}
+
+export async function fetchHiddenHosts(): Promise<HiddenHost[]> {
+  const { data, error } = await requireSupabase().rpc('my_hidden_hosts', {})
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    hostUserId: r.host_id,
+    nickname: r.nickname,
+    avatarInitial: r.avatar_initial,
+    avatarColor: r.avatar_color,
+    avatarUrl: r.avatar_path ? avatarImageUrl(r.avatar_path) : null,
+    createdAt: r.created_at,
+  }))
+}
+
 /** 募集枠(曜日0=日〜6=土 × 時0〜23)。日本時間で解釈される。 */
 export type AvailabilitySlot = { weekday: number; hour: number }
 
