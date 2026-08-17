@@ -9,7 +9,12 @@ import { EmptyState, ErrorState, SkeletonCard } from '../components/States'
 import { searchUsers } from '../data/mock'
 import { isBackendConfigured } from '../lib/supabase'
 import SignedOutPrompt from '../components/SignedOutPrompt'
-import { fetchDiscoverableHosts, fetchHostsOpenAt, type OpenHost } from '../lib/queries'
+import {
+  fetchDiscoverableHosts,
+  fetchHostsOpenAt,
+  fetchHiddenHosts,
+  type OpenHost,
+} from '../lib/queries'
 import {
   TIME_WINDOWS,
   timeWindowRange,
@@ -28,6 +33,21 @@ import type { PresenceStatus } from '../lib/database.types'
 import { GAMES, coinsPer30, SEARCH_VERIFIED_FILTER as VERIFIED_FILTER, SEARCH_DEMO_FILTERS as DEMO_FILTERS, SEARCH_REAL_FILTERS as REAL_FILTERS } from '../flow'
 
 type Phase = 'loading' | 'results' | 'empty' | 'error'
+
+/**
+ * 並び替え(0116)。
+ *
+ * 既定の「おすすめ」はサーバが返した順=「また呼ばれているか」順で、
+ * これは触らない(未ログインの掲載カードと同じ並びである必要があるため)。
+ * 足したのは、その順のままだと**新人が永久に埋もれる**からで、
+ * 新人ランキングはホームにあるのに、探す画面からは辿れなかった。
+ */
+type SortKey = 'recommended' | 'cheap' | 'new'
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: 'recommended', label: 'おすすめ' },
+  { key: 'cheap', label: '料金が安い順' },
+  { key: 'new', label: '新人' },
+]
 
 /** デモのモックユーザーと実データのピタメイトを、カード表示用の共通形に正規化する。 */
 type DisplayCard = {
@@ -52,6 +72,8 @@ type DisplayCard = {
   statusUpdatedAt?: string | null
   /** 2回以上遊んだ人の数(0058)。 */
   repeatGuests?: number
+  /** 「新人」の並び替えに使う(0116)。表示はしない——scoreLabel が担当。 */
+  reviewCount?: number
 }
 
 function fromMock(u: (typeof searchUsers)[number]): DisplayCard {
@@ -85,6 +107,23 @@ export default function Search({ flow }: { flow: Flow }) {
   const [timeWindow, setTimeWindow] = useState<TimeWindowKey | null>(null)
   const [openHosts, setOpenHosts] = useState<Map<string, OpenHost> | null>(null)
   const [openLoading, setOpenLoading] = useState(false)
+  // 0116: 自分が「検索に出さない」にした相手
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
+  // 0116: 並び替え。既定はサーバの順(リピート実績)のまま
+  const [sort, setSort] = useState<SortKey>('recommended')
+
+  useEffect(() => {
+    if (!isBackendConfigured || flow.userId === null) return
+    let active = true
+    fetchHiddenHosts()
+      .then((rows) => active && setHidden(new Set(rows.map((r) => r.hostUserId))))
+      // 取れなくても一覧は出す。**出す方向に倒す**(消える側に倒すと、
+      // 通信の失敗が「その人が居なくなった」に見える)
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [flow.userId])
 
   /**
    * 選んだ範囲で予約を受けられる人を引く(0115)。
@@ -175,6 +214,7 @@ export default function Search({ flow }: { flow: Flow }) {
           statusText: h.statusText,
           statusUpdatedAt: h.statusUpdatedAt,
           repeatGuests: h.repeatGuests,
+          reviewCount: h.reviewCount,
         }))
         setRealCards(cards)
         setPhase(cards.length > 0 ? 'results' : 'empty')
@@ -192,12 +232,11 @@ export default function Search({ flow }: { flow: Flow }) {
   const allCards = isBackendConfigured ? (realCards ?? []) : searchUsers.map(fromMock)
 
   // 実データ時のみ、検索語・ゲーム・本人確認済みで実際に絞り込む
-  const cards = isBackendConfigured
+  const filtered = isBackendConfigured
     ? allCards.filter((c) => {
-        // 時間で絞っているあいだは、その範囲で予約できる人だけ。
-        // 並び順は変えない——`fetchDiscoverableHosts` の並びは未ログインの
-        // 掲載カードと揃える約束になっており、ここで組み替えると
-        // 「さっき見た人がいない」が起きる
+        // 0116: 自分が「検索に出さない」にした相手
+        if (hidden.has(c.key)) return false
+        // 時間で絞っているあいだは、その範囲で予約できる人だけ
         if (timeWindow && openHosts && !openHosts.has(c.key)) return false
         if (selected[VERIFIED_FILTER] && !c.verified) return false
         const activeGames = GAMES.filter((g) => selected[g])
@@ -210,6 +249,32 @@ export default function Search({ flow }: { flow: Flow }) {
         return true
       })
     : allCards
+
+  /**
+   * 並び替え(0116)。
+   *
+   * **「おすすめ」では並べ替えない。** `fetchDiscoverableHosts` の並びは
+   * 未ログインの掲載カードと揃える約束になっており(queries.ts の注記)、
+   * ここで組み替えると「さっき見た人がいない」が起きる。
+   * 明示的に選んだときだけ、その場で並べ替える。
+   */
+  const cards =
+    sort === 'recommended'
+      ? filtered
+      : [...filtered].sort((a, b) => {
+          if (sort === 'cheap') {
+            // 料金未設定は末尾へ(押しても予約できないので前に出す意味がない)
+            const ra = a.hourlyRate ?? Number.MAX_SAFE_INTEGER
+            const rb = b.hourlyRate ?? Number.MAX_SAFE_INTEGER
+            if (ra !== rb) return ra - rb
+          } else {
+            // レビューが少ない人ほど前へ。同数ならサーバの順を保つ
+            const ca = a.reviewCount ?? 0
+            const cb = b.reviewCount ?? 0
+            if (ca !== cb) return ca - cb
+          }
+          return filtered.indexOf(a) - filtered.indexOf(b)
+        })
 
   if (!signedIn) {
     // ピタメイトの検索はログインしてから。未ログインで叩くと認証エラーになり、
@@ -378,6 +443,35 @@ export default function Search({ flow }: { flow: Flow }) {
                   )
                 })}
             </div>
+            {/* 0116: 並び替え。既定の「おすすめ」ではサーバの順のまま */}
+            {isBackendConfigured && (
+              <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 10.5, color: C.muted, flex: 'none' }}>並び</span>
+                {SORTS.map((s) => {
+                  const sel = sort === s.key
+                  return (
+                    <span
+                      key={s.key}
+                      onClick={() => setSort(s.key)}
+                      {...clickable(() => setSort(s.key), `${s.label}に並べ替える`)}
+                      aria-pressed={sel}
+                      style={{
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        fontSize: 11.5,
+                        color: sel ? C.lime : C.ink,
+                        background: sel ? C.ink : C.white,
+                        border: `1.5px solid ${C.border}`,
+                        padding: '5px 11px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      {s.label}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
             <span
               onClick={() => flow.toggleSearchFilter(VERIFIED_FILTER)}
               {...clickable(() => flow.toggleSearchFilter(VERIFIED_FILTER), '本人確認済みのみで絞り込む')}

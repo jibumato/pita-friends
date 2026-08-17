@@ -5,7 +5,7 @@ import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader } from '../components/Ui'
 import { Coin, Clock, Shield } from '../components/Icon'
-import { BOOKING_DURATIONS, coinsForDuration, coinsPer30, durationLabel, discountedCoins } from '../flow'
+import { BOOKING_DURATIONS, COIN_PACKS, coinsForDuration, coinsPer30, durationLabel, discountedCoins } from '../flow'
 import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
@@ -116,6 +116,36 @@ export default function Booking({ flow }: { flow: Flow }) {
   const repeat = flow.bookingWhen === 'scheduled' && flow.bookingStartAt ? flow.bookingRepeat : 1
   const totalCost = cost + listCost * (repeat - 1)
   const short = flow.bookingInsufficient
+  const shortfall = Math.max(0, totalCost - flow.coinBalance)
+
+  /**
+   * 不足を満たす、いちばん小さいパック(0117)。
+   *
+   * サーバ側のパック定義(coin_packs)が権威だが、ここは**買う前の案内**なので
+   * コード側の定義で足りる。実際の金額はウォレットがサーバから引き直す。
+   *
+   * ※ ここから下は `if (!host) return null` より後ろなので、
+   *   **useMemo を使わないこと。** 条件付きでフックを呼ぶことになる。
+   *   どちらも要素が十数個の走査で、覚えておく価値のある計算ではない。
+   */
+  const neededPack = COIN_PACKS.find((p) => p.coins >= shortfall) ?? null
+
+  /**
+   * いまの残高で収まる、いちばん長い時間(0117)。
+   *
+   * 「買ってください」の前に「短くすれば、いま予約できます」を出す。
+   * まとめ予約をしているときは出さない——回数の掛け算が絡んで、
+   * 提示した額と実際の請求がずれやすい。
+   */
+  const affordable = (() => {
+    if (!short || repeat > 1) return null
+    for (const m of [...BOOKING_DURATIONS].sort((a, b) => b - a)) {
+      if (m >= flow.bookingDuration) continue
+      const c = discountedCoins(coinsForDuration(host.hourlyRate, m), discount)
+      if (c <= flow.coinBalance) return { minutes: m, cost: c }
+    }
+    return null
+  })()
 
   return (
     <Screen background={C.surface}>
@@ -450,10 +480,18 @@ export default function Booking({ flow }: { flow: Flow }) {
             }}
           >
             <span style={{ fontSize: 12, color: C.ink }}>
-              コインが不足しています(あと{totalCost - flow.coinBalance}コイン必要)
+              コインが不足しています（あと{shortfall}コイン必要）
             </span>
+            {/* 0117: いくら買えば足りるのかを暗算させない。
+                不足を満たす**いちばん小さいパック**を名指しする */}
+            {neededPack && (
+              <span style={{ fontSize: 10.5, color: C.body, lineHeight: 1.7 }}>
+                {neededPack.coins.toLocaleString()}コイン（{neededPack.priceYen.toLocaleString()}円）を購入すると、この予約ができます。
+              </span>
+            )}
             <span
-              onClick={() => flow.go('wallet')}
+              onClick={() => flow.goCharge(shortfall)}
+              {...clickable(() => flow.goCharge(shortfall), 'コインをチャージする')}
               style={{
                 cursor: 'pointer',
                 fontSize: 12,
@@ -466,6 +504,29 @@ export default function Booking({ flow }: { flow: Flow }) {
             >
               コインをチャージする ▶
             </span>
+            {/* 0117: 短くすれば**いま買わずに**予約できるなら、それを先に出す。
+                前払いの壁は金額の大小ではなく「踏み出す単位の大きさ」の問題 */}
+            {affordable && (
+              <span
+                onClick={() => flow.setBookingDuration(affordable.minutes)}
+                {...clickable(
+                  () => flow.setBookingDuration(affordable.minutes),
+                  `あそぶ時間を${affordable.minutes}分にする`,
+                )}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 11.5,
+                  color: C.ink,
+                  background: C.white,
+                  border: `1.5px solid ${C.border}`,
+                  textAlign: 'center',
+                  padding: '8px 0',
+                  borderRadius: 6,
+                }}
+              >
+                {affordable.minutes}分（{affordable.cost}コイン）なら、いまの残高で予約できます
+              </span>
+            )}
           </div>
         )}
 

@@ -704,6 +704,24 @@ export type Database = {
           open_starts: number
         }[]
       }
+      /**
+       * 0116: 検索に出さない相手の付け外し。ブロックと違い相手には何も起きない。
+       */
+      set_host_hidden: {
+        Args: { p_host_id: string; p_on: boolean }
+        Returns: void
+      }
+      my_hidden_hosts: {
+        Args: Record<string, never>
+        Returns: {
+          host_id: string
+          nickname: string
+          avatar_initial: string
+          avatar_color: string
+          avatar_path: string | null
+          created_at: string
+        }[]
+      }
       /** 0053: お気に入り登録の追加・解除。 */
       set_favorite: {
         Args: { p_host_id: string; p_on: boolean }

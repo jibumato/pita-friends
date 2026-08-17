@@ -402,7 +402,7 @@ export default function Settings({ flow }: { flow: Flow }) {
               />
             }
           />
-          <ListRow label="ブロックリスト" onClick={() => flow.go('blockList')} />
+          <ListRow label="ブロック・非表示にした人" onClick={() => flow.go('blockList')} />
           <ListRow label="安全センター" onClick={() => flow.go('safety')} />
           <MonitoringConsentRows />
           <ListRow

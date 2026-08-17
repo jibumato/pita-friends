@@ -16,6 +16,7 @@ import HostStatus from '../components/HostStatus'
 import RepeatBadge, { playMilestone } from '../components/RepeatBadge'
 import RebookSame from '../components/RebookSame'
 import FastReleaseToggle from '../components/FastReleaseToggle'
+import HideHostToggle from '../components/HideHostToggle'
 import { fetchMyFavorites, fetchPlayHistoryWith, type PlayHistoryWith } from '../lib/queries'
 import SignedOutPrompt from '../components/SignedOutPrompt'
 
@@ -585,6 +586,12 @@ export default function Profile({ flow }: { flow: Flow }) {
                 時間ぴったりに来てくれて、負けても空気が重くならない神フレでした！
               </p>
             </div>
+          )}
+
+          {/* 0116: 通報・ブロックより軽い出口。大半の人には不要な操作なので、
+              いちばん下・CTAから離れたところに置く */}
+          {useReal && targetId && targetId !== flow.userId && (
+            <HideHostToggle hostId={targetId} hostName={name || 'この相手'} />
           )}
         </div>
       )}
