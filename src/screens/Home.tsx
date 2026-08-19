@@ -13,6 +13,7 @@ import { useIsMobile } from '../hooks/useMediaQuery'
 import { isBackendConfigured } from '../lib/supabase'
 import { consumeHostIntent } from '../lib/hostIntent'
 import SignedOutPrompt from '../components/SignedOutPrompt'
+import ActivityStats from '../components/ActivityStats'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
 import type { PresenceStatus } from '../lib/database.types'
 import { coinsPer30, GAMES } from '../flow'
@@ -1173,6 +1174,11 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '14px 20px 24px',
         }}
       >
+        {/* 0117: 未ログインの人にだけ、動いている形跡を数で見せる。
+            ログイン後は自分のお気に入りや今あそべる人のほうが直接的なので出さない。
+            個人が特定できる情報は含まない(在席は 0052 の判断どおり出さない)。 */}
+        {!signedIn && <ActivityStats />}
+
         {/* 最上部: お気に入りのピタメイト。既にお気に入りがいる人は、ホームに来る目的が
             ほぼこれ一つなので、どの回遊導線よりも先に出す。 */}
         {signedIn && <FavoriteRow flow={flow} items={favorites} onChanged={() => favRef.current?.()} />}

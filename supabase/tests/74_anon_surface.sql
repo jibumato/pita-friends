@@ -31,7 +31,13 @@ declare
     'host_ranking(p_period text, p_limit integer)',
     'host_repeat_guests(p_host_id uuid)',
     'host_repeat_stats(p_host_ids uuid[])',
-    'public_host_cards(p_limit integer)'
+    'public_host_cards(p_limit integer)',
+    -- 賑わいの集計(0117)。返るのは**数だけ**で、行も個人も返さない。
+    -- 未ログインに見せる理由は、掲載一覧を見せているのに動いている形跡が
+    -- 何も無いと「誰もいないサイト」に見えるため。
+    -- **在席・空き枠はここにも入れない**(0052 の判断を崩さない)。
+    -- 数が小さいうちは null が返る(下限は運営が動かす)。
+    'public_activity_stats()'
   ];
   v_actual text[];
   v_extra text[];
