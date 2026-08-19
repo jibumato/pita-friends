@@ -2128,6 +2128,29 @@ const GIFT_ROWS: LimitRow[] = [
   },
 ]
 
+/**
+ * 0117: 未ログインの画面に出す集計の下限。
+ *
+ * **「今週2件」と出すのは、出さないより悪い。** 信頼を作るつもりが逆に働く。
+ * 公開直後は高めに置いて何も出さず、伸びてきたら下げる、という使い方をする。
+ */
+const ACTIVITY_ROWS: LimitRow[] = [
+  {
+    key: 'activityStatsMinPlays',
+    label: '今週の同行件数を出す下限',
+    unit: '件',
+    capKey: 'activityStatsMinPlays',
+    hint: 'この件数に届くまでは表示しません。0にすると常に出ます',
+  },
+  {
+    key: 'activityStatsMinHosts',
+    label: 'ピタメイト数・募集枠を出す下限',
+    unit: '人',
+    capKey: 'activityStatsMinHosts',
+    hint: 'この人数に届くまでは表示しません。0にすると常に出ます',
+  },
+]
+
 function LimitsTab() {
   const [limits, setLimits] = useState<PlatformLimits | null>(null)
   const [draft, setDraft] = useState<Record<string, string>>({})
@@ -2152,6 +2175,8 @@ function LimitsTab() {
           giftMaxRecvMonth: String(l.gift.maxRecvMonth),
           giftMaxPairMonth: String(l.gift.maxPairMonth),
           giftWindowDays: String(l.gift.windowDays),
+          activityStatsMinPlays: String(l.activityStats.minPlays),
+          activityStatsMinHosts: String(l.activityStats.minHosts),
         })
       })
       .catch((e) => setErr(e instanceof Error ? e.message : '読み込めませんでした'))
@@ -2173,6 +2198,8 @@ function LimitsTab() {
       giftMaxRecvMonth: limits.gift.maxRecvMonth,
       giftMaxPairMonth: limits.gift.maxPairMonth,
       giftWindowDays: limits.gift.windowDays,
+      activityStatsMinPlays: limits.activityStats.minPlays,
+      activityStatsMinHosts: limits.activityStats.minHosts,
     }
     for (const [k, v] of Object.entries(draft)) {
       const n = Number(v)
@@ -2266,6 +2293,17 @@ function LimitsTab() {
         ありがとうギフトの上限（規約 第7条の2）
       </span>
       {rows(GIFT_ROWS)}
+
+      <span style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>
+        未ログインの画面に出す集計（0117）
+      </span>
+      {rows(ACTIVITY_ROWS)}
+      <Note>
+        出しているのは<b style={{ color: C.ink }}>個人を特定できない数だけ</b>です。
+        誰が居るか・誰が空いているかは、ここを0にしても出ません
+        （未ログインに在席を出さないのは、付きまといを防ぐための判断です）。
+      </Note>
+
       <Note>
         ギフトの「相手はプレイした人に限る」「贈り合いの禁止」「原資は購入コインのみ」
         「チャージから24時間は贈れない」「受け取りから7日は換金できない」は

@@ -18,6 +18,7 @@ import {
   formatStartRange,
   MIN_LEAD_MINUTES,
   MAX_LEAD_DAYS,
+  NEXT_STEPS,
 } from '../content/bookingPolicy'
 
 /**
@@ -594,6 +595,27 @@ export default function Booking({ flow }: { flow: Flow }) {
         </div>
       </div>
       <div style={{ padding: '12px 20px 26px', background: C.white, borderTop: `1.5px solid ${C.border}` }}>
+        {/* 0117: 押す前に「このあと何が起きるか」を出す。
+            承諾を待つ画面(BookingRequested)に同じことは書いてあるが、
+            **押したあとに読むのと、押す前に読むのとでは別物。**
+            初めての人が止まるのは、押す直前の一瞬。 */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+            marginBottom: 10,
+            fontSize: 10.5,
+            lineHeight: 1.7,
+            color: C.muted,
+          }}
+        >
+          {NEXT_STEPS.map((line, i) => (
+            <span key={i}>
+              <span style={{ color: C.lavender }}>{i + 1}.</span> {line}
+            </span>
+          ))}
+        </div>
         <div
           className="pita-press"
           onClick={flow.confirmBooking}

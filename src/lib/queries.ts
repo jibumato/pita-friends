@@ -2140,6 +2140,34 @@ export async function fetchHiddenHosts(): Promise<HiddenHost[]> {
   }))
 }
 
+/* ------------------------------------------------------------
+ * 0117: 未ログインにも出せる集計
+ *
+ * 返るのは数だけ。**誰が居るか・誰が空いているかは含まない**
+ * (0052 が未ログインに在席を出さないと決めた判断をここで崩さない)。
+ * 下限を下回る項目は null で返り、画面はそれを描かない。
+ * ------------------------------------------------------------ */
+export type ActivityStats = {
+  /** 掲載中のピタメイトが挙げているゲームの種類。下限をかけない。 */
+  gameCount: number
+  hostCount: number | null
+  playsThisWeek: number | null
+  openSlots: number | null
+}
+
+export async function fetchActivityStats(): Promise<ActivityStats> {
+  const { data, error } = await requireSupabase().rpc('public_activity_stats', {})
+  if (error) throw error
+  const r = (data ?? {}) as Record<string, number | null>
+  const opt = (v: number | null | undefined) => (typeof v === 'number' ? v : null)
+  return {
+    gameCount: Number(r.gameCount ?? 0),
+    hostCount: opt(r.hostCount),
+    playsThisWeek: opt(r.playsThisWeek),
+    openSlots: opt(r.openSlots),
+  }
+}
+
 /** 募集枠(曜日0=日〜6=土 × 時0〜23)。日本時間で解釈される。 */
 export type AvailabilitySlot = { weekday: number; hour: number }
 
@@ -3669,6 +3697,11 @@ export type PlatformLimits = {
     maxPairMonth: number
     windowDays: number
   }
+  /** 0117: 未ログインに出す集計の下限。下回る項目は公開しない。 */
+  activityStats: {
+    minPlays: number
+    minHosts: number
+  }
   caps: Record<string, number>
   updatedAt: string | null
 }
@@ -3685,6 +3718,8 @@ export type PlatformLimitKey =
   | 'giftMaxRecvMonth'
   | 'giftMaxPairMonth'
   | 'giftWindowDays'
+  | 'activityStatsMinPlays'
+  | 'activityStatsMinHosts'
 
 export async function fetchPlatformLimits(): Promise<PlatformLimits> {
   const { data, error } = await requireSupabase().rpc('admin_platform_limits', {})
@@ -3705,6 +3740,10 @@ export async function fetchPlatformLimits(): Promise<PlatformLimits> {
       maxRecvMonth: n(r.gift, 'maxRecvMonth'),
       maxPairMonth: n(r.gift, 'maxPairMonth'),
       windowDays: n(r.gift, 'windowDays'),
+    },
+    activityStats: {
+      minPlays: n(r.activityStats, 'minPlays'),
+      minHosts: n(r.activityStats, 'minHosts'),
     },
     caps: (r.caps ?? {}) as Record<string, number>,
     updatedAt: (r.updatedAt as unknown as string) ?? null,

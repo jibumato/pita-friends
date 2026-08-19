@@ -825,6 +825,8 @@ export type Database = {
         Returns: string
       }
       admin_platform_limits: { Args: Record<string, never>; Returns: unknown }
+      /** 0117: 未ログインにも出せる集計(個人を特定できる情報は含まない)。 */
+      public_activity_stats: { Args: Record<string, never>; Returns: unknown }
       /** 0101: 制限値を変える(運営)。変えるキーだけを渡す部分更新。 */
       admin_update_platform_limits: {
         Args: { p_reason: string; p_values: unknown }
