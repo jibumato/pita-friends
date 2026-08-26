@@ -270,6 +270,33 @@ limit 5;
 3DSの指定(`payment_method_options.card`)はカードにしか効かないので、
 PayPay を足しても既存のカード決済の挙動は変わりません。
 
+### ★未設定のままにしないこと（2026-08-26 追記）
+
+`STRIPE_PAYMENT_METHODS` が未設定だと、**Stripe ダッシュボードの設定がそのまま
+出ます。** 既定では自動で多くの手段が有効になるため、サンドボックスの決済画面に
+カード・PayPay・Google Pay・Apple Pay・Link に加えて **WeChat Pay・Alipay** まで
+並ぶことがあります（実際に並びました）。
+
+コインの付与は決済手段によらず動くので**壊れはしません**
+（`payment_method` は自由記述で、webhook が `payment_method_details.type` を
+そのまま書きます）。問題は次の3点です。
+
+| 論点 | 中身 |
+|---|---|
+| **3DS** | `payment_method_options.card` は**カードにしか効きません**。Apple Pay / Google Pay / Link は実質カードなので対象ですが、ウォレット系（PayPay・WeChat・Alipay）は通りません。チャージバック防御の中心が3DSなので、どの手段にそれが無いのかを把握しておくこと（※これらの手段にそもそも異議申立てがあるかは、Stripeの仕様を一次情報で確認） |
+| **居住地** | 規約 第3条3項は「日本国内に居住する個人に限る」で、`0081` が本人確認の提出を止めます。**WeChat Pay・Alipay は中国本土のウォレット**で、その前提と噛み合いません |
+| **料率** | 分別管理規程 第7条1号の試算は **Stripe のカード 3.6%** を前提に「サポート料5% ＞ 実質負担3.78%」で成り立っています。**料率の高い手段が混ざると、分別口座への実着金が前受金を下回り、1号の補填義務が発動します。** 足すなら、その手段の料率を先に確認すること |
+
+**当面の推奨は `card,paypay` です。**
+
+```bash
+supabase secrets set STRIPE_PAYMENT_METHODS=card,paypay
+supabase functions deploy create-checkout-session
+```
+
+明示しておくと、**ダッシュボードを触ったときに決済手段が黙って変わることが
+なくなります。** 増やすときは、上の3点を確認してから足してください。
+
 ### ⚠️ PayPay を足すと弱くなるもの: 自作自演の検知(0080・E-9)
 
 **カードのフィンガープリントは PayPay 払いには存在しません。**
