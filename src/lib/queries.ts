@@ -515,7 +515,7 @@ export async function fetchChatThreads(): Promise<ChatThread[]> {
     sb.from('profile_trust_stats').select('user_id, is_verified').in('user_id', partnerIds),
     sb
       .from('messages')
-      .select('promise_id, body, created_at, sender_id')
+      .select('promise_id, body, created_at, sender_id, deleted_at')
       .in('promise_id', promiseIds)
       .order('created_at', { ascending: false }),
     sb.from('message_reads').select('promise_id, last_read_at').eq('user_id', me).in('promise_id', promiseIds),
@@ -524,10 +524,16 @@ export async function fetchChatThreads(): Promise<ChatThread[]> {
   const sMap = new Map((stats ?? []).map((s) => [s.user_id, s]))
   const readMap = new Map((reads ?? []).map((r) => [r.promise_id, r.last_read_at]))
 
-  // 各promiseの最新メッセージ(降順で取得済みなので最初の1件)
+  // 各promiseの最新メッセージ(降順で取得済みなので最初の1件)。
+  // 0118: 運営が削除したものは本文が空で届くので、一覧では跡が分かる文言に置く
+  // (空欄のままだと「送信に失敗した」ように見える)
   const lastByPromise = new Map<string, { body: string; created_at: string }>()
   for (const m of lastMsgs ?? []) {
-    if (!lastByPromise.has(m.promise_id)) lastByPromise.set(m.promise_id, m)
+    if (lastByPromise.has(m.promise_id)) continue
+    lastByPromise.set(m.promise_id, {
+      body: m.deleted_at ? '（運営が削除しました）' : m.body,
+      created_at: m.created_at,
+    })
   }
   // 未読数(自分が送っていない、last_read_at以降のメッセージ数)をカウント
   const unreadByPromise = new Map<string, number>()
@@ -608,13 +614,20 @@ export type ChatMessage = {
   senderId: string
   body: string
   createdAt: string
+  /**
+   * 0118: 運営が削除した日時。入っていると `body` は空で届く
+   * （本文はDBから消えていて、画面で隠しているのではない）。
+   * 画面は行を消さずに「削除されました」を出す——黙って消えると、
+   * 受け取った側は会話が飛んで混乱し、送った側は理由が分からない。
+   */
+  deletedAt: string | null
 }
 
 /** 指定promiseのメッセージを古い順に取得する。 */
 export async function fetchMessages(promiseId: string): Promise<ChatMessage[]> {
   const { data, error } = await requireSupabase()
     .from('messages')
-    .select('id, promise_id, sender_id, body, created_at')
+    .select('id, promise_id, sender_id, body, created_at, deleted_at')
     .eq('promise_id', promiseId)
     .order('created_at', { ascending: true })
   if (error) throw error
@@ -624,7 +637,80 @@ export async function fetchMessages(promiseId: string): Promise<ChatMessage[]> {
     senderId: m.sender_id,
     body: m.body,
     createdAt: m.created_at,
+    deletedAt: m.deleted_at ?? null,
   }))
+}
+
+/* ------------------------------------------------------------
+ * 0118: トークのメッセージを運営が削除する
+ *
+ * 通報は受け取れるのに消す手段が無い、という状態を塞ぐもの。
+ * **中身を読むと admin_actions に記録が残る**(0068 と同じ扱い)。
+ * ------------------------------------------------------------ */
+export type AdminThread = {
+  promiseId: string
+  otherId: string
+  otherNickname: string
+  messageCount: number
+  lastMessageAt: string | null
+  status: string
+}
+
+export type AdminThreadMessage = {
+  id: string
+  senderId: string
+  senderNickname: string
+  body: string
+  createdAt: string
+  deletedAt: string | null
+  deletedReason: string | null
+}
+
+/** その人が参加しているトークの一覧。中身は返らない(件数と最終発言だけ)。 */
+export async function fetchAdminUserThreads(userId: string, limit = 30): Promise<AdminThread[]> {
+  const { data, error } = await requireSupabase().rpc('admin_user_threads', {
+    p_user_id: userId,
+    p_limit: limit,
+  })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    promiseId: r.promise_id,
+    otherId: r.other_id,
+    otherNickname: r.other_nickname,
+    messageCount: r.message_count,
+    lastMessageAt: r.last_message_at,
+    status: r.status,
+  }))
+}
+
+/** ⚠️ トークの中身。**呼ぶと閲覧の記録が残る。** 必要なときだけ呼ぶこと。 */
+export async function fetchAdminThreadMessages(
+  promiseId: string,
+  limit = 200,
+): Promise<AdminThreadMessage[]> {
+  const { data, error } = await requireSupabase().rpc('admin_thread_messages', {
+    p_promise_id: promiseId,
+    p_limit: limit,
+  })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    senderId: r.sender_id,
+    senderNickname: r.sender_nickname,
+    body: r.body,
+    createdAt: r.created_at,
+    deletedAt: r.deleted_at,
+    deletedReason: r.deleted_reason,
+  }))
+}
+
+/** メッセージを削除する。理由は必須で、送信者に理由つきで通知が飛ぶ。 */
+export async function adminRemoveMessage(messageId: string, reason: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_remove_message', {
+    p_message_id: messageId,
+    p_reason: reason,
+  })
+  if (error) throw error
 }
 
 /** メッセージを送信する。 */
@@ -932,18 +1018,38 @@ export async function markThreadRead(promiseId: string): Promise<void> {
   if (error) throw error
 }
 
-/** 指定promiseの新着メッセージをリアルタイム購読する。戻り値の関数で解除する。 */
-export function subscribeToMessages(promiseId: string, onInsert: (m: ChatMessage) => void): () => void {
+/**
+ * 指定promiseのメッセージをリアルタイム購読する。戻り値の関数で解除する。
+ *
+ * **INSERT だけでなく UPDATE も見る(0118)。** 運営が削除したときに、
+ * 開いたままの画面へ反映させるため。削除は「相手の画面から消す」のが
+ * 目的なので、次に開くまで残っていては効き目が薄い。
+ * 呼び出し側は id で置き換える(同じ形が2回来ても壊れない)。
+ */
+export function subscribeToMessages(
+  promiseId: string,
+  onMessage: (m: ChatMessage) => void,
+): () => void {
   const sb = requireSupabase()
+  const row = (r: Record<string, unknown>): ChatMessage => ({
+    id: String(r.id),
+    promiseId: String(r.promise_id),
+    senderId: String(r.sender_id),
+    body: String(r.body ?? ''),
+    createdAt: String(r.created_at),
+    deletedAt: (r.deleted_at as string | null) ?? null,
+  })
   const channel = sb
     .channel(`messages:${promiseId}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages', filter: `promise_id=eq.${promiseId}` },
-      (payload) => {
-        const m = payload.new as { id: string; promise_id: string; sender_id: string; body: string; created_at: string }
-        onInsert({ id: m.id, promiseId: m.promise_id, senderId: m.sender_id, body: m.body, createdAt: m.created_at })
-      },
+      (payload) => onMessage(row(payload.new as Record<string, unknown>)),
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'messages', filter: `promise_id=eq.${promiseId}` },
+      (payload) => onMessage(row(payload.new as Record<string, unknown>)),
     )
     .subscribe()
   return () => {

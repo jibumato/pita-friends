@@ -378,8 +378,11 @@ export type Database = {
           id: string
           promise_id: string
           sender_id: string
+          /** 0118: 運営が削除すると空になる(本文はDBから消える)。 */
           body: string
           created_at: string
+          deleted_at: string | null
+          deleted_reason: string | null
         }
         Insert: {
           id?: string
@@ -827,6 +830,36 @@ export type Database = {
       admin_platform_limits: { Args: Record<string, never>; Returns: unknown }
       /** 0117: 未ログインにも出せる集計(個人を特定できる情報は含まない)。 */
       public_activity_stats: { Args: Record<string, never>; Returns: unknown }
+      /** 0118: その人が参加しているトークの一覧(運営)。中身は返さない。 */
+      admin_user_threads: {
+        Args: { p_user_id: string; p_limit?: number }
+        Returns: {
+          promise_id: string
+          other_id: string
+          other_nickname: string
+          message_count: number
+          last_message_at: string | null
+          status: string
+        }[]
+      }
+      /** 0118: トークの中身(運営)。**閲覧すると admin_actions に記録が残る。** */
+      admin_thread_messages: {
+        Args: { p_promise_id: string; p_limit?: number }
+        Returns: {
+          id: string
+          sender_id: string
+          sender_nickname: string
+          body: string
+          created_at: string
+          deleted_at: string | null
+          deleted_reason: string | null
+        }[]
+      }
+      /** 0118: メッセージを削除する(理由必須)。 */
+      admin_remove_message: {
+        Args: { p_message_id: string; p_reason: string }
+        Returns: void
+      }
       /** 0101: 制限値を変える(運営)。変えるキーだけを渡す部分更新。 */
       admin_update_platform_limits: {
         Args: { p_reason: string; p_values: unknown }
