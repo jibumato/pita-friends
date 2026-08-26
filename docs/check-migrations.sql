@@ -104,7 +104,42 @@ with expected(seq, migration, kind, obj, needle) as (
     (94, '0094_close_anon_function_grants', 'noexec', '_booking_slot_conflict(uuid, timestamptz, int, uuid, text[])', null),
     -- Edge Function だけが呼ぶ関数を利用者から閉じる(コインの付与が開いていた)
     (95, '0095_close_server_only_functions', 'noexec',
-         'credit_coins_for_purchase(uuid, text, int, int, int, text, text)', null)
+         'credit_coins_for_purchase(uuid, text, int, int, int, text, text)', null),
+
+    -- ── 2026-08-26 追記(0096〜0117)。目印は、全適用済みのローカルDBで
+    --    1本ずつ「実際に残っているか」を確認して選んでいます。
+    --    ★関数を目印にするときは、**後のマイグレーションで差し替わっても
+    --      残る文字列**を選ぶこと。番号のコメントは書き換えで消えます
+    --      (0102 の '0102' は 0109 の差し替えで消えていました)。
+    --      消えるものしか無い場合は、関数名そのものを needle にして
+    --      「その関数が存在するか」を見ています。
+    (96,  '0096_payment_method_on_purchase', 'column',  'coin_purchases',      'payment_method'),
+    (97,  '0097_gift_as_two_obligations',    'funcsrc', 'send_gift',           '0097'),
+    (98,  '0098_withdrawal_payout_and_suspension_coins',
+                                             'column',  'profiles',            'payout_claim_deadline'),
+    (99,  '0099_offset_time_limit',          'funcsrc', 'chargeback_offset_preview', '0099'),
+    (100, '0100_final_payout_must_be_whole', 'funcsrc', 'request_bank_payout', '0100'),
+    (101, '0101_operator_adjustable_limits', 'column',  'platform_pricing',    'gift_max_per_tx'),
+    (102, '0102_played_then_cancelled',      'funcsrc', 'cancel_booking',      '0102'),
+    (103, '0103_fee_on_actual_earnings',     'funcsrc', '_apply_booking_fee',  '0103'),
+    -- 0104 は「番号」が本体に残らないので、緩めた対象の列名を目印にする
+    (104, '0104_webhook_purchase_records',   'funcsrc', '_purchase_immutable', 'payment_method'),
+    -- 0105 が作る2関数のうち、後で差し替わらないほう
+    (105, '0105_business_kpis',              'funcsrc', 'admin_payment_method_mix', 'admin_payment_method_mix'),
+    (106, '0106_dispute_evidence',           'table',   'purchase_evidence',   null),
+    (107, '0107_earned_survives_window',     'column',  'account_withdrawals', 'payout_window_closed_at'),
+    (108, '0108_suspension_paid_coins_limited', 'funcsrc', 'admin_suspend_account', '0108'),
+    (109, '0109_refund_expiry_preview',      'funcsrc', 'my_booking_refund_quote', '0109'),
+    (110, '0110_gift_share_metric',          'funcsrc', 'admin_business_kpis', '0110'),
+    -- ★0111 は 0110 の作った集計窓のTZずれを直したもの。日付変数の導入が目印
+    --   (0110 の版は ::timestamptz で、この変数を持たない)
+    (111, '0111_kpi_window_timezone_fix',    'funcsrc', 'admin_business_kpis', 'v_from_d'),
+    (112, '0112_admin_board_moderation',     'funcsrc', 'admin_remove_board_post', 'admin_remove_board_post'),
+    (113, '0113_board_is_for_hosts',         'column',  'bookings',            'from_board_post_id'),
+    (114, '0114_board_time_window',          'column',  'board_posts',         'window_start'),
+    (115, '0115_hosts_open_at',              'funcsrc', 'hosts_open_at',       'hosts_open_at'),
+    (116, '0116_hidden_hosts',               'table',   'hidden_hosts',        null),
+    (117, '0117_public_activity_stats',      'column',  'platform_pricing',    'activity_stats_min_plays')
 ),
 checked as (
   select
@@ -253,7 +288,42 @@ with expected(seq, migration, kind, obj, needle) as (
     (94, '0094_close_anon_function_grants', 'noexec', '_booking_slot_conflict(uuid, timestamptz, int, uuid, text[])', null),
     -- Edge Function だけが呼ぶ関数を利用者から閉じる(コインの付与が開いていた)
     (95, '0095_close_server_only_functions', 'noexec',
-         'credit_coins_for_purchase(uuid, text, int, int, int, text, text)', null)
+         'credit_coins_for_purchase(uuid, text, int, int, int, text, text)', null),
+
+    -- ── 2026-08-26 追記(0096〜0117)。目印は、全適用済みのローカルDBで
+    --    1本ずつ「実際に残っているか」を確認して選んでいます。
+    --    ★関数を目印にするときは、**後のマイグレーションで差し替わっても
+    --      残る文字列**を選ぶこと。番号のコメントは書き換えで消えます
+    --      (0102 の '0102' は 0109 の差し替えで消えていました)。
+    --      消えるものしか無い場合は、関数名そのものを needle にして
+    --      「その関数が存在するか」を見ています。
+    (96,  '0096_payment_method_on_purchase', 'column',  'coin_purchases',      'payment_method'),
+    (97,  '0097_gift_as_two_obligations',    'funcsrc', 'send_gift',           '0097'),
+    (98,  '0098_withdrawal_payout_and_suspension_coins',
+                                             'column',  'profiles',            'payout_claim_deadline'),
+    (99,  '0099_offset_time_limit',          'funcsrc', 'chargeback_offset_preview', '0099'),
+    (100, '0100_final_payout_must_be_whole', 'funcsrc', 'request_bank_payout', '0100'),
+    (101, '0101_operator_adjustable_limits', 'column',  'platform_pricing',    'gift_max_per_tx'),
+    (102, '0102_played_then_cancelled',      'funcsrc', 'cancel_booking',      '0102'),
+    (103, '0103_fee_on_actual_earnings',     'funcsrc', '_apply_booking_fee',  '0103'),
+    -- 0104 は「番号」が本体に残らないので、緩めた対象の列名を目印にする
+    (104, '0104_webhook_purchase_records',   'funcsrc', '_purchase_immutable', 'payment_method'),
+    -- 0105 が作る2関数のうち、後で差し替わらないほう
+    (105, '0105_business_kpis',              'funcsrc', 'admin_payment_method_mix', 'admin_payment_method_mix'),
+    (106, '0106_dispute_evidence',           'table',   'purchase_evidence',   null),
+    (107, '0107_earned_survives_window',     'column',  'account_withdrawals', 'payout_window_closed_at'),
+    (108, '0108_suspension_paid_coins_limited', 'funcsrc', 'admin_suspend_account', '0108'),
+    (109, '0109_refund_expiry_preview',      'funcsrc', 'my_booking_refund_quote', '0109'),
+    (110, '0110_gift_share_metric',          'funcsrc', 'admin_business_kpis', '0110'),
+    -- ★0111 は 0110 の作った集計窓のTZずれを直したもの。日付変数の導入が目印
+    --   (0110 の版は ::timestamptz で、この変数を持たない)
+    (111, '0111_kpi_window_timezone_fix',    'funcsrc', 'admin_business_kpis', 'v_from_d'),
+    (112, '0112_admin_board_moderation',     'funcsrc', 'admin_remove_board_post', 'admin_remove_board_post'),
+    (113, '0113_board_is_for_hosts',         'column',  'bookings',            'from_board_post_id'),
+    (114, '0114_board_time_window',          'column',  'board_posts',         'window_start'),
+    (115, '0115_hosts_open_at',              'funcsrc', 'hosts_open_at',       'hosts_open_at'),
+    (116, '0116_hidden_hosts',               'table',   'hidden_hosts',        null),
+    (117, '0117_public_activity_stats',      'column',  'platform_pricing',    'activity_stats_min_plays')
 ),
 checked as (
   select e.seq, e.migration,
