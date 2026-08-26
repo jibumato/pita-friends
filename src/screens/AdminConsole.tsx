@@ -22,7 +22,13 @@ import Screen from '../components/Screen'
 import StatusBar from '../components/StatusBar'
 import { SubHeader } from '../components/Ui'
 import { isBackendConfigured } from '../lib/supabase'
+import { clickable } from '../hooks/clickable'
 import {
+  fetchAdminUserThreads,
+  fetchAdminThreadMessages,
+  adminRemoveMessage,
+  type AdminThread,
+  type AdminThreadMessage,
   fetchAdminSummary,
   fetchAdminReports,
   fetchAdminHeldBookings,
@@ -93,6 +99,7 @@ import {
 type Tab =
   | 'summary'
   | 'reports'
+  | 'talks'
   | 'board'
   | 'holds'
   | 'payouts'
@@ -111,6 +118,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'summary', label: 'やること' },
   { key: 'holds', label: '保留' },
   { key: 'reports', label: '通報' },
+  { key: 'talks', label: 'トーク' },
   { key: 'board', label: '募集' },
   { key: 'payouts', label: '換金' },
   { key: 'requests', label: '請求' },
@@ -134,6 +142,8 @@ function badgeColor(key: string, n: number): string {
 
 export default function AdminConsole({ flow }: { flow: Flow }) {
   const [tab, setTab] = useState<Tab>('summary')
+  // 0118: 通報から「この人のトークを見る」で移るときに、相手のIDを持っていく
+  const [talkUserId, setTalkUserId] = useState('')
   const [summary, setSummary] = useState<AdminSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -205,7 +215,16 @@ export default function AdminConsole({ flow }: { flow: Flow }) {
 
         {tab === 'summary' && <SummaryTab summary={summary} onGo={setTab} onReload={loadSummary} />}
         {tab === 'holds' && <HoldsTab onChanged={loadSummary} />}
-        {tab === 'reports' && <ReportsTab onChanged={loadSummary} />}
+        {tab === 'reports' && (
+          <ReportsTab
+            onChanged={loadSummary}
+            onOpenTalks={(userId) => {
+              setTalkUserId(userId)
+              setTab('talks')
+            }}
+          />
+        )}
+        {tab === 'talks' && <TalksTab userId={talkUserId} onUserId={setTalkUserId} />}
         {tab === 'board' && <BoardTab />}
         {tab === 'payouts' && <PayoutsTab onChanged={loadSummary} />}
         {tab === 'requests' && <RequestsTab onChanged={loadSummary} />}
@@ -588,7 +607,13 @@ const CATEGORY_LABEL: Record<string, string> = {
   other: 'その他',
 }
 
-function ReportsTab({ onChanged }: { onChanged: () => void }) {
+function ReportsTab({
+  onChanged,
+  onOpenTalks,
+}: {
+  onChanged: () => void
+  onOpenTalks: (userId: string) => void
+}) {
   const { items, error, reload } = useList<AdminReport>(() => fetchAdminReports('open'), [])
   const [openId, setOpenId] = useState<string | null>(null)
   const [note, setNote] = useState('')
@@ -637,6 +662,22 @@ function ReportsTab({ onChanged }: { onChanged: () => void }) {
             {r.reporterName} → <b style={{ color: C.ink }}>{r.reportedName}</b>
             （深刻度 {r.severity} / この人への通報は通算{r.reportedReportCount}件 / マナー{' '}
             {r.reportedManner ?? '—'}）
+          </span>
+          {/* 0118: 通報は「人」に対するもので、どのメッセージかを指せない。
+              下のスナップショットは通報時点の写しなので、**いま残っている
+              文言を消すにはトークを開く必要がある** */}
+          <span
+            onClick={() => onOpenTalks(r.reportedId)}
+            {...clickable(() => onOpenTalks(r.reportedId), `${r.reportedName}さんのトークを見る`)}
+            style={{
+              cursor: 'pointer',
+              alignSelf: 'flex-start',
+              fontSize: 10.5,
+              color: C.lavender,
+              textDecoration: 'underline',
+            }}
+          >
+            この人のトークを見る → 削除する
           </span>
           {r.messageSnapshot != null && (
             <pre
@@ -709,6 +750,221 @@ function ReportsTab({ onChanged }: { onChanged: () => void }) {
             </>
           ) : (
             <Btn onClick={() => setOpenId(r.id)}>審査する</Btn>
+          )}
+        </Card>
+      ))}
+    </>
+  )
+}
+
+// ------------------------------------------------------------
+// トーク(0118)
+//
+// **通報は受け取れるのに、中身を消す手段が無かった。** ここがその手段。
+//
+// ⚠️ スレッドを開くと `admin_actions` に閲覧の記録が残る(0068と同じ)。
+//    運営がトークを読める仕組みを作る以上、記録の無い閲覧を作らない。
+//    だから一覧(件数と最終発言だけ)と中身は関数を分けてあり、
+//    **開いたときにだけ記録が付く。**
+// ------------------------------------------------------------
+function TalksTab({ userId, onUserId }: { userId: string; onUserId: (v: string) => void }) {
+  const [threads, setThreads] = useState<AdminThread[] | null>(null)
+  const [openThread, setOpenThread] = useState<string | null>(null)
+  const [messages, setMessages] = useState<AdminThreadMessage[] | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const loadThreads = useCallback(() => {
+    if (!isBackendConfigured || !userId.trim()) return
+    setErr(null)
+    setOpenThread(null)
+    setMessages(null)
+    fetchAdminUserThreads(userId.trim())
+      .then(setThreads)
+      .catch((e) => setErr(e instanceof Error ? e.message : '読み込めませんでした'))
+  }, [userId])
+
+  // 通報タブから相手のIDを持って来たときは、そのまま引く
+  useEffect(() => {
+    if (userId.trim()) loadThreads()
+  }, [userId, loadThreads])
+
+  const openMessages = useCallback((promiseId: string) => {
+    setErr(null)
+    setOpenThread(promiseId)
+    setMessages(null)
+    fetchAdminThreadMessages(promiseId)
+      .then(setMessages)
+      .catch((e) => setErr(e instanceof Error ? e.message : '読み込めませんでした'))
+  }, [])
+
+  const remove = async (messageId: string) => {
+    if (busy) return
+    setBusy(true)
+    setErr(null)
+    try {
+      await adminRemoveMessage(messageId, reason)
+      setReason('')
+      setRemovingId(null)
+      if (openThread) openMessages(openThread)
+    } catch (e) {
+      const m = e instanceof Error ? e.message : ''
+      setErr(
+        m.includes('REASON_REQUIRED')
+          ? '理由を入れてください(送信者への通知に載ります)'
+          : m || '削除できませんでした',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <Note>
+        利用者IDでトークを探します。通報タブの「この人のトークを見る」からも来られます。
+        <b style={{ color: C.ink }}>スレッドを開くと、中身を見たことが操作記録に残ります。</b>
+      </Note>
+
+      <div style={{ display: 'flex', gap: 6 }}>
+        <Field value={userId} onChange={onUserId} placeholder="利用者ID(UUID)" />
+        <Btn disabled={!userId.trim()} onClick={loadThreads}>
+          探す
+        </Btn>
+      </div>
+
+      {err && <ErrorBox>{err}</ErrorBox>}
+
+      {threads !== null && threads.length === 0 && <Note>この人のトークはありません。</Note>}
+
+      {threads?.map((t) => (
+        <Card key={t.promiseId}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontSize: 12.5, color: C.ink }}>相手: {t.otherNickname}</span>
+            <span style={{ fontSize: 10.5, color: C.muted, flex: 'none' }}>
+              {t.lastMessageAt ? jst(t.lastMessageAt) : '発言なし'}
+            </span>
+          </div>
+          <span style={{ fontSize: 10.5, color: C.muted }}>
+            {t.messageCount}件 / 状態 {t.status}
+          </span>
+
+          {openThread === t.promiseId ? (
+            <>
+              {messages === null ? (
+                <Note>読み込み中…</Note>
+              ) : messages.length === 0 ? (
+                <Note>メッセージはありません。</Note>
+              ) : (
+                <div
+                  className="pita-scroll"
+                  style={{
+                    maxHeight: 320,
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  {messages.map((m) => (
+                    <div
+                      key={m.id}
+                      style={{
+                        background: m.deletedAt ? C.surface : C.white,
+                        border: `1.5px ${m.deletedAt ? 'dashed' : 'solid'} ${C.divider}`,
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <span style={{ fontSize: 10, color: C.muted }}>
+                        {m.senderNickname} · {jst(m.createdAt)}
+                      </span>
+                      {m.deletedAt ? (
+                        <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
+                          削除済み({jst(m.deletedAt)})／理由: {m.deletedReason ?? '(なし)'}
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: 11.5,
+                            color: C.ink,
+                            lineHeight: 1.6,
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-all',
+                          }}
+                        >
+                          {m.body}
+                        </span>
+                      )}
+
+                      {!m.deletedAt &&
+                        (removingId === m.id ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <Field
+                              value={reason}
+                              onChange={setReason}
+                              placeholder="削除の理由(送信者に通知されます)"
+                            />
+                            <div style={{ display: 'grid', gridAutoFlow: 'column', gap: 6 }}>
+                              <Btn disabled={busy} onClick={() => void remove(m.id)}>
+                                削除する
+                              </Btn>
+                              <Btn
+                                disabled={busy}
+                                onClick={() => {
+                                  setRemovingId(null)
+                                  setReason('')
+                                }}
+                              >
+                                やめる
+                              </Btn>
+                            </div>
+                          </div>
+                        ) : (
+                          <span
+                            onClick={() => {
+                              setRemovingId(m.id)
+                              setReason('')
+                            }}
+                            {...clickable(() => setRemovingId(m.id), 'このメッセージを削除する')}
+                            style={{
+                              cursor: 'pointer',
+                              alignSelf: 'flex-start',
+                              fontSize: 10,
+                              color: C.lavender,
+                              textDecoration: 'underline',
+                            }}
+                          >
+                            削除する
+                          </span>
+                        ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <span
+                onClick={() => {
+                  setOpenThread(null)
+                  setMessages(null)
+                }}
+                {...clickable(() => setOpenThread(null), '閉じる')}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 10.5,
+                  color: C.muted,
+                  textDecoration: 'underline',
+                }}
+              >
+                閉じる
+              </span>
+            </>
+          ) : (
+            <Btn onClick={() => openMessages(t.promiseId)}>中身を開く(記録が残ります)</Btn>
           )}
         </Card>
       ))}

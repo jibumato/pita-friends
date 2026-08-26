@@ -357,7 +357,11 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
       .catch((e) => active && setError(e instanceof Error ? e.message : '読み込みに失敗しました'))
       .finally(() => active && setLoading(false))
     const unsubscribe = subscribeToMessages(promiseId, (m) => {
-      setMessages((xs) => (xs.some((x) => x.id === m.id) ? xs : [...xs, m]))
+      // 0118: UPDATE も届くので、既にあるものは**置き換える**(削除の反映)。
+      // 無ければ末尾に足す(従来の新着)
+      setMessages((xs) =>
+        xs.some((x) => x.id === m.id) ? xs.map((x) => (x.id === m.id ? m : x)) : [...xs, m],
+      )
       void markThreadRead(promiseId)
     })
     return () => {
@@ -983,8 +987,32 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
           </span>
         ) : (
           messages.map((m) => {
-            const gift = parseGiftMessage(m.body)
             const side = m.senderId === myId ? 'right' : 'left'
+            // 0118: 運営が削除したもの。**行ごと消さずに跡を残す。**
+            // 黙って消えると、受け取った側は会話が飛んで混乱し、
+            // 送った側は何が悪かったのか分からないまま同じことを書く。
+            // 本文はDBから消えているので、ここで隠しているのではない。
+            if (m.deletedAt) {
+              return (
+                <div
+                  key={m.id}
+                  style={{
+                    alignSelf: side === 'right' ? 'flex-end' : 'flex-start',
+                    maxWidth: '78%',
+                    background: C.surface,
+                    border: `1.5px dashed ${C.border}`,
+                    borderRadius: 10,
+                    padding: '9px 12px',
+                    fontSize: 11,
+                    lineHeight: 1.6,
+                    color: C.muted,
+                  }}
+                >
+                  このメッセージは運営が削除しました
+                </div>
+              )
+            }
+            const gift = parseGiftMessage(m.body)
             return gift ? (
               <GiftBubble key={m.id} side={side} {...gift} />
             ) : (

@@ -139,7 +139,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (114, '0114_board_time_window',          'column',  'board_posts',         'window_start'),
     (115, '0115_hosts_open_at',              'funcsrc', 'hosts_open_at',       'hosts_open_at'),
     (116, '0116_hidden_hosts',               'table',   'hidden_hosts',        null),
-    (117, '0117_public_activity_stats',      'column',  'platform_pricing',    'activity_stats_min_plays')
+    (117, '0117_public_activity_stats',      'column',  'platform_pricing',    'activity_stats_min_plays'),
+    (118, '0118_admin_message_moderation',   'column',  'messages',            'deleted_at')
 ),
 checked as (
   select
@@ -323,7 +324,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (114, '0114_board_time_window',          'column',  'board_posts',         'window_start'),
     (115, '0115_hosts_open_at',              'funcsrc', 'hosts_open_at',       'hosts_open_at'),
     (116, '0116_hidden_hosts',               'table',   'hidden_hosts',        null),
-    (117, '0117_public_activity_stats',      'column',  'platform_pricing',    'activity_stats_min_plays')
+    (117, '0117_public_activity_stats',      'column',  'platform_pricing',    'activity_stats_min_plays'),
+    (118, '0118_admin_message_moderation',   'column',  'messages',            'deleted_at')
 ),
 checked as (
   select e.seq, e.migration,
