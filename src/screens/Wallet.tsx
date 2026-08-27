@@ -12,6 +12,8 @@ import { usePress } from '../hooks/usePress'
 import { clickable } from '../hooks/clickable'
 import { isBackendConfigured } from '../lib/supabase'
 import SignedOutPrompt from '../components/SignedOutPrompt'
+import ChargebackOffsetNotice from '../components/ChargebackOffsetNotice'
+import PurchaseLimitNotice from '../components/PurchaseLimitNotice'
 import {
   createCheckoutSession,
   recordPolicyConsent,
@@ -446,6 +448,10 @@ export default function Wallet({ flow }: { flow: Flow }) {
 
         {isBackendConfigured && <CoinExpirySection />}
 
+        {/* 規約 第8条の6: 報酬コインの控除の予告と異議。予告が無ければ何も出ない。
+            **見えないまま減らされるのが最悪**なので、減る対象(報酬)の直前に置く */}
+        {isBackendConfigured && <ChargebackOffsetNotice />}
+
         {isBackendConfigured && <EarningsSection />}
 
         {/* 0117: 予約から来たときだけ、何のために買うのかを画面の上で示す。
@@ -471,6 +477,9 @@ export default function Wallet({ flow }: { flow: Flow }) {
         )}
 
         <span style={{ fontSize: 13, color: C.ink }}>▶ コインを購入</span>
+        {/* 規約 第8条の6第5項1号: 上限がある人にだけ、押す前に出す。
+            弾かれてから知るのでは、前払いの壁がさらに高くなる */}
+        {isBackendConfigured && <PurchaseLimitNotice />}
         {/* 0106・G19: 購入の前に示す説明。**畳まない・購入ボタンの直前に置く。**
             文面は content/purchasePolicy.ts が出典で、購入手続の直前に
             **この文面のまま** policy_consents へ残す（`shown_text`）。

@@ -393,6 +393,28 @@ export type Database = {
         Update: Record<string, never>
         Relationships: []
       }
+      /** 0088: 規約 第8条の6の相殺。本人と運営だけが select できる(RLS)。 */
+      chargeback_offsets: {
+        Row: {
+          id: string
+          purchase_id: string
+          host_id: string
+          booking_id: string | null
+          gift_id: string | null
+          coins: number
+          status: 'notified' | 'executed' | 'cancelled'
+          notified_at: string
+          objection_deadline: string
+          objected_at: string | null
+          objection_note: string | null
+          executed_at: string | null
+          executed_coins: number | null
+          note: string | null
+        }
+        Insert: Record<string, never>
+        Update: Record<string, never>
+        Relationships: []
+      }
       message_reads: {
         Row: { promise_id: string; user_id: string; last_read_at: string }
         Insert: { promise_id: string; user_id: string; last_read_at?: string }
@@ -883,6 +905,13 @@ export type Database = {
       admin_offsetable_purchases: { Args: Record<string, never>; Returns: unknown }
       /** 0089: 予告済み・実行済みの相殺の一覧。 */
       admin_chargeback_offsets: { Args: Record<string, never>; Returns: unknown }
+      /** 0088: 控除の予告に本人が異議を述べる(規約 第8条の6第4項3号)。 */
+      object_to_chargeback_offset: {
+        Args: { p_id: string; p_note: string }
+        Returns: void
+      }
+      /** 0087: 自分の購入上限の状態(理由つき)。 */
+      my_purchase_limit: { Args: Record<string, never>; Returns: unknown }
       /** 0088: 控除を予告する(引かない)。 */
       chargeback_offset_notify: {
         Args: { p_purchase_id: string; p_objection_days?: number }
