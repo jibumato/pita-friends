@@ -3585,6 +3585,117 @@ export async function notifyChargebackOffset(purchaseId: string): Promise<number
   return Number(data ?? 0)
 }
 
+/* ------------------------------------------------------------
+ * 規約 第8条の6 — 控除の予告と、それに対する異議（本人側）
+ *
+ * ■ なぜ画面が要るか
+ *   DB側（0088）は最初から揃っていた。控除の予告を本人が読める RLS も、
+ *   異議を受け取る `object_to_chargeback_offset` もある。
+ *   **無かったのは画面だけ。**
+ *
+ *   その結果どうなっていたか。予告の通知は「お心当たりのない点があれば
+ *   お問い合わせ窓口までご連絡ください」と案内している。ところが窓口へ
+ *   メールが来ても `objected_at` には入らない。運営側の実行判定は
+ *   `objected_at` を見て「異議が出ているなら理由必須」にしているので、
+ *   **異議を述べたのに、システム上は述べていないことになり、
+ *   そのまま実行される。** 条文（第8条の6第4項3号）が定めた機会が、
+ *   実装では機能していなかった。
+ * ------------------------------------------------------------ */
+export type MyChargebackOffset = {
+  id: string
+  bookingId: string | null
+  giftId: string | null
+  coins: number
+  status: 'notified' | 'executed' | 'cancelled'
+  notifiedAt: string
+  objectionDeadline: string
+  objectedAt: string | null
+  objectionNote: string | null
+  executedAt: string | null
+  executedCoins: number | null
+}
+
+/**
+ * 自分に予告されている（された）控除。
+ * RLS が host_id = auth.uid() に絞るので、他人の分は返らない。
+ */
+export async function fetchMyChargebackOffsets(): Promise<MyChargebackOffset[]> {
+  const { data, error } = await requireSupabase()
+    .from('chargeback_offsets')
+    .select(
+      'id, booking_id, gift_id, coins, status, notified_at, objection_deadline, objected_at, objection_note, executed_at, executed_coins',
+    )
+    .order('notified_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map((o) => ({
+    id: o.id,
+    bookingId: o.booking_id,
+    giftId: o.gift_id,
+    coins: o.coins,
+    status: o.status,
+    notifiedAt: o.notified_at,
+    objectionDeadline: o.objection_deadline,
+    objectedAt: o.objected_at,
+    objectionNote: o.objection_note,
+    executedAt: o.executed_at,
+    executedCoins: o.executed_coins,
+  }))
+}
+
+/** 控除の予告に異議を述べる。理由は必須（運営はこれを読んで判断する）。 */
+export async function objectToChargebackOffset(id: string, note: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('object_to_chargeback_offset', {
+    p_id: id,
+    p_note: note,
+  })
+  if (error) {
+    const m = error.message ?? ''
+    if (/NOTE_REQUIRED/.test(m)) throw new Error('理由を書いてください')
+    if (/NOT_OBJECTABLE/.test(m)) {
+      throw new Error('この控除には異議を述べられません（期間が終わったか、既に処理されています）')
+    }
+    throw error
+  }
+}
+
+/* ------------------------------------------------------------
+ * 購入上限（規約 第8条の6第5項1号）
+ *
+ * 弾かれたときのメッセージは `functionErrorMessage` が金額つきで出す。
+ * こちらは**当たる前に見せる**ためのもの。壁に当たってから知るより、
+ * 買う前に「いまはここまで」が見えているほうがよい。
+ * ------------------------------------------------------------ */
+export type PurchaseLimit = {
+  isNewUser: boolean
+  periodDays: number
+  perPurchaseMaxYen: number | null
+  periodMaxYen: number | null
+  spentYen: number
+  remainingYen: number | null
+  /** なぜ上限が付いているか。**理由の分からない上限を出さない。** */
+  reasonNewAccount: boolean
+  reasonUnverified: boolean
+  reasonDisputed: boolean
+}
+
+export async function fetchMyPurchaseLimit(): Promise<PurchaseLimit> {
+  const { data, error } = await requireSupabase().rpc('my_purchase_limit', {})
+  if (error) throw error
+  const r = (data ?? {}) as Record<string, unknown>
+  const num = (v: unknown) => (typeof v === 'number' ? v : null)
+  return {
+    isNewUser: Boolean(r.is_new_user),
+    periodDays: Number(r.period_days ?? 0),
+    perPurchaseMaxYen: num(r.per_purchase_max_yen),
+    periodMaxYen: num(r.period_max_yen),
+    spentYen: Number(r.spent_yen ?? 0),
+    remainingYen: num(r.remaining_yen),
+    reasonNewAccount: Boolean(r.reason_new_account),
+    reasonUnverified: Boolean(r.reason_unverified),
+    reasonDisputed: Boolean(r.reason_disputed),
+  }
+}
+
 export type AdminChargebackOffset = {
   id: string
   hostId: string
