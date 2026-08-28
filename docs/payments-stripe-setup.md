@@ -170,7 +170,7 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 
 **「デプロイした」だけでは確認になりません。** 実際に1件通してください。
 
-1. **テストモードで ¥300 のパックを購入する**
+1. **テストモードで ¥500 のパックを購入する**（最小パック。¥300のパックは無い）
 2. Stripe の Checkout 画面に **明細が2行**（コイン代金＋あんしんサポート料）
    出ていること ← ここが1行なら `create-checkout-session` が古いままです
 3. 購入後、SQL Editor で次を実行する
