@@ -150,6 +150,7 @@ Stripe は 20,000円しか請求しません。**表示と請求の不一致**�
 | 2026-07-30 | **EMV 3-Dセキュア(3DS2)** の要求 | `create-checkout-session` | 不正利用型チャージバックの責任が移らない(§5-b) |
 | 2026-07-31 | 決済カードのフィンガープリント記録(E-9) | `stripe-webhook` | 自作自演の検知が端末とIPだけになる |
 | 2026-07-31 | **新規ユーザーの購入上限**(規約第8条の6第5項1号・`0087`) | `create-checkout-session` | **上限が一切かからない。**登録直後のアカウントが50,000円まで買える |
+| 2026-08-27 | 決済国の記録(`0119`) | `stripe-webhook` | `payment_country` が入らない。申告と実際の決済国の食い違いが見えない |
 
 つまり **`create-checkout-session` と `stripe-webhook` の両方**を
 デプロイし直す必要があります。
@@ -158,6 +159,12 @@ Stripe は 20,000円しか請求しません。**表示と請求の不一致**�
 supabase functions deploy create-checkout-session
 supabase functions deploy stripe-webhook --no-verify-jwt
 ```
+
+> **0119 で必要なのは `stripe-webhook` だけです。**
+> 居住地の確認(規約 第3条3項)は `check_purchase_allowed` の中、つまり**DB側**に
+> 入れました。`create-checkout-session` はその関数を呼ぶだけで、返ってきた
+> `code` をそのまま画面へ渡す作りなので、**コードを変えていません。**
+> マイグレーション 0119 を当てた時点で、居住地の判定は効き始めます。
 
 ### 反映されたことの確かめかた
 
@@ -180,7 +187,12 @@ select
   case when exists (
          select 1 from public.user_payment_cards c where c.user_id = cp.user_id)
        then '✅' else '❌ カードのフィンガープリントが未記録(0080が未反映)' end
-                                       as "カード記録"
+                                       as "カード記録",
+  -- 0119: 申告に基づく居住国。**null なら 0119 が未適用**
+  cp.buyer_country                    as "居住国(申告)",
+  case when cp.payment_country is null
+       then '❌ stripe-webhook が古い(決済国を記録していない)'
+       else cp.payment_country end     as "決済国"
 from public.coin_purchases cp
 order by cp.created_at desc
 limit 5;
