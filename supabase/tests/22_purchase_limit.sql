@@ -27,6 +27,11 @@ insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('f1000000-0000-0000-0000-000000000002', true, 1000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 1000;
 
+-- 0119: 購入の判定は居住地の申告から始まる。ここは上限を見るテストなので、
+-- 申告は済ませておく(申告そのものの検証は 38 で行う)
+set test.uid = 'f1000000-0000-0000-0000-000000000001';
+select public.declare_residency(true);
+
 -- ------------------------------------------------------------
 \echo '=== 1. 推奨値が入っていること ==='
 do $$

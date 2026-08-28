@@ -7,7 +7,7 @@ import { ChevronLeft } from '../components/Icon'
 import { usePress } from '../hooks/usePress'
 import { signUpWithEmail, authErrorMessage, byteLength, PASSWORD_MAX_BYTES, PASSWORD_MIN_LENGTH } from '../lib/auth'
 import LegalLinks from '../components/LegalLinks'
-import { recordPolicyConsent } from '../lib/queries'
+import { recordPolicyConsent, declareResidency } from '../lib/queries'
 import { termsConsentText } from '../content/purchasePolicy'
 
 const inputStyle = {
@@ -46,6 +46,18 @@ export default function SignUp({ flow }: { flow: Flow }) {
    * （民訴11条2項・3項）にも効く。
    */
   const [agreedTerms, setAgreedTerms] = useState(false)
+  /**
+   * 居住地の申告（規約 第3条3項・0119）。
+   *
+   * **0081 は本人確認の入口にしか置いていなかった**ので、本人確認を出さない
+   * ゲストは申告の機会に一度も触れなかった。条文はサービス全体を日本国内
+   * 居住者に限っているのに、実装ではゲストが素通りしていた。
+   * 登録の時点で聞けば、全員が一度は通る。
+   *
+   * 規約への同意と**チェックを分ける**。片方に混ぜると、
+   * 「何に同意したのか」が後から説明できなくなる。
+   */
+  const [declaredJapan, setDeclaredJapan] = useState(false)
   const cta = usePress(`3px 3px 0 ${C.lavender}`)
 
   const tooShort = password.length > 0 && password.length < PASSWORD_MIN_LENGTH
@@ -57,6 +69,7 @@ export default function SignUp({ flow }: { flow: Flow }) {
     !tooLong &&
     password === confirm &&
     agreedTerms &&
+    declaredJapan &&
     !loading
 
   async function handleSubmit() {
@@ -70,6 +83,10 @@ export default function SignUp({ flow }: { flow: Flow }) {
         // **ログインできてから**でないと auth.uid() が無く記録できないので、
         // セッションが立った直後に置く。記録に失敗しても登録は止めない。
         await recordPolicyConsent('terms', termsConsentText())
+        // 0119: 居住地の申告（規約 第3条3項）。同意と同じく、
+        // ログインできてからでないと auth.uid() が無い。
+        // 記録に失敗しても登録は止めない（購入の手前でもう一度確かめる）
+        await declareResidency(true).catch(() => {})
         await flow.hydrateAccount(user.id)
         flow.go('consent')
       } else {
@@ -268,6 +285,32 @@ export default function SignUp({ flow }: { flow: Flow }) {
                 プライバシーポリシー
               </span>
               に同意します
+            </span>
+          </label>
+          {/* 0119: 居住地の申告（規約 第3条3項）。同意とは別のチェックにする。
+              **国籍では区別しない**——条文が問うているのは居住地だけ（0081の注記） */}
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+              cursor: 'pointer',
+              fontSize: 11,
+              lineHeight: 1.7,
+              color: C.body,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={declaredJapan}
+              onChange={(e) => setDeclaredJapan(e.target.checked)}
+              style={{ marginTop: 3, flex: 'none', width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <span>
+              日本国内に居住しています
+              <span style={{ color: C.muted }}>
+                （ピタフレは日本国内にお住まいの方向けのサービスです）
+              </span>
             </span>
           </label>
           <button
