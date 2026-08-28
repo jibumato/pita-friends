@@ -14,8 +14,10 @@ import { isBackendConfigured } from '../lib/supabase'
 import SignedOutPrompt from '../components/SignedOutPrompt'
 import ChargebackOffsetNotice from '../components/ChargebackOffsetNotice'
 import PurchaseLimitNotice from '../components/PurchaseLimitNotice'
+import ResidencyPrompt from '../components/ResidencyPrompt'
 import {
   createCheckoutSession,
+  PurchaseBlockedError,
   recordPolicyConsent,
   fetchMyCoinExpiry,
   type CoinExpiry,
@@ -353,6 +355,10 @@ export default function Wallet({ flow }: { flow: Flow }) {
     }
   }, [])
 
+  // 0119: 居住地未申告で弾かれたパック。ここに入っているあいだは
+  // ResidencyPrompt を出し、申告できたらこのパックで買い直す
+  const [residencyBlockedPack, setResidencyBlockedPack] = useState<CoinPack | null>(null)
+
   // デモ: ローカル加算。バックエンド: Stripe Checkout へ遷移(付与は決済後にwebhook)。
   const buy = async (pack: CoinPack) => {
     if (redirecting) return
@@ -365,6 +371,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
     }
     setRedirecting(true)
     setError(null)
+    setResidencyBlockedPack(null)
     try {
       // 0106・G19: **決済ページへ送る直前に、示した文面を記録する。**
       // 記録に失敗しても購入は止めない（recordPolicyConsent が握りつぶす）。
@@ -374,7 +381,13 @@ export default function Wallet({ flow }: { flow: Flow }) {
       const url = await createCheckoutSession(pack.id)
       window.location.href = url
     } catch (e) {
-      setError(e instanceof Error ? e.message : '決済ページの準備に失敗しました')
+      // 0119: 居住地が未申告なら、エラー文で終わらせずその場で聞く。
+      // このアカウントには登録画面へ戻る手段が無いので、ここが唯一の入口
+      if (e instanceof PurchaseBlockedError && e.code === 'RESIDENCY_NOT_DECLARED') {
+        setResidencyBlockedPack(pack)
+      } else {
+        setError(e instanceof Error ? e.message : '決済ページの準備に失敗しました')
+      }
       setRedirecting(false)
     }
   }
@@ -540,6 +553,16 @@ export default function Wallet({ flow }: { flow: Flow }) {
           >
             {error}
           </div>
+        )}
+        {/* 0119: 居住地未申告で弾かれたときは、エラー文の代わりにここで聞く */}
+        {residencyBlockedPack && (
+          <ResidencyPrompt
+            onDeclared={() => {
+              const pack = residencyBlockedPack
+              setResidencyBlockedPack(null)
+              void buy(pack)
+            }}
+          />
         )}
         {/* あんしんサポート料が何の費用かを、申し込む前に金額と同じ画面で説明する。
             金額だけ足されていると「よく分からない上乗せ」に見えるし、

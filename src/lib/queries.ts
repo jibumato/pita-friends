@@ -313,10 +313,29 @@ export async function fetchCoinPacks(): Promise<CoinPack[]> {
  * 末尾に `[500 internal_error]` の形で機械的な手掛かりも足す。
  * **問い合わせのスクリーンショット1枚で切り分けられるようにするため。**
  */
-async function functionErrorMessage(error: unknown, fallback: string): Promise<string> {
+/**
+ * 0119: 購入がコードつきで弾かれたことを表すエラー。
+ *
+ * `code` を持たせているのは、`RESIDENCY_NOT_DECLARED` のときだけ
+ * 画面がその場で申告フォームを出して**やり直せる**ようにするため。
+ * 文字列メッセージの中身を見て判定させると、文言を直すたびに
+ * 画面側のロジックまで壊れる。
+ */
+export class PurchaseBlockedError extends Error {
+  code: string | null
+  constructor(message: string, code: string | null) {
+    super(message)
+    this.code = code
+  }
+}
+
+async function functionErrorMessage(
+  error: unknown,
+  fallback: string,
+): Promise<{ message: string; code: string | null }> {
   const ctx = (error as { context?: unknown } | null)?.context
   if (!(ctx instanceof Response)) {
-    return error instanceof Error ? error.message : fallback
+    return { message: error instanceof Error ? error.message : fallback, code: null }
   }
   let code: string | null = null
   let body: Record<string, unknown> = {}
@@ -333,24 +352,31 @@ async function functionErrorMessage(error: unknown, fallback: string): Promise<s
     internal_error: '決済ページを準備できませんでした。時間をおいて試してください',
   }
   // 0119: 居住地(規約 第3条3項)。**購入の手前で止まる。**
-  // 未申告と「いいえ」で文言を分ける——前者は直せるが、後者は直せない
+  // 未申告と「いいえ」で文言を分ける——前者は直せるが、後者は直せない。
+  // 「登録時のチェックにもう一度」とは言わない。0119より前のアカウントには
+  // 登録画面へ戻る手段が無いため、そのまま案内すると詰みになる
   if (code === 'RESIDENCY_NOT_DECLARED') {
-    return 'お住まいの確認がまだです。登録時の「日本国内に居住しています」にチェックのうえ、もう一度お試しください'
+    return { message: 'お住まいの確認がまだです。下の確認にお答えください', code }
   }
   if (code === 'RESIDENCY_OUTSIDE_JAPAN') {
-    return 'ピタフレは日本国内にお住まいの方向けのサービスです。恐れ入りますが、コインの購入はご利用いただけません'
+    return {
+      message: 'ピタフレは日本国内にお住まいの方向けのサービスです。恐れ入りますが、コインの購入はご利用いただけません',
+      code,
+    }
   }
   // 購入上限(規約 第8条の6第5項1号)。**金額を必ず出す。**
   // 「買えません」だけだと、いくらなら買えるのかが分からない
   if (code === 'PURCHASE_LIMIT_PER' || code === 'PURCHASE_LIMIT_PERIOD') {
     const b = body as { limit_yen?: number; remaining_yen?: number; period_days?: number }
     const yen = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString()}円` : '—')
-    return code === 'PURCHASE_LIMIT_PER'
-      ? `安全のため、ご登録から間もないあいだは1回あたり${yen(b.limit_yen)}までの購入に制限しています（本人確認を済ませると解除されます）`
-      : `安全のため、直近${b.period_days ?? 30}日間の購入は${yen(b.limit_yen)}までに制限しています。あと${yen(b.remaining_yen)}まで購入できます`
+    const message =
+      code === 'PURCHASE_LIMIT_PER'
+        ? `安全のため、ご登録から間もないあいだは1回あたり${yen(b.limit_yen)}までの購入に制限しています（本人確認を済ませると解除されます）`
+        : `安全のため、直近${b.period_days ?? 30}日間の購入は${yen(b.limit_yen)}までに制限しています。あと${yen(b.remaining_yen)}まで購入できます`
+    return { message, code }
   }
   const head = (code && known[code]) || fallback
-  return `${head} [${ctx.status}${code ? ` ${code}` : ''}]`
+  return { message: `${head} [${ctx.status}${code ? ` ${code}` : ''}]`, code }
 }
 
 /**
@@ -364,8 +390,11 @@ export async function createCheckoutSession(packId: string): Promise<string> {
     // X-Forwarded-For から読む(クライアント申告のIPは信用しない)
     { body: { packId, deviceId: getDeviceId() } },
   )
-  if (error) throw new Error(await functionErrorMessage(error, '決済ページの準備に失敗しました'))
-  if (!data?.url) throw new Error(data?.error || '決済ページの準備に失敗しました')
+  if (error) {
+    const { message, code } = await functionErrorMessage(error, '決済ページの準備に失敗しました')
+    throw new PurchaseBlockedError(message, code)
+  }
+  if (!data?.url) throw new PurchaseBlockedError(data?.error || '決済ページの準備に失敗しました', null)
   return data.url
 }
 
