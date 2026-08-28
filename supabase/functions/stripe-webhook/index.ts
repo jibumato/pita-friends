@@ -155,6 +155,19 @@ Deno.serve(async (req) => {
           if (pmErr) console.error('[stripe-webhook] payment method record failed', pmErr)
         }
 
+        // 0119: 決済された国。消費税の内外判定は申告(buyer_country)が主だが、
+        // 申告と食い違う購入は税務の区分でも不正の手がかりでも効く。
+        // ウォレット系はカードの発行国が無いので、請求先の国に落とす
+        const paymentCountry =
+          details?.card?.country ?? charge?.billing_details?.address?.country ?? null
+        if (paymentCountry) {
+          const { error: pcErr } = await admin
+            .from('coin_purchases')
+            .update({ payment_country: paymentCountry })
+            .eq('stripe_session_id', session.id)
+          if (pcErr) console.error('[stripe-webhook] payment country record failed', pcErr)
+        }
+
         const card = details?.card
         if (card?.fingerprint) {
           const { error: cardErr } = await admin.rpc('record_payment_card', {

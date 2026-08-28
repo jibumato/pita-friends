@@ -140,7 +140,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (115, '0115_hosts_open_at',              'funcsrc', 'hosts_open_at',       'hosts_open_at'),
     (116, '0116_hidden_hosts',               'table',   'hidden_hosts',        null),
     (117, '0117_public_activity_stats',      'column',  'platform_pricing',    'activity_stats_min_plays'),
-    (118, '0118_admin_message_moderation',   'column',  'messages',            'deleted_at')
+    (118, '0118_admin_message_moderation',   'column',  'messages',            'deleted_at'),
+    (119, '0119_residency_for_guests',       'column',  'coin_purchases',      'buyer_country')
 ),
 checked as (
   select
@@ -325,7 +326,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (115, '0115_hosts_open_at',              'funcsrc', 'hosts_open_at',       'hosts_open_at'),
     (116, '0116_hidden_hosts',               'table',   'hidden_hosts',        null),
     (117, '0117_public_activity_stats',      'column',  'platform_pricing',    'activity_stats_min_plays'),
-    (118, '0118_admin_message_moderation',   'column',  'messages',            'deleted_at')
+    (118, '0118_admin_message_moderation',   'column',  'messages',            'deleted_at'),
+    (119, '0119_residency_for_guests',       'column',  'coin_purchases',      'buyer_country')
 ),
 checked as (
   select e.seq, e.migration,

@@ -1074,7 +1074,7 @@ export type Database = {
         Returns: unknown[]
       }
       declare_residency: {
-        Args: { p_declared_japan: boolean; p_version?: string }
+        Args: { p_declared_japan: boolean; p_version?: string; p_country_code?: string }
         Returns: void
       }
       my_residency_declaration: {

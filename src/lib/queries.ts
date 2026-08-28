@@ -332,6 +332,14 @@ async function functionErrorMessage(error: unknown, fallback: string): Promise<s
     'pack_id required': '購入するパックが選ばれていません',
     internal_error: '決済ページを準備できませんでした。時間をおいて試してください',
   }
+  // 0119: 居住地(規約 第3条3項)。**購入の手前で止まる。**
+  // 未申告と「いいえ」で文言を分ける——前者は直せるが、後者は直せない
+  if (code === 'RESIDENCY_NOT_DECLARED') {
+    return 'お住まいの確認がまだです。登録時の「日本国内に居住しています」にチェックのうえ、もう一度お試しください'
+  }
+  if (code === 'RESIDENCY_OUTSIDE_JAPAN') {
+    return 'ピタフレは日本国内にお住まいの方向けのサービスです。恐れ入りますが、コインの購入はご利用いただけません'
+  }
   // 購入上限(規約 第8条の6第5項1号)。**金額を必ず出す。**
   // 「買えません」だけだと、いくらなら買えるのかが分からない
   if (code === 'PURCHASE_LIMIT_PER' || code === 'PURCHASE_LIMIT_PERIOD') {
@@ -2550,10 +2558,18 @@ function fileExtension(file: File): string {
  */
 export const RESIDENCY_VERSION = 'v1'
 
-export async function declareResidency(declaredJapan: boolean): Promise<void> {
+export async function declareResidency(
+  declaredJapan: boolean,
+  /**
+   * 0119: 「いいえ」のときだけ意味がある。「はい」ならサーバが JP に
+   * 確定させるので、渡さなくてよい（取り違えを持ち込まないため）。
+   */
+  countryCode?: string,
+): Promise<void> {
   const { error } = await requireSupabase().rpc('declare_residency', {
     p_declared_japan: declaredJapan,
     p_version: RESIDENCY_VERSION,
+    p_country_code: countryCode ?? undefined,
   })
   if (error) throw error
 }
