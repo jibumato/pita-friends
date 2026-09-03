@@ -35,6 +35,11 @@ const ICON_BY_TYPE: Record<NotificationType, { icon: string; tint: string }> = {
   integrity_alert: { icon: '🧮', tint: C.avatarOrange },
   booking_no_show: { icon: '⏳', tint: C.avatarOrange },
   host_slots_opened: { icon: '⭐', tint: C.lime },
+  // 0086: 退会の完了・換金期限など、既存のどれにも当てはまらないもの
+  system: { icon: '📢', tint: C.lavender },
+  // 0120: ゲストのリクエスト
+  guest_request_received: { icon: '🙋', tint: C.avatarAqua },
+  guest_request_answered: { icon: '🙌', tint: C.lime },
 }
 
 function timeLabel(iso: string): string {
@@ -132,6 +137,15 @@ export default function Notifications({ flow }: { flow: Flow }) {
       // お気に入りのピタメイトが枠を開けた。本人のページへ送り、そこで空き枠を見て予約してもらう。
       case 'host_slots_opened':
         if (n.relatedId) flow.openProfile(n.relatedId)
+        return
+      // 0120: 届いたリクエストの一覧へ。**関連IDでは開かない**——
+      // 応じる操作は一覧の中にあり、単独の詳細画面を持たせていない
+      case 'guest_request_received':
+        flow.go('requestInbox')
+        return
+      // 0120: 自分が出したリクエスト。応じた人がそこに並ぶ
+      case 'guest_request_answered':
+        flow.go('myRequests')
         return
     }
   }

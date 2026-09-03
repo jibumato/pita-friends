@@ -93,6 +93,9 @@ import {
   type PlatformLimitKey,
   fetchAdminBoardPosts,
   removeBoardPostAsAdmin,
+  fetchAdminGuestRequests,
+  removeGuestRequestAsAdmin,
+  type AdminGuestRequest,
   type AdminBoardPost,
 } from '../lib/queries'
 
@@ -101,6 +104,7 @@ type Tab =
   | 'reports'
   | 'talks'
   | 'board'
+  | 'guestRequests'
   | 'holds'
   | 'payouts'
   | 'requests'
@@ -120,6 +124,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'reports', label: '通報' },
   { key: 'talks', label: 'トーク' },
   { key: 'board', label: '募集' },
+  { key: 'guestRequests', label: 'リクエスト' },
   { key: 'payouts', label: '換金' },
   { key: 'requests', label: '請求' },
   { key: 'disputes', label: '異議申立て' },
@@ -226,6 +231,7 @@ export default function AdminConsole({ flow }: { flow: Flow }) {
         )}
         {tab === 'talks' && <TalksTab userId={talkUserId} onUserId={setTalkUserId} />}
         {tab === 'board' && <BoardTab />}
+        {tab === 'guestRequests' && <GuestRequestsTab />}
         {tab === 'payouts' && <PayoutsTab onChanged={loadSummary} />}
         {tab === 'requests' && <RequestsTab onChanged={loadSummary} />}
         {tab === 'disputes' && <DisputesTab />}
@@ -1096,6 +1102,134 @@ function BoardTab() {
               </>
             ) : (
               <Btn onClick={() => setOpenId(b.id)}>取り下げる</Btn>
+            )}
+          </Card>
+        ))
+      )}
+    </>
+  )
+}
+
+// ------------------------------------------------------------
+// ゲストのリクエスト(0120)
+//
+// **本文(ひとこと)を運営が読める場所はここだけ。** リクエストは公開されず、
+// 板にも載らないので、通報が来ても中身を確かめる導線が他に無い。
+// ------------------------------------------------------------
+
+function GuestRequestsTab() {
+  const [scope, setScope] = useState<'open' | 'all'>('open')
+  const { items, error, reload } = useList<AdminGuestRequest>(
+    () => fetchAdminGuestRequests(scope),
+    [scope],
+  )
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  async function remove(id: string) {
+    if (busy) return
+    if (reason.trim().length === 0) {
+      setActionError('取り下げの理由を入力してください（記録に残り、出した本人にも伝わります）')
+      return
+    }
+    setBusy(true)
+    setActionError(null)
+    try {
+      await removeGuestRequestAsAdmin(id, reason.trim())
+      setOpenId(null)
+      setReason('')
+      reload()
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : '取り下げできませんでした')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <Note>
+        ゲストが出した「この日時で遊びたい」です。<b>掲示板には出ません</b>——
+        同じゲームを登録しているピタメイトに通知として届きます。
+        取り下げると<b>出した本人には理由がそのまま届き</b>、応じていたピタメイトには
+        理由を伏せて「取り下げられた」ことだけ伝わります。行は削除せず記録として残します。
+      </Note>
+      <div style={{ display: 'grid', gridAutoFlow: 'column', gap: 6 }}>
+        {(['open', 'all'] as const).map((s) => (
+          <Btn key={s} disabled={scope === s} onClick={() => setScope(s)}>
+            {s === 'open' ? '受付中' : 'すべて（閉じたものを含む）'}
+          </Btn>
+        ))}
+      </div>
+      {error && <ErrorBox>{error}</ErrorBox>}
+      {!items ? (
+        <Note>読み込み中…</Note>
+      ) : items.length === 0 ? (
+        <Note>{scope === 'open' ? '受付中のリクエストはありません。' : 'リクエストはありません。'}</Note>
+      ) : (
+        items.map((r) => (
+          <Card key={r.id}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 12.5, color: C.ink }}>
+                {r.game}・{r.durationMinutes}分
+              </span>
+              <span style={{ fontSize: 10.5, color: C.muted, flex: 'none' }}>{jst(r.createdAt)}</span>
+            </div>
+            <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+              {r.guestNickname ?? '（名前なし）'} / {jst(r.windowStart)}〜{jst(r.windowEnd)} / 応答
+              {r.responses}件 / 予約{r.bookings}件
+            </span>
+            {r.note && (
+              <span
+                style={{
+                  fontSize: 11.5,
+                  color: C.body,
+                  lineHeight: 1.8,
+                  background: C.surface,
+                  border: `1.5px solid ${C.divider}`,
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {r.note}
+              </span>
+            )}
+
+            {r.status !== 'open' ? (
+              <span style={{ fontSize: 11, color: C.muted }}>
+                状態: {r.status}
+                {r.closedAt ? `（${jst(r.closedAt)}）` : ''}
+                {r.closeReason ? ` — ${r.closeReason}` : ''}
+              </span>
+            ) : openId === r.id ? (
+              <>
+                <Field
+                  value={reason}
+                  onChange={setReason}
+                  placeholder="取り下げの理由（出した本人に届きます）"
+                />
+                {actionError && <ErrorBox>{actionError}</ErrorBox>}
+                <Btn disabled={busy} onClick={() => void remove(r.id)}>
+                  取り下げる
+                </Btn>
+                <span
+                  onClick={() => {
+                    setOpenId(null)
+                    setActionError(null)
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: 'pointer', fontSize: 11, color: C.muted, textAlign: 'center' }}
+                >
+                  やめる
+                </span>
+              </>
+            ) : (
+              <Btn onClick={() => setOpenId(r.id)}>取り下げる</Btn>
             )}
           </Card>
         ))
