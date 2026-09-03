@@ -54,6 +54,15 @@ export default function Booking({ flow }: { flow: Flow }) {
     //   作らないので、「来週の土日」のような範囲だと候補がゼロになる
     return startTimeOptionsInRange(from, to, flow.bookingDuration)
   }, [allStartOptions, host?.boardWindowStart, host?.boardWindowEnd, flow.bookingDuration])
+  /**
+   * 0120: リクエストに応じてもらった枠は、開始時刻も長さも**もう決まっている。**
+   *
+   * 応じた行そのものが「その時間が開いている」根拠なので、別の時刻を選ぶと
+   * サーバ側で HOST_NOT_OPEN になる。**選ばせてから弾くのではなく、
+   * はじめから選ばせない。**
+   */
+  const fixedStart = host?.fromGuestRequestId ? (host.requestStartAt ?? null) : null
+
   // 募集の範囲があるときは、選べる時間の説明をそちらに差し替える。
   // 「30分後〜35日先まで」のままだと、実際に押せる範囲と食い違って読める
   const boardWindow =
@@ -202,6 +211,25 @@ export default function Booking({ flow }: { flow: Flow }) {
             指定できるようにしたことで、はじめて「開始◯時間前まで」という
             キャンセル規定が実際に意味を持つようになった(0040)。 */}
         <span style={{ fontSize: 12, color: C.muted }}>いつあそぶ</span>
+        {fixedStart ? (
+          <div
+            style={{
+              background: C.surfaceLavender,
+              border: `1.5px solid ${C.lavender}`,
+              borderRadius: 8,
+              padding: '11px 13px',
+              fontSize: 12,
+              lineHeight: 1.7,
+              color: C.ink,
+            }}
+          >
+            <b>{formatStart(fixedStart)}から{durationLabel(flow.bookingDuration)}</b>
+            <br />
+            <span style={{ fontSize: 10.5, color: C.muted }}>
+              あなたのリクエストに、この時間で応じてもらいました。時間と長さは変更できません。
+            </span>
+          </div>
+        ) : (
         <div style={{ display: 'flex', gap: 6 }}>
           {([
             { key: 'now' as const, label: '今すぐ' },
@@ -230,8 +258,9 @@ export default function Booking({ flow }: { flow: Flow }) {
             )
           })}
         </div>
+        )}
 
-        {flow.bookingWhen === 'scheduled' && (
+        {!fixedStart && flow.bookingWhen === 'scheduled' && (
           <>
             <div
               className="pita-scroll"
@@ -284,7 +313,11 @@ export default function Booking({ flow }: { flow: Flow }) {
           </>
         )}
 
-        {/* あそぶ時間。4時間までは30分刻み・それ以降は1時間刻みで14択あるので横スクロール。 */}
+        {/* あそぶ時間。4時間までは30分刻み・それ以降は1時間刻みで14択あるので横スクロール。
+            0120: リクエストに応じてもらった枠は、開けてもらったのがその長さぶん
+            なので変えられない（長さを変えると枠からはみ出して弾かれる）。 */}
+        {!fixedStart && (
+        <>
         <span style={{ fontSize: 12, color: C.muted }}>あそぶ時間</span>
         <div className="pita-scroll" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
           {BOOKING_DURATIONS.map((min) => {
@@ -312,10 +345,12 @@ export default function Booking({ flow }: { flow: Flow }) {
             )
           })}
         </div>
+        </>
+        )}
 
         {/* 終了時刻。あそぶ時間と同じ値の別の見方なので、どちらを触っても連動する。
             開始時刻が決まっていないと終了時刻は決められないため、時間指定のときだけ出す。 */}
-        {flow.bookingWhen === 'scheduled' && flow.bookingStartAt && (
+        {!fixedStart && flow.bookingWhen === 'scheduled' && flow.bookingStartAt && (
           <>
             <span style={{ fontSize: 12, color: C.muted }}>終わる時刻</span>
             <div
@@ -353,7 +388,7 @@ export default function Booking({ flow }: { flow: Flow }) {
         {/* まとめ予約(0061)。毎週同じ時刻が決まっている二人に、毎回ゼロから
             予約させない。ピタメイト側も先の予定が立つ。
             **時間指定のときだけ出す。**「今すぐ」を4回くり返すのは意味が通らない。 */}
-        {flow.bookingWhen === 'scheduled' && flow.bookingStartAt && (
+        {!fixedStart && flow.bookingWhen === 'scheduled' && flow.bookingStartAt && (
           <>
             <span style={{ fontSize: 12, color: C.muted }}>毎週くり返す（任意）</span>
             <div style={{ display: 'flex', gap: 6 }}>

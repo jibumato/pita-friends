@@ -42,6 +42,7 @@ import {
   createBookingRemote,
   createBookingSeriesRemote,
   createBookingFromBoard,
+  createBookingFromRequest,
   recordPolicyConsent,
   checkIsAdmin,
   submitReport as submitReportRemote,
@@ -75,6 +76,9 @@ import ReportSheet from './screens/ReportSheet'
 import Search from './screens/Search'
 import Board from './screens/Board'
 import BoardCreate from './screens/BoardCreate'
+import RequestCreate from './screens/RequestCreate'
+import MyRequests from './screens/MyRequests'
+import RequestInbox from './screens/RequestInbox'
 import TalkList from './screens/TalkList'
 import MyPage from './screens/MyPage'
 import Settings from './screens/Settings'
@@ -133,6 +137,9 @@ const DESKTOP_WIDE_SCREENS = new Set<ScreenKey>([
   'hostDashboard',
   'legalDoc',
   'boardCreate',
+  'requestCreate',
+  'myRequests',
+  'requestInbox',
   'personality',
   'about',
 ])
@@ -183,6 +190,18 @@ export type BookingHost = {
    */
   boardWindowStart?: Date
   boardWindowEnd?: Date
+  /**
+   * ゲストのリクエストに応じてもらった枠から来た場合（0120）。
+   *
+   * **入っていると、確定は `create_booking_from_request` を通る。** 予約を
+   * リクエストに紐づけ、リクエストを matched にして、応じた他の方に知らせる。
+   *
+   * ⚠️ **開始時刻は `requestStartAt` に固定される。** 応じた行そのものが
+   *    「その時間が開いている」根拠なので、別の時刻を選ぶと HOST_NOT_OPEN で
+   *    弾かれる。画面でも選ばせない。
+   */
+  fromGuestRequestId?: string
+  requestStartAt?: Date
 }
 
 /** 全画面が受け取るフローコンテキスト。 */
@@ -273,7 +292,7 @@ export type Flow = {
   setPersonalityResult: (r: PersonalityResult | null) => void
   setHostPref: <K extends keyof HostSettings>(key: K, value: HostSettings[K]) => void
   /** `durationMinutes` は募集板から来たときに、その枠の長さを初期値にするため。 */
-  startBooking: (host: BookingHost, durationMinutes?: number) => void
+  startBooking: (host: BookingHost, durationMinutes?: number, startAt?: Date) => void
   setBookingDuration: (min: BookingDuration) => void
   setBookingWhen: (w: 'now' | 'scheduled') => void
   setBookingStartAt: (d: Date | null) => void
@@ -731,7 +750,15 @@ export default function App() {
         // 版番号だけでは、その版が何と書いてあったかを後から示せない。
         // 記録に失敗しても予約は止めない（recordPolicyConsent が握りつぶす）
         await recordPolicyConsent('cancellation', cancellationPolicyText())
-        if (host.fromBoardPostId) {
+        if (host.fromGuestRequestId) {
+          // 0120: リクエストに応じてもらった枠。**まとめ予約はしない**——
+          // 応じてもらったのは1回ぶんの時間で、翌週以降は開いていない
+          await createBookingFromRequest(
+            host.fromGuestRequestId,
+            host.userId,
+            CANCELLATION_POLICY_VERSION,
+          )
+        } else if (host.fromBoardPostId) {
           // 0113: 募集板から来た申込み。**まとめ予約はしない**——
           // 募集は1枠なので、複数回ぶんを一度に取るのは意味が合わない
           await createBookingFromBoard(
@@ -758,7 +785,7 @@ export default function App() {
         }
         const cost =
           coinsForDuration(host.hourlyRate, state.bookingDuration) *
-          (host.fromBoardPostId ? 1 : repeat)
+          (host.fromBoardPostId || host.fromGuestRequestId ? 1 : repeat)
         clearTimer()
         setState((p) => ({
           ...p,
@@ -1017,13 +1044,15 @@ export default function App() {
         })
       }
     },
-    startBooking: (host, durationMinutes) =>
+    startBooking: (host, durationMinutes, startAt) =>
       setState((p) => ({
         ...p,
         bookingHost: host,
         bookingDuration: durationMinutes ?? 60,
-        bookingWhen: 'now',
-        bookingStartAt: null,
+        // 0120: リクエストに応じてもらった枠は開始時刻が決まっている。
+        // 「今すぐ」で開くと、選び直す導線を出したうえで弾くことになる
+        bookingWhen: startAt ? 'scheduled' : 'now',
+        bookingStartAt: startAt ?? null,
         bookingRepeat: 1,
         bookingInsufficient: false,
         bookingError: null,
@@ -1102,6 +1131,9 @@ export default function App() {
         {state.screen === 'search' && <Search flow={flow} />}
         {state.screen === 'board' && <Board flow={flow} />}
         {state.screen === 'boardCreate' && <BoardCreate flow={flow} />}
+        {state.screen === 'requestCreate' && <RequestCreate flow={flow} />}
+        {state.screen === 'myRequests' && <MyRequests flow={flow} />}
+        {state.screen === 'requestInbox' && <RequestInbox flow={flow} />}
         {state.screen === 'talkList' && <TalkList flow={flow} />}
         {state.screen === 'mypage' && <MyPage flow={flow} />}
         {state.screen === 'settings' && <Settings flow={flow} />}

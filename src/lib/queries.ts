@@ -15,7 +15,9 @@ import type {
   PayoutStatus,
   BankAccountType,
   PresenceStatus,
+  GuestRequestStatus,
 } from './database.types'
+import { MIN_LEAD_MINUTES } from '../content/bookingPolicy'
 
 export type AccountBundle = {
   profile: { nickname: string; gender: Gender }
@@ -2284,6 +2286,199 @@ export async function fetchHiddenHosts(): Promise<HiddenHost[]> {
 }
 
 /* ------------------------------------------------------------
+ * 0120: ゲストのリクエスト
+ *
+ * ■ 板(board)と混ぜないこと
+ *   リクエストは**公開されない。** 条件の合うピタメイトへ通知として届き、
+ *   応じた人だけが出した本人に見える。板に載せると、そこが「無料で相手を
+ *   募る場所」になり、0113 が閉じた抜け道が形を変えて戻ってくる。
+ *
+ * ■ 成立は通常の予約を通る
+ *   `createBookingFromRequest` は create_booking をそのまま呼ぶだけで、
+ *   コイン・キャンセル規定・リードタイムの扱いは何も変わらない。
+ * ------------------------------------------------------------ */
+export type MyGuestRequest = {
+  id: string
+  game: string
+  windowStart: Date
+  windowEnd: Date
+  durationMinutes: number
+  note: string
+  status: GuestRequestStatus
+  /** 応じた人数。0 のあいだは「返事を待っています」を出す。 */
+  responses: number
+  createdAt: string
+}
+
+export type GuestRequestAnswer = {
+  hostUserId: string
+  nickname: string
+  avatarInitial: string
+  avatarColor: string
+  avatarUrl: string | null
+  /** 料金は host_settings から都度読んでいる(投稿に写すと古い額を出す)。 */
+  hourlyRate: number | null
+  startsAt: Date
+  answeredAt: string
+}
+
+export type HostInboxRequest = {
+  id: string
+  guestId: string
+  guestName: string
+  guestInitial: string
+  guestColor: string
+  game: string
+  windowStart: Date
+  windowEnd: Date
+  durationMinutes: number
+  note: string
+  /** 自分がもう応じているか。応じていれば時刻を出して言い直せるようにする。 */
+  answered: boolean
+  myStartsAt: Date | null
+  createdAt: string
+}
+
+/** リクエストを出せなかった理由を、画面に出せる日本語にする。 */
+function guestRequestErrorMessage(message: string): string | null {
+  if (/TOO_MANY_OPEN_REQUESTS/.test(message))
+    return '受付中のリクエストは3件までです。古いものを取り下げてから出してください'
+  if (/WINDOW_TOO_SOON/.test(message))
+    return `いまから${MIN_LEAD_MINUTES}分より先の時間で出してください`
+  if (/WINDOW_TOO_FAR/.test(message)) return '先すぎる日付です。もう少し近い日程にしてください'
+  if (/WINDOW_TOO_SHORT/.test(message)) return '遊ぶ長さより広い範囲にしてください'
+  if (/WINDOW_TOO_WIDE/.test(message)) return '範囲が広すぎます。7日以内にしてください'
+  if (/GAME_REQUIRED/.test(message)) return 'ゲームを選んでください'
+  return null
+}
+
+export async function createGuestRequest(input: {
+  game: string
+  windowStart: Date
+  windowEnd: Date
+  durationMinutes: number
+  note: string
+}): Promise<string> {
+  const { data, error } = await requireSupabase().rpc('create_guest_request', {
+    p_game: input.game,
+    p_window_start: input.windowStart.toISOString(),
+    p_window_end: input.windowEnd.toISOString(),
+    p_duration_minutes: input.durationMinutes,
+    p_note: input.note,
+  })
+  if (error) {
+    const m = guestRequestErrorMessage(error.message)
+    if (m) throw new Error(m)
+    throwMapped(error)
+  }
+  return data as string
+}
+
+export async function fetchMyGuestRequests(): Promise<MyGuestRequest[]> {
+  const { data, error } = await requireSupabase().rpc('my_guest_requests', {})
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    game: r.game,
+    windowStart: new Date(r.window_start),
+    windowEnd: new Date(r.window_end),
+    durationMinutes: r.duration_minutes,
+    note: r.note,
+    status: r.status,
+    responses: r.responses,
+    createdAt: r.created_at,
+  }))
+}
+
+export async function cancelGuestRequest(requestId: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('cancel_guest_request', {
+    p_request_id: requestId,
+  })
+  if (error) throw error
+}
+
+export async function fetchGuestRequestAnswers(requestId: string): Promise<GuestRequestAnswer[]> {
+  const { data, error } = await requireSupabase().rpc('guest_request_answers', {
+    p_request_id: requestId,
+  })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    hostUserId: r.host_id,
+    nickname: r.nickname || '(名前未設定)',
+    avatarInitial: r.avatar_initial,
+    avatarColor: r.avatar_color,
+    avatarUrl: r.avatar_path ? avatarImageUrl(r.avatar_path) : null,
+    hourlyRate: r.hourly_rate,
+    startsAt: new Date(r.starts_at),
+    answeredAt: r.answered_at,
+  }))
+}
+
+export async function fetchGuestRequestsForHost(): Promise<HostInboxRequest[]> {
+  const { data, error } = await requireSupabase().rpc('guest_requests_for_host', {})
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    guestId: r.guest_id,
+    guestName: r.guest_nickname || '(名前未設定)',
+    guestInitial: r.guest_avatar_initial,
+    guestColor: r.guest_avatar_color,
+    game: r.game,
+    windowStart: new Date(r.window_start),
+    windowEnd: new Date(r.window_end),
+    durationMinutes: r.duration_minutes,
+    note: r.note,
+    answered: r.answered,
+    myStartsAt: r.my_starts_at ? new Date(r.my_starts_at) : null,
+    createdAt: r.created_at,
+  }))
+}
+
+/**
+ * リクエストに応じる(＝その時間を開ける)。
+ *
+ * ⚠️ 開けた時間は**ほかの方からも予約できる。** 「応じる＝その時間を開ける」
+ *    であって、その人のための取り置きではない。画面でもそう書くこと。
+ */
+export async function respondToGuestRequest(requestId: string, startsAt: Date): Promise<void> {
+  const { error } = await requireSupabase().rpc('respond_to_guest_request', {
+    p_request_id: requestId,
+    p_starts_at: startsAt.toISOString(),
+  })
+  if (error) {
+    if (/HOST_ONLY/.test(error.message))
+      throw new Error('応じられるのはピタメイトだけです。ピタメイト設定から掲載を始めてください')
+    if (/HOST_NOT_VERIFIED/.test(error.message)) throw new Error('先に本人確認を済ませてください')
+    if (/HOST_SLOT_TAKEN/.test(error.message))
+      throw new Error('その時間には別の予定が入っています')
+    if (/GUEST_SLOT_TAKEN/.test(error.message))
+      throw new Error('その時間は、リクエストした方に別の予定が入っています')
+    if (/ENOUGH_RESPONSES/.test(error.message))
+      throw new Error('このリクエストには十分な人数が応じています')
+    if (/REQUEST_NOT_OPEN/.test(error.message))
+      throw new Error('このリクエストは受付を終えています')
+    if (/START_TOO_SOON/.test(error.message))
+      throw new Error(`開始まで${MIN_LEAD_MINUTES}分以上あける必要があります`)
+    throwMapped(error)
+  }
+}
+
+/** 応じてくれた相手を予約する。中身は通常の create_booking。 */
+export async function createBookingFromRequest(
+  requestId: string,
+  hostUserId: string,
+  policyVersion: string,
+): Promise<string> {
+  const { data, error } = await requireSupabase().rpc('create_booking_from_request', {
+    p_request_id: requestId,
+    p_host_id: hostUserId,
+    p_policy_version: policyVersion,
+  })
+  if (error) throwMapped(error)
+  return data as string
+}
+
+/* ------------------------------------------------------------
  * 0117: 未ログインにも出せる集計
  *
  * 返るのは数だけ。**誰が居るか・誰が空いているかは含まない**
@@ -3049,6 +3244,58 @@ export async function fetchAdminBoardPosts(status = 'open'): Promise<AdminBoardP
 export async function removeBoardPostAsAdmin(postId: string, reason: string): Promise<void> {
   const { error } = await requireSupabase().rpc('admin_remove_board_post', {
     p_post_id: postId,
+    p_reason: reason,
+  })
+  if (error) throw error
+}
+
+/* 0120: ゲストのリクエスト（運営）。 */
+export type AdminGuestRequest = {
+  id: string
+  guestId: string
+  guestNickname: string | null
+  game: string
+  windowStart: string
+  windowEnd: string
+  durationMinutes: number
+  note: string | null
+  status: string
+  responses: number
+  bookings: number
+  createdAt: string
+  closedAt: string | null
+  closeReason: string | null
+}
+
+/** `status` に 'all' を渡すと閉じたものも含む。 */
+export async function fetchAdminGuestRequests(status = 'open'): Promise<AdminGuestRequest[]> {
+  const { data, error } = await requireSupabase().rpc('admin_guest_requests', {
+    p_status: status,
+    p_limit: 100,
+  })
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: r.id as string,
+    guestId: r.guest_id as string,
+    guestNickname: (r.guest_nickname as string | null) ?? null,
+    game: r.game as string,
+    windowStart: r.window_start as string,
+    windowEnd: r.window_end as string,
+    durationMinutes: r.duration_minutes as number,
+    note: (r.note as string | null) ?? null,
+    status: r.status as string,
+    responses: r.responses as number,
+    bookings: r.bookings as number,
+    createdAt: r.created_at as string,
+    closedAt: (r.closed_at as string | null) ?? null,
+    closeReason: (r.close_reason as string | null) ?? null,
+  }))
+}
+
+/** 運営がリクエストを取り下げる。**理由は必須**(サーバ側でも REASON_REQUIRED で弾く)。 */
+export async function removeGuestRequestAsAdmin(requestId: string, reason: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_remove_guest_request', {
+    p_request_id: requestId,
     p_reason: reason,
   })
   if (error) throw error

@@ -369,6 +369,62 @@ export default function Board({ flow }: { flow: Flow }) {
             </div>
           )}
         </div>
+        {/*
+          0120: リクエストへの入口。
+          **板の中身とは別のものなので、投稿の並びには混ぜない。**
+          リクエストは公開されず、条件の合う相手にだけ通知として届く。
+          ここに「リクエスト一覧」を出してしまうと、0113 が閉じた
+          「無料で相手を募る掲示板」がそのまま復活する。
+        */}
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          <span
+            onClick={() => flow.go('requestCreate')}
+            {...clickable(() => flow.go('requestCreate'), '遊びたい日時でリクエストを出す')}
+            style={{
+              cursor: 'pointer',
+              fontSize: 12,
+              color: C.ink,
+              background: C.surfaceLavender,
+              border: `1.5px solid ${C.lavender}`,
+              padding: '7px 13px',
+              borderRadius: 6,
+            }}
+          >
+            ＋ 遊びたい日時でリクエスト
+          </span>
+          <span
+            onClick={() => flow.go('myRequests')}
+            {...clickable(() => flow.go('myRequests'), '出したリクエスト')}
+            style={{
+              cursor: 'pointer',
+              fontSize: 12,
+              color: C.ink,
+              background: C.white,
+              border: `1.5px solid ${C.border}`,
+              padding: '7px 13px',
+              borderRadius: 6,
+            }}
+          >
+            出したリクエスト
+          </span>
+          {flow.hostSettings.isHost && (
+            <span
+              onClick={() => flow.go('requestInbox')}
+              {...clickable(() => flow.go('requestInbox'), '届いたリクエスト')}
+              style={{
+                cursor: 'pointer',
+                fontSize: 12,
+                color: C.ink,
+                background: C.white,
+                border: `1.5px solid ${C.border}`,
+                padding: '7px 13px',
+                borderRadius: 6,
+              }}
+            >
+              届いたリクエスト
+            </span>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {(isBackendConfigured ? REAL_FILTERS : DEMO_FILTERS).map((f) => {
             const sel = filter === f

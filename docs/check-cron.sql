@@ -75,7 +75,11 @@ jobs(seq, jobname, schedule, purpose, blocker) as (values
       '★規約第7条5の3の「事前に通知します」を守れない'),
   (12, 'close-expired-board-posts',    '*/15 * * * *',
       '受付の締め切りを過ぎた募集を閉じる(0114)',
-      '板が終わった募集で埋まる。公開直後にいちばん効く')
+      '板が終わった募集で埋まる。公開直後にいちばん効く'),
+  (13, 'expire-guest-requests',         '*/15 * * * *',
+      '受付の終わったゲストのリクエストを閉じる(0120)',
+      '★応じて開けた枠が閉じない。過ぎた日時の枠が空いたまま残り、'
+      'ピタメイトの意図しない時間に予約が入る')
 ),
 
 -- ------------------------------------------------------------
@@ -189,6 +193,7 @@ order by sec, seq;
 --   select cron.schedule('close-withdrawn-payout-window', '31 3 * * *',  'select public.close_withdrawn_payout_window()');
 --   select cron.schedule('notify-expiring-coins',         '9 9 * * *',   'select public.notify_expiring_coins()');
 --   select cron.schedule('close-expired-board-posts',     '*/15 * * * *','select public.close_expired_board_posts()');
+--   select cron.schedule('expire-guest-requests',          '*/15 * * * *','select public.expire_guest_requests()');
 --
 --   ※ 時刻はUTCではなくDBのタイムゾーン(Supabaseの既定はUTC)で解釈されます。
 --     夜間に寄せているのは、失敗しても翌朝に気づける時間帯にするためです。

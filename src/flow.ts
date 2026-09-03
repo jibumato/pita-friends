@@ -24,6 +24,10 @@ export type ScreenKey =
   | 'search'
   | 'board'
   | 'boardCreate'
+  // 0120: ゲストのリクエスト（板には載せず、条件の合う相手にだけ届く）
+  | 'requestCreate'
+  | 'myRequests'
+  | 'requestInbox'
   | 'talkList'
   | 'mypage'
   | 'settings'
@@ -67,6 +71,9 @@ export const screenNames: Record<ScreenKey, string> = {
   search: 'さがす',
   board: '募集板',
   boardCreate: '募集作成',
+  requestCreate: 'リクエストを出す',
+  myRequests: '出したリクエスト',
+  requestInbox: '届いたリクエスト',
   talkList: 'トーク一覧',
   mypage: 'マイページ',
   settings: '設定',
@@ -287,6 +294,9 @@ export const stepOf: Record<ScreenKey, number> = {
   search: -1,
   board: -1,
   boardCreate: -1,
+  requestCreate: -1,
+  myRequests: -1,
+  requestInbox: -1,
   talkList: -1,
   mypage: -1,
   settings: -1,
@@ -329,6 +339,8 @@ export function activeTabOf(screen: ScreenKey): TabKey | null {
       return 'search'
     case 'board':
     case 'boardCreate':
+    case 'requestCreate':
+    case 'requestInbox':
       return 'post'
     case 'talkList':
     case 'talk':
@@ -340,6 +352,7 @@ export function activeTabOf(screen: ScreenKey): TabKey | null {
     case 'requests':
     case 'wallet':
     case 'hostSettings':
+    case 'myRequests':
     case 'hostDashboard':
     case 'blockList':
     case 'withdraw':

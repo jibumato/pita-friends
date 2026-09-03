@@ -71,6 +71,15 @@ export type NotificationType =
   | 'booking_no_show'
   /** 0054: お気に入りのピタメイトが募集枠を開けた */
   | 'host_slots_opened'
+  /** 0086: 退会の完了・換金期限など、既存のどれにも当てはまらないもの */
+  | 'system'
+  /** 0120: ゲストのリクエストが届いた(ピタメイト向け) */
+  | 'guest_request_received'
+  /** 0120: 自分のリクエストに応じた人が出た(ゲスト向け) */
+  | 'guest_request_answered'
+
+/** 0120: ゲストのリクエストの状態。 */
+export type GuestRequestStatus = 'open' | 'matched' | 'cancelled' | 'expired'
 export type AccountRequestType = 'data_export' | 'account_deletion'
 export type AccountRequestStatus = 'pending' | 'processing' | 'completed'
 
@@ -728,6 +737,85 @@ export type Database = {
           next_open_at: string
           open_starts: number
         }[]
+      }
+      /**
+       * 0120: ゲストのリクエスト。**板には載せず**、条件の合うピタメイトへ
+       * 通知だけを送る。応じた行がそのまま「その時間の空き枠」になる。
+       */
+      create_guest_request: {
+        Args: {
+          p_game: string
+          p_window_start: string
+          p_window_end: string
+          p_duration_minutes?: number
+          p_note?: string
+        }
+        Returns: string
+      }
+      cancel_guest_request: {
+        Args: { p_request_id: string }
+        Returns: void
+      }
+      my_guest_requests: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          game: string
+          window_start: string
+          window_end: string
+          duration_minutes: number
+          note: string
+          status: GuestRequestStatus
+          responses: number
+          created_at: string
+        }[]
+      }
+      guest_request_answers: {
+        Args: { p_request_id: string }
+        Returns: {
+          host_id: string
+          nickname: string
+          avatar_initial: string
+          avatar_color: string
+          avatar_path: string | null
+          hourly_rate: number | null
+          starts_at: string
+          answered_at: string
+        }[]
+      }
+      guest_requests_for_host: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          guest_id: string
+          guest_nickname: string
+          guest_avatar_initial: string
+          guest_avatar_color: string
+          game: string
+          window_start: string
+          window_end: string
+          duration_minutes: number
+          note: string
+          answered: boolean
+          my_starts_at: string | null
+          created_at: string
+        }[]
+      }
+      respond_to_guest_request: {
+        Args: { p_request_id: string; p_starts_at: string }
+        Returns: string
+      }
+      create_booking_from_request: {
+        Args: { p_request_id: string; p_host_id: string; p_policy_version: string }
+        Returns: string
+      }
+      admin_guest_requests: {
+        Args: { p_status?: string; p_limit?: number }
+        Returns: Record<string, unknown>[]
+      }
+      admin_remove_guest_request: {
+        Args: { p_request_id: string; p_reason: string }
+        Returns: void
       }
       /**
        * 0116: 検索に出さない相手の付け外し。ブロックと違い相手には何も起きない。
