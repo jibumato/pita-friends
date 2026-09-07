@@ -371,61 +371,93 @@ export default function Board({ flow }: { flow: Flow }) {
         </div>
         {/*
           0120: リクエストへの入口。
-          **板の中身とは別のものなので、投稿の並びには混ぜない。**
-          リクエストは公開されず、条件の合う相手にだけ通知として届く。
-          ここに「リクエスト一覧」を出してしまうと、0113 が閉じた
+
+          ⚠️ **絞り込みチップと同じ形にしないこと。** 一度そうして実機で見たら、
+          「＋ 遊びたい日時でリクエスト / 出したリクエスト」と
+          「すべて / 今夜 / Apex」が同じ角丸チップで2列に並び、
+          **押すまでどちらが画面遷移でどちらが絞り込みか分からない**状態になった。
+          役割が違うものは形を変える。ここは帯（カード）にして、
+          1行の説明で「板とは別のもの」だと伝える。
+
+          板の中身とも混ぜない。リクエストは公開されず、条件の合う相手にだけ
+          通知として届く。ここに「リクエスト一覧」を出すと、0113 が閉じた
           「無料で相手を募る掲示板」がそのまま復活する。
         */}
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          <span
-            onClick={() => flow.go('requestCreate')}
-            {...clickable(() => flow.go('requestCreate'), '遊びたい日時でリクエストを出す')}
-            style={{
-              cursor: 'pointer',
-              fontSize: 12,
-              color: C.ink,
-              background: C.surfaceLavender,
-              border: `1.5px solid ${C.lavender}`,
-              padding: '7px 13px',
-              borderRadius: 6,
-            }}
-          >
-            ＋ 遊びたい日時でリクエスト
+        <div
+          style={{
+            background: C.surfaceLavender,
+            border: `1.5px solid ${C.lavender}`,
+            borderRadius: 10,
+            padding: '11px 13px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 9,
+          }}
+        >
+          <span style={{ fontSize: 11, color: C.ink, lineHeight: 1.7 }}>
+            遊びたい日時が決まっているなら、
+            <b>リクエスト</b>を出せます。掲示板には出ず、条件の合うピタメイトにだけ届きます。
           </span>
-          <span
-            onClick={() => flow.go('myRequests')}
-            {...clickable(() => flow.go('myRequests'), '出したリクエスト')}
-            style={{
-              cursor: 'pointer',
-              fontSize: 12,
-              color: C.ink,
-              background: C.white,
-              border: `1.5px solid ${C.border}`,
-              padding: '7px 13px',
-              borderRadius: 6,
-            }}
-          >
-            出したリクエスト
-          </span>
-          {flow.hostSettings.isHost && (
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
             <span
-              onClick={() => flow.go('requestInbox')}
-              {...clickable(() => flow.go('requestInbox'), '届いたリクエスト')}
+              onClick={() => flow.go('requestCreate')}
+              {...clickable(() => flow.go('requestCreate'), '遊びたい日時でリクエストを出す')}
+              style={{
+                cursor: 'pointer',
+                fontSize: 12,
+                color: C.ctaFg,
+                background: C.ctaBg,
+                padding: '9px 14px',
+                borderRadius: 8,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              リクエストを出す
+            </span>
+            <span
+              onClick={() => flow.go('myRequests')}
+              {...clickable(() => flow.go('myRequests'), '出したリクエスト')}
               style={{
                 cursor: 'pointer',
                 fontSize: 12,
                 color: C.ink,
                 background: C.white,
                 border: `1.5px solid ${C.border}`,
-                padding: '7px 13px',
-                borderRadius: 6,
+                padding: '8px 13px',
+                borderRadius: 8,
+                whiteSpace: 'nowrap',
               }}
             >
-              届いたリクエスト
+              出したリクエスト
             </span>
-          )}
+            {flow.hostSettings.isHost && (
+              <span
+                onClick={() => flow.go('requestInbox')}
+                {...clickable(() => flow.go('requestInbox'), '届いたリクエスト')}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  color: C.ink,
+                  background: C.white,
+                  border: `1.5px solid ${C.border}`,
+                  padding: '8px 13px',
+                  borderRadius: 8,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                届いたリクエスト
+              </span>
+            )}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+
+        {/* ここから下は募集板そのもの（絞り込み＋投稿の並び）。
+            **折り返さず横スクロールにする。** 5個あると最後の1つだけが
+            2行目に落ちて、間延びしたうえに投稿の1件目が押し下げられていた */}
+        <div
+          className="pita-scroll"
+          style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 2 }}
+        >
           {(isBackendConfigured ? REAL_FILTERS : DEMO_FILTERS).map((f) => {
             const sel = filter === f
             return (
@@ -433,6 +465,8 @@ export default function Board({ flow }: { flow: Flow }) {
                 key={f}
                 onClick={() => setFilter(f)}
                 style={{
+                  flex: 'none',
+                  whiteSpace: 'nowrap',
                   cursor: 'pointer',
                   fontSize: 12,
                   color: sel ? C.lime : C.ink,

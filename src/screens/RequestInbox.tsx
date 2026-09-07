@@ -38,8 +38,22 @@ function windowLabel(from: Date, to: Date): string {
     : `${d(from)} ${t(from)}〜${d(to)} ${t(to)}`
 }
 
-function hourLabel(d: Date): string {
-  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:00`
+/** 「9/7(日) 21:00」。応じた時刻を1行で書き戻すときに使う。 */
+function dayHourLabel(d: Date): string {
+  return `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]}) ${d.getHours()}:00`
+}
+
+/** 選べる時刻を日ごとにまとめる。見出しは「9/7(日)」の形。 */
+const DOW = ['日', '月', '火', '水', '木', '金', '土']
+function groupByDay(list: Date[]): [string, Date[]][] {
+  const out: [string, Date[]][] = []
+  for (const d of list) {
+    const key = `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]})`
+    const last = out[out.length - 1]
+    if (last && last[0] === key) last[1].push(d)
+    else out.push([key, [d]])
+  }
+  return out
 }
 
 /**
@@ -63,6 +77,31 @@ function hourlyStarts(from: Date, to: Date, minutes: number, cap = 48): Date[] {
   return out
 }
 
+/**
+ * 「応じる」が何をするかの説明。**画面に1回だけ。**
+ * カードごとに繰り返すと、5件並んだときに画面が説明文で埋まる。
+ */
+function RespondNote() {
+  return (
+    <div
+      style={{
+        background: C.surfaceLavender,
+        border: `1.5px solid ${C.lavender}`,
+        borderRadius: 10,
+        padding: '11px 13px',
+        fontSize: 10.5,
+        lineHeight: 1.8,
+        color: C.ink,
+      }}
+    >
+      応じると<b>その時間が空き枠として開きます。</b>
+      予約はまだ成立していません（相手が予約して成立します）。
+      <br />
+      開いた枠は<b>ほかの方からも予約できます</b>——特定の方のための取り置きではありません。
+    </div>
+  )
+}
+
 function RequestCard({
   r,
   hourlyRate,
@@ -73,6 +112,7 @@ function RequestCard({
   onAnswered: (id: string, at: Date) => void
 }) {
   const starts = hourlyStarts(r.windowStart, r.windowEnd, r.durationMinutes)
+  const byDay = groupByDay(starts)
   const [picked, setPicked] = useState<Date | null>(r.myStartsAt)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -163,46 +203,61 @@ function RequestCard({
           <span style={{ fontSize: 11.5, color: C.muted }}>
             {r.answered ? '時刻を変える' : '何時からなら空けられますか'}
           </span>
-          <div
-            className="pita-scroll"
-            style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}
-          >
-            {starts.map((d) => {
-              const sel = picked?.getTime() === d.getTime()
-              return (
-                <span
-                  key={d.toISOString()}
-                  onClick={() => setPicked(d)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') setPicked(d)
-                  }}
-                  style={{
-                    flex: 'none',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    color: sel ? C.ink : C.body,
-                    background: sel ? C.lime : C.white,
-                    border: `1.5px solid ${C.border}`,
-                    padding: '9px 13px',
-                    borderRadius: 8,
-                    whiteSpace: 'nowrap',
-                  }}
+          {r.answered && r.myStartsAt && (
+            <span style={{ fontSize: 10.5, color: C.ink, marginTop: -4 }}>
+              いまは <b>{dayHourLabel(r.myStartsAt)}</b> で開けています
+            </span>
+          )}
+          {/*
+            **日ごとに分ける。** 1本の横スクロールに全部並べると、「今週末」の
+            ような範囲では 40 個以上の「M/D H:00」が横一列になり、
+            どこが何日なのか読めない。日付は行の見出しに出して、
+            チップは「時」だけにする。
+          */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {byDay.map(([dayKey, hours]) => (
+              <div key={dayKey} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <span style={{ fontSize: 10.5, color: C.muted }}>{dayKey}</span>
+                <div
+                  className="pita-scroll"
+                  style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}
                 >
-                  {hourLabel(d)}
-                </span>
-              )
-            })}
+                  {hours.map((d) => {
+                    const sel = picked?.getTime() === d.getTime()
+                    return (
+                      <span
+                        key={d.toISOString()}
+                        onClick={() => setPicked(d)}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={sel}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') setPicked(d)
+                        }}
+                        style={{
+                          flex: 'none',
+                          cursor: 'pointer',
+                          fontSize: 12,
+                          color: sel ? C.ink : C.body,
+                          background: sel ? C.lime : C.white,
+                          border: `1.5px solid ${C.border}`,
+                          padding: '9px 13px',
+                          borderRadius: 8,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {d.getHours()}:00
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
-          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
-            応じると<b style={{ color: C.ink }}>その時間が空き枠として開きます。</b>
-            予約はまだ成立していません（相手が予約して成立します）。
-            開いた枠は<b style={{ color: C.ink }}>ほかの方からも予約できます</b>
-            ——特定の方のための取り置きではありません。
-          </span>
-
+          {/* ⚠️ ここに説明を置かないこと。**カードごとに同じ4行が繰り返されて、
+              5件並ぶと画面が説明文で埋まる。** 説明は画面の先頭に1回だけ
+              （`RespondNote`）。カードには、押した結果だけを短く書く */}
           {error && <span style={{ fontSize: 11, color: C.avatarPink, lineHeight: 1.6 }}>{error}</span>}
 
           <span
@@ -300,20 +355,23 @@ export default function RequestInbox({ flow }: { flow: Flow }) {
             desc={`登録しているゲーム（${games.join('・')}）で、ゲストがリクエストを出すとここに並びます。`}
           />
         ) : (
-          items.map((r) => (
-            <RequestCard
-              key={r.id}
-              r={r}
-              hourlyRate={flow.hostSettings.hourlyRate}
-              onAnswered={(id, at) =>
-                setItems((prev) =>
-                  (prev ?? []).map((x) =>
-                    x.id === id ? { ...x, answered: true, myStartsAt: at } : x,
-                  ),
-                )
-              }
-            />
-          ))
+          <>
+            <RespondNote />
+            {items.map((r) => (
+              <RequestCard
+                key={r.id}
+                r={r}
+                hourlyRate={flow.hostSettings.hourlyRate}
+                onAnswered={(id, at) =>
+                  setItems((prev) =>
+                    (prev ?? []).map((x) =>
+                      x.id === id ? { ...x, answered: true, myStartsAt: at } : x,
+                    ),
+                  )
+                }
+              />
+            ))}
+          </>
         )}
       </div>
     </Screen>

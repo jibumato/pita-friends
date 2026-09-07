@@ -52,6 +52,10 @@ function SegRow({
               border: `1.5px solid ${C.border}`,
               padding: '9px 12px',
               borderRadius: 4,
+              // ⚠️ **等幅（flex:1）だけだと長いラベルが割れる。**
+              //    「日時を選ぶ」が実機で「日時を選／ぶ」の2行になっていた。
+              //    折り返さないと決めたうえで、はみ出す前提の余白を持たせる
+              whiteSpace: 'nowrap',
             }}
           >
             {o}
@@ -88,10 +92,18 @@ function toLocalInput(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-const WHEN_OPTIONS = [...TIME_WINDOWS.map((w) => w.label), '日時を選ぶ']
+/**
+ * いつ遊びたいか。プリセット3つ＋自由入力。
+ * ラベルは**4つ並べて割れない長さ**にすること（実機で「日時を選ぶ」が
+ * 2行になっていた）。
+ */
+const CUSTOM_WHEN = '指定する'
+const WHEN_OPTIONS = [...TIME_WINDOWS.map((w) => w.label), CUSTOM_WHEN]
 
 export default function RequestCreate({ flow }: { flow: Flow }) {
   const [game, setGame] = useState<string>(GAMES[0])
+  /** ゲームの一覧を全部ひらいたか。既定は先頭だけ（上の Field のコメント参照）。 */
+  const [allGames, setAllGames] = useState(false)
   const [duration, setDuration] = useState(60)
   const [whenLabel, setWhenLabel] = useState<string>(TIME_WINDOWS[0].label)
   const [from, setFrom] = useState('')
@@ -102,7 +114,14 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
   const [hits, setHits] = useState<GuardHit[]>([])
   const submit = usePress(`3px 3px 0 ${C.lavender}`)
 
-  const custom = whenLabel === '日時を選ぶ'
+  const custom = whenLabel === CUSTOM_WHEN
+
+  /** 出すゲーム。畳んでいるときも、選択中のものは必ず含める。 */
+  const visibleGames = useMemo<string[]>(() => {
+    if (allGames) return [...GAMES]
+    const head: string[] = GAMES.slice(0, 8)
+    return head.includes(game) ? head : [...head, game]
+  }, [allGames, game])
 
   /**
    * 送る範囲。プリセットは `timeWindowRange` をそのまま使う。
@@ -122,9 +141,16 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
     return { from: r.from < earliest ? earliest : r.from, to: r.to }
   }, [custom, from, to, whenLabel])
 
-  /** 出す前に自分で気づける警告（サーバの検査と同じ順で見る）。 */
-  const warning = useMemo<string | null>(() => {
-    if (!range) return null
+  /**
+   * 出す前に自分で気づけること（サーバの検査と同じ順で見る）。
+   *
+   * ⚠️ **「範囲が無い」も、ここで理由を出す。** 以前は範囲が null のとき
+   *    warning も null になり、ボタンは押せる見た目のまま `handleSubmit` の
+   *    先頭で黙って return していた。**押しても何も起きない**画面になっていて、
+   *    利用者からは壊れているのと区別がつかない。
+   */
+  const blocker = useMemo<string | null>(() => {
+    if (!range) return '遊びたい時間の「から」と「まで」を入れてください。'
     if (!(range.to > range.from)) return '終わりは、始まりより後にしてください。'
     if (range.to.getTime() - range.from.getTime() < duration * 60_000)
       return '遊ぶ長さより広い範囲にしてください。'
@@ -134,7 +160,7 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
   }, [range, duration])
 
   function handleSubmitClick() {
-    if (busy) return
+    if (busy || blocker) return
     if (hits.length === 0) {
       const result = inspectText(note)
       if (result.hits.length > 0) {
@@ -146,7 +172,7 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
   }
 
   async function handleSubmit() {
-    if (busy || !range || warning) return
+    if (busy || !range || blocker) return
     if (hits.length > 0) {
       for (const h of hits) void recordContentFlag(h.category, 'board', h.matched, true)
     }
@@ -201,15 +227,41 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
             color: C.ink,
           }}
         >
-          リクエストは<b>掲示板には出ません。</b>
-          同じゲームを登録しているピタメイトにだけ届き、応じた方があなたにだけ表示されます。
+          {/* **できることを先に言う。** 「掲示板には出ません」から始めると、
+              何ができるのかが読み終わるまで分からない */}
+          <b style={{ fontSize: 11.5 }}>遊びたい日時を出すと、条件の合うピタメイトに届きます。</b>
           <br />
-          応じた方が出たら、
-          <b>いつもどおり予約して成立</b>です（この画面では予約になりません）。
+          <span style={{ fontSize: 10.5, color: C.muted }}>
+            掲示板には出ません。応じた方だけが、あなたに表示されます。
+          </span>
         </div>
 
+        {/*
+          ゲームは27個ある。**全部出すと、この画面の半分がゲーム一覧になる。**
+          実機で見たら、日時を決める欄までスクロールしないと辿り着けなかった。
+
+          募集作成（BoardCreate）は同じ形で全部出しているが、あちらは
+          **ピタメイトが繰り返し使う画面**。リクエストは**ゲストが初めて使う
+          画面**なので、同じ重さでよいはずがない。
+
+          先頭8つだけ出して、残りは畳む。選んでいるものが畳んだ側にあるときは
+          必ず見せる（**いま何を選んでいるか分からない状態を作らない**）。
+        */}
         <Field label="ゲーム・ジャンル（必須）">
-          <SegRow options={[...GAMES]} value={game} onPick={setGame} />
+          <SegRow options={visibleGames} value={game} onPick={setGame} />
+          {!allGames && (
+            <span
+              onClick={() => setAllGames(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') setAllGames(true)
+              }}
+              style={{ alignSelf: 'flex-start', cursor: 'pointer', fontSize: 11.5, color: C.lavender }}
+            >
+              ほかのゲームから選ぶ（{GAMES.length - visibleGames.length}件）▾
+            </span>
+          )}
         </Field>
 
         <Field label="遊びたい長さ">
@@ -251,13 +303,15 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
         ) : (
           rangeLabel && (
             <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6, marginTop: -8 }}>
-              {rangeLabel} のあいだで探します。
-              <b style={{ color: C.ink }}>広く取るほど応じてもらいやすくなります。</b>
+              <b style={{ color: C.ink }}>{rangeLabel}</b> のあいだで探します。広く取るほど応じてもらいやすくなります。
             </span>
           )
         )}
 
-        {warning && (
+        {/* **入れたものが正しくないときだけ**赤く出す。未入力の段階で
+            赤い帯を出すのは、まだ何もしていない人を叱ることになる
+            （未入力の理由はボタンの直上に静かに置いている） */}
+        {range && blocker && (
           <div
             style={{
               background: C.avatarPink,
@@ -270,7 +324,7 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
               marginTop: -8,
             }}
           >
-            {warning}
+            {blocker}
           </div>
         )}
 
@@ -295,9 +349,10 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
           />
         </Field>
 
-        <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
-          受付中のリクエストは3件まで、範囲は7日以内です。受付の終わりを過ぎると自動的に閉じます。
-        </span>
+        {/* ⚠️ ここに「3件まで・7日以内」の制限を並べていたが、外した。
+            **まだ何も間違えていない人に、先回りして制限を読ませることになる。**
+            7日を超えたら `blocker` が理由ごと出るし、3件の上限は
+            「出したリクエスト」の画面で、実際に上限に達したときに出している */}
 
         {error && <span style={{ fontSize: 11, color: C.avatarPink, lineHeight: 1.6 }}>{error}</span>}
 
@@ -333,14 +388,35 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
           </div>
         )}
       </div>
-      <div style={{ padding: '12px 20px 26px', background: C.white, borderTop: `1.5px solid ${C.border}` }}>
+      <div
+        style={{
+          padding: '12px 20px 26px',
+          background: C.white,
+          borderTop: `1.5px solid ${C.border}`,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 9,
+        }}
+      >
+        {/* 押す前に「このあと何が起きるか」を出す（S5 で予約画面に入れたのと
+            同じ考え方）。押したあとに読むのと、押す前に読むのとでは別物 */}
+        {blocker ? (
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6 }}>{blocker}</span>
+        ) : (
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+            出すと、条件の合うピタメイトに届きます。応じた方が出たら通知が来ます。
+            <b style={{ color: C.ink }}>まだ予約にはなりません</b>
+            ——予約は、応じた方を選んでから行います。いつでも取り下げられます。
+          </span>
+        )}
         <div
           className="pita-press"
           onClick={handleSubmitClick}
-          {...(busy || !!warning ? {} : submit.handlers)}
+          {...(busy || blocker ? {} : submit.handlers)}
+          aria-disabled={busy || !!blocker}
           style={{
-            cursor: busy || warning ? 'not-allowed' : 'pointer',
-            opacity: busy || warning ? 0.6 : 1,
+            cursor: busy || blocker ? 'not-allowed' : 'pointer',
+            opacity: busy || blocker ? 0.45 : 1,
             background: C.ctaBg,
             color: C.ctaFg,
             borderRadius: 8,

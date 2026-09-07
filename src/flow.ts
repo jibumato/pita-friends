@@ -341,6 +341,7 @@ export function activeTabOf(screen: ScreenKey): TabKey | null {
     case 'boardCreate':
     case 'requestCreate':
     case 'requestInbox':
+    case 'myRequests':
       return 'post'
     case 'talkList':
     case 'talk':
@@ -352,7 +353,6 @@ export function activeTabOf(screen: ScreenKey): TabKey | null {
     case 'requests':
     case 'wallet':
     case 'hostSettings':
-    case 'myRequests':
     case 'hostDashboard':
     case 'blockList':
     case 'withdraw':
