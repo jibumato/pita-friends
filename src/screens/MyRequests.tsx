@@ -295,6 +295,13 @@ export default function MyRequests({ flow }: { flow: Flow }) {
 
   useEffect(load, [load])
 
+  const signedIn = isBackendConfigured && flow.userId !== null
+  /**
+   * 受付中は3件まで（サーバの `create_guest_request` も同じ上限で弾く）。
+   * **押してからエラーで返すのではなく、押す前に理由ごと出す。**
+   */
+  const atLimit = (items ?? []).filter((r) => r.status === 'open').length >= 3
+
   return (
     <Screen background={C.surface}>
       <StatusBar time="21:47" />
@@ -341,26 +348,56 @@ export default function MyRequests({ flow }: { flow: Flow }) {
             />
           ))
         )}
-        <span
-          onClick={() => flow.go('requestCreate')}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') flow.go('requestCreate')
-          }}
+      </div>
+      {/*
+        **CTA は一覧の下ではなく固定フッターに置く。** 中に置くと、件数が
+        増えるほどスクロールしないと出せなくなる——「出す」がこの画面の
+        いちばん大事な操作なのに、一覧が伸びるほど遠ざかっていた。
+
+        未ログインでは出さない。押しても登録画面へ送るしかなく、
+        出せない導線を見せることになる。
+      */}
+      {signedIn && (
+        <div
           style={{
-            cursor: 'pointer',
-            textAlign: 'center',
-            fontSize: 13,
-            color: C.ctaFg,
-            background: C.ctaBg,
-            borderRadius: 8,
-            padding: '13px 0',
+            padding: '12px 20px 26px',
+            background: C.white,
+            borderTop: `1.5px solid ${C.border}`,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
           }}
         >
-          リクエストを出す
-        </span>
-      </div>
+          {atLimit && (
+            <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6 }}>
+              受付中のリクエストが上限（3件）です。どれかを取り下げると、新しく出せます。
+            </span>
+          )}
+          <span
+            onClick={() => {
+              if (!atLimit) flow.go('requestCreate')
+            }}
+            role="button"
+            tabIndex={0}
+            aria-disabled={atLimit}
+            onKeyDown={(e) => {
+              if (!atLimit && (e.key === 'Enter' || e.key === ' ')) flow.go('requestCreate')
+            }}
+            style={{
+              cursor: atLimit ? 'not-allowed' : 'pointer',
+              opacity: atLimit ? 0.45 : 1,
+              textAlign: 'center',
+              fontSize: 13.5,
+              color: C.ctaFg,
+              background: C.ctaBg,
+              borderRadius: 8,
+              padding: '13px 0',
+            }}
+          >
+            リクエストを出す
+          </span>
+        </div>
+      )}
     </Screen>
   )
 }
