@@ -39,41 +39,22 @@
  *   hostIntent.ts に意思を預けて、登録が終わってホームに着いた1回だけ
  *   ピタメイト設定へ送る(消費はHome側)。
  *
- * ■ 枠が未登録のピタメイトにだけ、ヒーローの下に細い帯を出す
- *   これは**実害のある状態**なので別扱いにしている:
- *     ・`booking_fits_availability` は枠を1つも持たない相手を「制限なし」として
- *       扱う(0051)。つまり**枠が未登録だと深夜でも予約が入る**
- *     ・枠を増やすとお気に入りに入れてくれている人に通知が届く(0054。24時間に1回まで)
- *     ・常連への先行予約(0057)も枠がある前提の仕組み
- *   帯は枠を登録すれば消える。それ以外の状態では出さないので、
- *   ふだんのホームはヒーロー→内容のままで余計なものが挟まらない。
+ * ■ 掲載の設定が足りないピタメイトにだけ、ヒーローの下に細い帯を出す
+ *   中身は `HostReadyBand` に移した。**判定をここに残すと、同じ帯を出す
+ *   モバイルのホームと条件がずれる**（もともとこの帯はデスクトップにしか
+ *   無く、スマホのピタメイトには一度も表示されていなかった）。
+ *   設定を済ませれば消えるので、ふだんのホームはヒーロー→内容のまま。
  */
-import { useEffect, useState } from 'react'
 import type { Flow } from '../App'
 import { color as C } from '../theme/tokens'
 import { isBackendConfigured } from '../lib/supabase'
-import { fetchMyAvailability } from '../lib/queries'
+import HostReadyBand from './HostReadyBand'
 import { markHostIntent } from '../lib/hostIntent'
 
 export default function DesktopHero({ flow }: { flow: Flow }) {
   // バックエンド未接続(デモ)は未ログイン扱い。説明を見せる場面なので
   const signedOut = !isBackendConfigured || flow.userId === null
   const isHost = flow.hostSettings.isHost
-
-  // 枠の数。ピタメイトのときだけ読む。読めるまでは null
-  const [slots, setSlots] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (signedOut || !isHost || !isBackendConfigured) return
-    let active = true
-    fetchMyAvailability()
-      .then((s) => active && setSlots(s.length))
-      // 取れなかったときは帯を出さない。憶測で「未登録です」と言わない
-      .catch(() => active && setSlots(null))
-    return () => {
-      active = false
-    }
-  }, [signedOut, isHost])
 
   return (
     <>
@@ -95,67 +76,11 @@ export default function DesktopHero({ flow }: { flow: Flow }) {
               : { label: 'ピタメイトになる ›', onGo: () => flow.go('hostSettings') }
         }
       />
-      {/* 枠が未登録のピタメイトにだけ。登録すれば消える */}
-      {!signedOut && isHost && slots === 0 && (
-        <NoSlotsBand onGo={() => flow.go('hostSettings')} />
-      )}
+      {/* 掲載中なのに予約が入らない状態のピタメイトにだけ。設定を済ませれば消える。
+          **判定は HostReadyBand に集約した**——ここに残しておくと、
+          モバイルのホーム（同じ帯を出す）と条件がずれる */}
+      <HostReadyBand flow={flow} variant="band" />
     </>
-  )
-}
-
-// ------------------------------------------------------------
-// 枠が未登録のピタメイトにだけ出す帯
-// ------------------------------------------------------------
-
-/**
- * ヒーローの直下。**枠を登録すれば消える**ので、ふだんは邪魔にならない。
- * 「深夜でも予約が入る」は 0051 の実際の挙動
- * (`booking_fits_availability` は枠を1つも持たない相手を制限なしとして扱う)。
- */
-function NoSlotsBand({ onGo }: { onGo: () => void }) {
-  return (
-    <div
-      style={{
-        flex: 'none',
-        background: C.surfaceLavender,
-        borderBottom: `1.5px solid ${C.border}`,
-        padding: '14px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 16,
-        flexWrap: 'wrap',
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-        <span style={{ fontSize: 14, color: C.ink }}>あそべる時間が未登録です</span>
-        <span style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.7 }}>
-          枠が未登録のあいだは、深夜でも予約が入ります。登録すると希望の時間だけになり、
-          枠を開けたことがお気に入りに入れてくれている人に届きます。
-        </span>
-      </div>
-      <span
-        onClick={onGo}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') onGo()
-        }}
-        style={{
-          cursor: 'pointer',
-          flex: 'none',
-          fontSize: 14,
-          color: C.ink,
-          background: C.lime,
-          border: `1.5px solid ${C.border}`,
-          borderRadius: 10,
-          boxShadow: `3px 3px 0 ${C.border}`,
-          padding: '11px 20px',
-        }}
-      >
-        ▶ あそべる時間を登録する
-      </span>
-    </div>
   )
 }
 
