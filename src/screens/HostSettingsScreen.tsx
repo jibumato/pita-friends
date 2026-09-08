@@ -565,7 +565,39 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
 
         <FeeRatesSection />
 
+        {/*
+          対応ゲームは**見た目より重い設定**なので、何に効くかを書く。
+
+          ここが空だと、ゲストのリクエスト(0120)は**1件も届かない。**
+          リクエストは登録ゲームの一致で宛先を絞っているため。しかも
+          届かないことは「何も起きない」という形でしか現れないので、
+          **本人からは「来ていない」のか「自分に届いていない」のかが
+          区別できない。** ラベルだけ置いて黙っているのが、いちばんまずい。
+        */}
         <span style={{ fontSize: 12, color: C.muted }}>対応ゲーム</span>
+        <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7, marginTop: -8 }}>
+          「さがす」の絞り込みに使われます。
+          <b style={{ color: C.ink }}>
+            ゲストのリクエストも、ここが一致する方にだけ届きます。
+          </b>
+        </span>
+        {h.isHost && h.games.length === 0 && (
+          <div
+            style={{
+              background: C.avatarOrange,
+              border: `1.5px solid ${C.border}`,
+              borderRadius: 8,
+              padding: '10px 12px',
+              fontSize: 11,
+              lineHeight: 1.7,
+              color: C.ink,
+              marginTop: -6,
+            }}
+          >
+            1つも選ばれていません。このままだと<b>ゲストのリクエストが1件も届きません。</b>
+            遊べるゲームを選んでください。
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {GAMES.map((g) => {
             const sel = h.games.includes(g)

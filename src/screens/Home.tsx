@@ -22,6 +22,7 @@ import HostStatus from '../components/HostStatus'
 import VoiceChip from '../components/VoiceChip'
 import RepeatBadge from '../components/RepeatBadge'
 import LegalLinks from '../components/LegalLinks'
+import HostReadyBand from '../components/HostReadyBand'
 import {
   fetchDiscoverableHosts,
   fetchPublicHostCards,
@@ -1174,6 +1175,14 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           padding: '14px 20px 24px',
         }}
       >
+        {/* 掲載中なのに予約が入らない状態（対応ゲーム未登録・枠未登録）の
+            ピタメイトにだけ。**もともとこの帯は DesktopHero にしか無く、
+            スマホのピタメイトには一度も出ていなかった。** ピタフレはスマホの
+            PWAなので、いちばん多い利用者にいちばん届いていなかった。
+            デスクトップは App 側の DesktopHero が同じものを出すので、ここは
+            モバイルのときだけ */}
+        {mobile && <HostReadyBand flow={flow} />}
+
         {/* 0117: 未ログインの人にだけ、動いている形跡を数で見せる。
             ログイン後は自分のお気に入りや今あそべる人のほうが直接的なので出さない。
             個人が特定できる情報は含まない(在席は 0052 の判断どおり出さない)。 */}
