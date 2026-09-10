@@ -125,7 +125,7 @@ function RealPostCard({
           style={{
             flex: 'none',
             fontSize: 11,
-            color: C.ink,
+            color: C.onPale,
             background: C.lime,
             border: `1.5px solid ${C.border}`,
             padding: '3px 9px',
@@ -174,7 +174,7 @@ function RealPostCard({
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 13,
-            color: C.ink,
+            color: C.onPale,
           }}
         >
           {p.creatorInitial}
@@ -484,7 +484,7 @@ export default function Board({ flow }: { flow: Flow }) {
       </div>
 
       {error && (
-        <div style={{ margin: '12px 20px 0', background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 11.5, color: C.ink }}>
+        <div style={{ margin: '12px 20px 0', background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 11.5, color: C.onPale}}>
           {error}
         </div>
       )}
@@ -496,7 +496,7 @@ export default function Board({ flow }: { flow: Flow }) {
       ) : empty ? (
         <EmptyState
           tileColor={C.avatarAqua}
-          icon={<PlusCircle size={44} color={C.ink} strokeWidth={2.4} />}
+          icon={<PlusCircle size={44} color={C.onPale} strokeWidth={2.4} />}
           title={
             <>
               今この条件の募集は
@@ -579,7 +579,7 @@ export default function Board({ flow }: { flow: Flow }) {
                       style={{
                         flex: 'none',
                         fontSize: 11,
-                        color: C.ink,
+                        color: C.onPale,
                         background: C.lime,
                         border: `1.5px solid ${C.border}`,
                         padding: '3px 9px',
@@ -618,7 +618,7 @@ export default function Board({ flow }: { flow: Flow }) {
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: 13,
-                        color: C.ink,
+                        color: C.onPale,
                       }}
                     >
                       {p.host.initial}
@@ -627,7 +627,7 @@ export default function Board({ flow }: { flow: Flow }) {
                     <span
                       style={{
                         fontSize: 9.5,
-                        color: C.ink,
+                        color: C.onPale,
                         background: C.lime,
                         border: `1.5px solid ${C.border}`,
                         padding: '1px 6px',

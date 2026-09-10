@@ -113,7 +113,7 @@ function GiftBubble({
             padding: '8px 12px',
             fontSize: 12.5,
             lineHeight: 1.6,
-            color: C.ink,
+            color: left ? C.ink : C.onPale,
           }}
         >
           {extra}
@@ -235,7 +235,7 @@ function GiftSheet({
                 style={{
                   cursor: 'pointer',
                   fontSize: 13,
-                  color: sel ? C.ink : C.body,
+                  color: sel ? C.onPale : C.body,
                   background: sel ? C.lime : C.white,
                   border: `1.5px solid ${C.border}`,
                   padding: '9px 14px',
@@ -552,7 +552,8 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 15,
-            color: C.ink,
+            // アバターの色は淡い固定色（avatarColors）なので、相手の有無に関わらず onPale
+            color: C.onPale,
           }}
         >
           {partner?.initial ?? '?'}
@@ -564,7 +565,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
               <span
                 style={{
                   fontSize: 9,
-                  color: C.ink,
+                  color: C.onPale,
                   background: C.lime,
                   border: `1.5px solid ${C.border}`,
                   padding: '1px 5px',
@@ -658,7 +659,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
                 opacity: completing ? 0.6 : 1,
                 textAlign: 'center',
                 fontSize: 12.5,
-                color: C.ink,
+                color: C.onPale,
                 background: C.lime,
                 border: `1.5px solid ${C.border}`,
                 borderRadius: 6,
@@ -735,7 +736,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
                         cursor: extending ? 'not-allowed' : 'pointer',
                         opacity: extending ? 0.6 : 1,
                         fontSize: 11.5,
-                        color: C.ink,
+                        color: C.onPale,
                         background: C.lime,
                         border: `1.5px solid ${C.border}`,
                         borderRadius: 6,
@@ -857,7 +858,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
                 </span>
                 <span
                   onClick={handleCancel}
-                  style={{ flex: 1, textAlign: 'center', cursor: cancelling ? 'not-allowed' : 'pointer', opacity: cancelling ? 0.6 : 1, fontSize: 11.5, color: C.ink, background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 0' }}
+                  style={{ flex: 1, textAlign: 'center', cursor: cancelling ? 'not-allowed' : 'pointer', opacity: cancelling ? 0.6 : 1, fontSize: 11.5, color: C.onPale, background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 0' }}
                 >
                   {cancelling ? '処理中…' : 'キャンセルする'}
                 </span>
@@ -938,7 +939,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
                   opacity: submittingReview ? 0.6 : 1,
                   textAlign: 'center',
                   fontSize: 12,
-                  color: C.ink,
+                  color: C.onPale,
                   background: C.lime,
                   border: `1.5px solid ${C.border}`,
                   borderRadius: 6,
@@ -1051,7 +1052,7 @@ function RealTalk({ flow, promiseId }: { flow: Flow; promiseId: string }) {
               </span>
               <span
                 onClick={() => void doSend()}
-                style={{ flex: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11.5, color: C.ink, background: C.lime, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 0' }}
+                style={{ flex: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11.5, color: C.onPale, background: C.lime, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 0' }}
               >
                 送信する
               </span>
@@ -1152,7 +1153,7 @@ function DemoTalk({ flow }: { flow: Flow }) {
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 15,
-            color: C.ink,
+            color: C.onPale,
           }}
         >
           み
@@ -1163,7 +1164,7 @@ function DemoTalk({ flow }: { flow: Flow }) {
             <span
               style={{
                 fontSize: 9,
-                color: C.ink,
+                color: C.onPale,
                 background: C.lime,
                 border: `1.5px solid ${C.border}`,
                 padding: '1px 5px',
@@ -1220,7 +1221,8 @@ function DemoTalk({ flow }: { flow: Flow }) {
             <span
               style={{
                 fontSize: 10,
-                color: C.ink,
+                // どちらの枝も淡い固定色なので、文字は常に onPale
+                color: C.onPale,
                 background: flow.dealDone ? C.lime : C.avatarOrange,
                 border: `1.5px solid ${C.border}`,
                 padding: '2px 8px',
@@ -1242,7 +1244,7 @@ function DemoTalk({ flow }: { flow: Flow }) {
                   flex: 1,
                   textAlign: 'center',
                   fontSize: 12,
-                  color: C.ink,
+                  color: C.onPale,
                   background: C.lime,
                   border: `1.5px solid ${C.border}`,
                   padding: '9px 0',
@@ -1296,7 +1298,7 @@ function DemoTalk({ flow }: { flow: Flow }) {
                 width: '100%',
                 boxSizing: 'border-box',
                 background: C.lime,
-                color: C.ink,
+                color: C.onPale,
                 border: `1.5px solid ${C.border}`,
                 borderRadius: 8,
                 padding: '12px 0',

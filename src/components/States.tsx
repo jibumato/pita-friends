@@ -71,7 +71,7 @@ export function EmptyState({
             cursor: 'pointer',
             width: '100%',
             background: ctaVariant === 'confirm' ? C.lime : C.ctaBg,
-            color: ctaVariant === 'confirm' ? C.ink : C.ctaFg,
+            color: ctaVariant === 'confirm' ? C.onPale : C.ctaFg,
             border: ctaVariant === 'confirm' ? `1.5px solid ${C.border}` : 'none',
             borderRadius: 8,
             padding: '14px 0',

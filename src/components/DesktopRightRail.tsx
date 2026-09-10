@@ -106,7 +106,7 @@ export default function DesktopRightRail({ flow }: { flow: Flow }) {
           style={{
             alignSelf: 'flex-start',
             fontSize: 11,
-            color: C.ink,
+            color: C.onPale,
             background: C.lime,
             border: `1.5px solid ${C.border}`,
             borderRadius: 20,

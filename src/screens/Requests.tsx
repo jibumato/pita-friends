@@ -108,7 +108,7 @@ function RequestCard({
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 20,
-            color: C.ink,
+            color: C.onPale,
           }}
         >
           {r.initial}
@@ -120,7 +120,7 @@ function RequestCard({
               <span
                 style={{
                   fontSize: 9.5,
-                  color: C.ink,
+                  color: C.onPale,
                   background: C.lime,
                   border: `1.5px solid ${C.border}`,
                   padding: '2px 7px',
@@ -134,7 +134,7 @@ function RequestCard({
               <span
                 style={{
                   fontSize: 9.5,
-                  color: C.ink,
+                  color: C.onPale,
                   background: C.lime,
                   border: `1.5px solid ${C.border}`,
                   padding: '2px 7px',
@@ -227,7 +227,7 @@ function RequestCard({
             cursor: busy ? 'not-allowed' : 'pointer',
             opacity: busy ? 0.6 : 1,
             fontSize: 12.5,
-            color: C.ink,
+            color: C.onPale,
             background: C.lime,
             border: `1.5px solid ${C.border}`,
             borderRadius: 8,
@@ -302,7 +302,7 @@ export default function Requests({ flow }: { flow: Flow }) {
       <SubHeader title="受け取ったリクエスト" onBack={() => flow.go('mypage')} />
 
       {error && (
-        <div style={{ margin: '10px 20px 0', background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: '11px 13px', fontSize: 12, color: C.ink }}>
+        <div style={{ margin: '10px 20px 0', background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: '11px 13px', fontSize: 12, color: C.onPale}}>
           {error}
         </div>
       )}
@@ -314,7 +314,7 @@ export default function Requests({ flow }: { flow: Flow }) {
       ) : items && items.length === 0 ? (
         <EmptyState
           tileColor={C.avatarAqua}
-          icon={<Shield size={42} color={C.ink} strokeWidth={2.2} />}
+          icon={<Shield size={42} color={C.onPale} strokeWidth={2.2} />}
           title="承認待ちのリクエストはありません"
           desc={
             <>

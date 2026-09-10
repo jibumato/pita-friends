@@ -55,7 +55,7 @@ export default function SafetyPreferences({ flow }: { flow: Flow }) {
           style={{
             cursor: 'pointer',
             background: C.lime,
-            color: C.ink,
+            color: C.onPale,
             border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '11px 0',

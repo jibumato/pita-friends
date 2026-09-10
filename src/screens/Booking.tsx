@@ -196,7 +196,7 @@ export default function Booking({ flow }: { flow: Flow }) {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 20,
-              color: C.ink,
+              color: C.onPale,
             }}
           >
             {host.initial}
@@ -282,7 +282,7 @@ export default function Booking({ flow }: { flow: Flow }) {
                       flex: 'none',
                       cursor: taken ? 'not-allowed' : 'pointer',
                       fontSize: 12,
-                      color: taken ? C.muted : sel ? C.ink : C.body,
+                      color: taken ? C.muted : sel ? C.onPale : C.body,
                       background: taken ? C.surface : sel ? C.lime : C.white,
                       border: `1.5px solid ${C.border}`,
                       padding: '9px 13px',
@@ -449,7 +449,7 @@ export default function Booking({ flow }: { flow: Flow }) {
               <span
                 style={{
                   fontSize: 10,
-                  color: C.ink,
+                  color: C.onPale,
                   background: C.lime,
                   border: `1.5px solid ${C.border}`,
                   padding: '2px 7px',
@@ -574,7 +574,7 @@ export default function Booking({ flow }: { flow: Flow }) {
               borderRadius: 8,
               padding: '11px 13px',
               fontSize: 12,
-              color: C.ink,
+              color: C.onPale,
             }}
           >
             {flow.bookingError}

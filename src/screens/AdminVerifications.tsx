@@ -222,7 +222,7 @@ function VerificationCard({
             opacity: isAdultChecked && !busy ? 1 : 0.55,
             textAlign: 'center',
             fontSize: 12.5,
-            color: C.ink,
+            color: C.onPale,
             background: C.lime,
             border: `1.5px solid ${C.border}`,
             borderRadius: 8,
@@ -304,7 +304,7 @@ export default function AdminVerifications({ flow }: { flow: Flow }) {
               borderRadius: 8,
               padding: '11px 13px',
               fontSize: 12,
-              color: C.ink,
+              color: C.onPale,
             }}
           >
             {error}

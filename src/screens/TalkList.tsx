@@ -84,7 +84,7 @@ export default function TalkList({ flow }: { flow: Flow }) {
       </div>
 
       {error && (
-        <div style={{ margin: '0 20px 10px', background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 11.5, color: C.ink }}>
+        <div style={{ margin: '0 20px 10px', background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 11.5, color: C.onPale}}>
           {error}
         </div>
       )}
@@ -140,7 +140,7 @@ export default function TalkList({ flow }: { flow: Flow }) {
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: 20,
-                        color: C.ink,
+                        color: C.onPale,
                       }}
                     >
                       {t.partnerInitial}
@@ -162,7 +162,7 @@ export default function TalkList({ flow }: { flow: Flow }) {
                         <span
                           style={{
                             fontSize: 8.5,
-                            color: C.ink,
+                            color: C.onPale,
                             background: C.lime,
                             border: `1.5px solid ${C.border}`,
                             padding: '1px 5px',
@@ -191,7 +191,7 @@ export default function TalkList({ flow }: { flow: Flow }) {
                       <span
                         style={{
                           fontSize: 10,
-                          color: C.ink,
+                          color: C.onPale,
                           background: C.lime,
                           border: `1.5px solid ${C.border}`,
                           borderRadius: 99,
@@ -230,7 +230,7 @@ export default function TalkList({ flow }: { flow: Flow }) {
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: 20,
-                      color: C.ink,
+                      color: C.onPale,
                       flex: 'none',
                     }}
                   >
@@ -243,7 +243,7 @@ export default function TalkList({ flow }: { flow: Flow }) {
                         <span
                           style={{
                             fontSize: 8.5,
-                            color: C.ink,
+                            color: C.onPale,
                             background: C.lime,
                             border: `1.5px solid ${C.border}`,
                             padding: '1px 5px',
@@ -272,7 +272,7 @@ export default function TalkList({ flow }: { flow: Flow }) {
                       <span
                         style={{
                           fontSize: 10,
-                          color: C.ink,
+                          color: C.onPale,
                           background: C.lime,
                           border: `1.5px solid ${C.border}`,
                           borderRadius: 99,

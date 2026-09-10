@@ -155,7 +155,7 @@ export default function AvailabilityEditor() {
               opacity: saving ? 0.6 : 1,
               textAlign: 'center',
               fontSize: 12.5,
-              color: C.ink,
+              color: C.onPale,
               background: C.lime,
               border: `1.5px solid ${C.border}`,
               borderRadius: 6,

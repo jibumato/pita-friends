@@ -45,7 +45,7 @@ export default function SignedOutPrompt({ flow, title, body, compact = false }: 
             cursor: 'pointer',
             flex: '1 1 150px',
             background: C.lime,
-            color: C.ink,
+            color: C.onPale,
             border: `1.5px solid ${C.border}`,
             boxShadow: `3px 3px 0 ${C.border}`,
             borderRadius: 10,

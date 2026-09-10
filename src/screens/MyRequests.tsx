@@ -112,7 +112,7 @@ function AnswerRow({
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 13,
-          color: C.ink,
+          color: C.onPale,
           overflow: 'hidden',
         }}
       >
@@ -131,7 +131,7 @@ function AnswerRow({
           {cost !== null && `・${cost} コイン`}
         </span>
       </div>
-      <span style={{ flex: 'none', fontSize: 11.5, color: C.ink, background: C.lime, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 11px' }}>
+      <span style={{ flex: 'none', fontSize: 11.5, color: C.onPale, background: C.lime, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '7px 11px' }}>
         予約する
       </span>
     </div>
@@ -206,7 +206,7 @@ function RequestCard({
             flex: 'none',
             fontSize: 9.5,
             fontWeight: 700,
-            color: C.ink,
+            color: isOpen ? C.onPale : C.ink,
             background: isOpen ? C.lime : C.surface,
             border: `1.5px solid ${C.border}`,
             padding: '2px 6px',
@@ -260,7 +260,7 @@ function RequestCard({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') void handleCancel()
               }}
-              style={{ flex: 1, textAlign: 'center', cursor: busy ? 'default' : 'pointer', fontSize: 11.5, color: C.ink, background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '8px 0', opacity: busy ? 0.6 : 1 }}
+              style={{ flex: 1, textAlign: 'center', cursor: busy ? 'default' : 'pointer', fontSize: 11.5, color: C.onPale, background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '8px 0', opacity: busy ? 0.6 : 1 }}
             >
               取り下げる
             </span>
@@ -330,7 +330,7 @@ export default function MyRequests({ flow }: { flow: Flow }) {
         ) : items.length === 0 ? (
           <EmptyState
             tileColor={C.avatarAqua}
-            icon={<PlusCircle size={44} color={C.ink} strokeWidth={2.4} />}
+            icon={<PlusCircle size={44} color={C.onPale} strokeWidth={2.4} />}
             title="まだリクエストがありません"
             desc="遊びたい日時とゲームを出しておくと、条件の合うピタメイトに届きます。掲示板には出ません。"
           />

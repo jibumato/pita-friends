@@ -159,7 +159,7 @@ function RequestCard({
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 13,
-            color: C.ink,
+            color: C.onPale,
           }}
         >
           {r.guestInitial}
@@ -179,7 +179,7 @@ function RequestCard({
               flex: 'none',
               fontSize: 9.5,
               fontWeight: 700,
-              color: C.ink,
+              color: C.onPale,
               background: C.lime,
               border: `1.5px solid ${C.border}`,
               padding: '2px 6px',
@@ -238,7 +238,7 @@ function RequestCard({
                           flex: 'none',
                           cursor: 'pointer',
                           fontSize: 12,
-                          color: sel ? C.ink : C.body,
+                          color: sel ? C.onPale : C.body,
                           background: sel ? C.lime : C.white,
                           border: `1.5px solid ${C.border}`,
                           padding: '9px 13px',
@@ -326,7 +326,7 @@ export default function RequestInbox({ flow }: { flow: Flow }) {
         ) : !isHost ? (
           <EmptyState
             tileColor={C.avatarAqua}
-            icon={<PlusCircle size={44} color={C.ink} strokeWidth={2.4} />}
+            icon={<PlusCircle size={44} color={C.onPale} strokeWidth={2.4} />}
             title="ピタメイトになると届きます"
             desc="ゲストの「この日時で遊びたい」は、掲載中のピタメイトにだけ届きます。"
             cta="ピタメイト設定へ"
@@ -337,7 +337,7 @@ export default function RequestInbox({ flow }: { flow: Flow }) {
              画面上は「リクエストが無い」と区別がつかず、原因に辿り着けない */
           <EmptyState
             tileColor={C.avatarOrange}
-            icon={<PlusCircle size={44} color={C.ink} strokeWidth={2.4} />}
+            icon={<PlusCircle size={44} color={C.onPale} strokeWidth={2.4} />}
             title="遊ぶゲームを登録してください"
             desc="リクエストは、登録しているゲームが一致するピタメイトにだけ届きます。1つも登録がないと届きません。"
             cta="ピタメイト設定へ"
@@ -350,7 +350,7 @@ export default function RequestInbox({ flow }: { flow: Flow }) {
         ) : items.length === 0 ? (
           <EmptyState
             tileColor={C.avatarAqua}
-            icon={<PlusCircle size={44} color={C.ink} strokeWidth={2.4} />}
+            icon={<PlusCircle size={44} color={C.onPale} strokeWidth={2.4} />}
             title="いま届いているリクエストはありません"
             desc={`登録しているゲーム（${games.join('・')}）で、ゲストがリクエストを出すとここに並びます。`}
           />

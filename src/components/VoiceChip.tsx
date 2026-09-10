@@ -77,7 +77,7 @@ export default function VoiceChip({
           gap: 6,
           cursor: 'pointer',
           background: solid ? C.lime : C.white,
-          color: C.ink,
+          color: solid ? C.onPale : C.ink,
           border: `1.5px solid ${C.border}`,
           borderRadius: 20,
           boxShadow: solid ? `2px 2px 0 ${C.border}` : 'none',

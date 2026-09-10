@@ -29,7 +29,7 @@ function FilterSection({ label, filters, flow }: { label: string; filters: strin
               style={{
                 cursor: 'pointer',
                 fontSize: 11.5,
-                color: C.ink,
+                color: sel ? C.onPale : C.ink,
                 background: sel ? C.lime : C.surface,
                 border: `1.5px solid ${C.border}`,
                 padding: '5px 10px',
@@ -120,7 +120,7 @@ export default function DesktopSidebar({ flow }: { flow: Flow }) {
             cursor: 'pointer',
             textAlign: 'center',
             fontSize: 12.5,
-            color: C.ink,
+            color: C.onPale,
             background: C.lime,
             border: `1.5px solid ${C.border}`,
             borderRadius: 8,

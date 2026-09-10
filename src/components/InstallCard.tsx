@@ -59,7 +59,7 @@ export default function InstallCard() {
           cursor: 'pointer',
           flex: 'none',
           background: C.lime,
-          color: C.ink,
+          color: C.onPale,
           border: `1.5px solid ${C.border}`,
           borderRadius: 8,
           padding: '8px 12px',

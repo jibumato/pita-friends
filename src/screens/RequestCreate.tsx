@@ -320,7 +320,7 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
               padding: '10px 12px',
               fontSize: 11,
               lineHeight: 1.7,
-              color: C.ink,
+              color: C.onPale,
               marginTop: -8,
             }}
           >
@@ -380,7 +380,7 @@ export default function RequestCreate({ flow }: { flow: Flow }) {
               </span>
               <span
                 onClick={() => void handleSubmit()}
-                style={{ flex: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11.5, color: C.ink, background: C.lime, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '8px 0' }}
+                style={{ flex: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11.5, color: C.onPale, background: C.lime, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: '8px 0' }}
               >
                 このまま出す
               </span>

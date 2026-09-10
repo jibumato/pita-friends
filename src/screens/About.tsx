@@ -163,7 +163,7 @@ export default function About({ flow }: { flow: Flow }) {
                     placeItems: 'center',
                     fontSize: 11,
                     fontWeight: 800,
-                    color: C.ink,
+                    color: C.onPale,
                   }}
                 >
                   {s.step}

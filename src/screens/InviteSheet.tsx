@@ -136,7 +136,7 @@ export default function InviteSheet({ flow }: { flow: Flow }) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: 19,
-                  color: C.ink,
+                  color: C.onPale,
                 }}
               >
                 {initial}

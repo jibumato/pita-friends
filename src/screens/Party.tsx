@@ -57,7 +57,7 @@ export default function Party({ flow }: { flow: Flow }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: Math.round(m.size * 0.4),
-                color: C.ink,
+                color: C.onPale,
                 margin: `0 ${m.mx}px`,
                 zIndex: m.z,
               }}
@@ -118,7 +118,7 @@ export default function Party({ flow }: { flow: Flow }) {
           style={{
             cursor: 'pointer',
             background: C.lime,
-            color: C.ink,
+            color: C.onPale,
             borderRadius: 8,
             padding: '15px 0',
             textAlign: 'center',

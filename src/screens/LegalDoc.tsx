@@ -41,7 +41,7 @@ export default function LegalDoc({ flow }: { flow: Flow }) {
                 padding: '10px 12px',
                 fontSize: 10.5,
                 lineHeight: 1.7,
-                color: C.ink,
+                color: C.onPale,
               }}
             >
               これは施行前のドラフトです。内容は弁護士レビューを経て確定します。「【　】」は確定前の項目です。
@@ -55,7 +55,7 @@ export default function LegalDoc({ flow }: { flow: Flow }) {
                   padding: '10px 12px',
                   fontSize: 10.5,
                   lineHeight: 1.7,
-                  color: C.ink,
+                  color: C.onPale,
                 }}
               >
                 <strong>事業者情報が未記入です。</strong>

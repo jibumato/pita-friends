@@ -165,7 +165,7 @@ export default function Notifications({ flow }: { flow: Flow }) {
       </div>
 
       {error && (
-        <div style={{ margin: '0 20px 10px', background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 11.5, color: C.ink }}>
+        <div style={{ margin: '0 20px 10px', background: C.avatarPink, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 11.5, color: C.onPale}}>
           {error}
         </div>
       )}
@@ -177,7 +177,7 @@ export default function Notifications({ flow }: { flow: Flow }) {
       ) : items.length === 0 ? (
         <EmptyState
           tileColor={C.avatarOrange}
-          icon={<Bell size={42} color={C.ink} strokeWidth={2.2} />}
+          icon={<Bell size={42} color={C.onPale} strokeWidth={2.2} />}
           title="新しい通知はありません"
           desc={
             <>

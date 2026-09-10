@@ -168,7 +168,7 @@ export default function SupportSheet({ promiseId, partnerName, onClose, onSent }
               borderRadius: 8,
               padding: '10px 12px',
               fontSize: 11.5,
-              color: C.ink,
+              color: C.onPale,
             }}
           >
             {error}

@@ -86,7 +86,7 @@ export default function Ranking({ flow }: { flow: Flow }) {
                   textAlign: 'center',
                   cursor: 'pointer',
                   fontSize: 13,
-                  color: sel ? C.ink : C.muted,
+                  color: sel ? C.onPale : C.muted,
                   background: sel ? C.lime : C.white,
                   border: `1.5px solid ${C.border}`,
                   padding: '9px 0',
@@ -157,7 +157,7 @@ export default function Ranking({ flow }: { flow: Flow }) {
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: 17,
-                      color: C.ink,
+                      color: C.onPale,
                       overflow: 'hidden',
                     }}
                   >
@@ -177,7 +177,7 @@ export default function Ranking({ flow }: { flow: Flow }) {
                         {r.nickname}
                       </span>
                       {r.isVerified && (
-                        <span style={{ fontSize: 9, color: C.ink, background: C.lime, border: `1.5px solid ${C.border}`, padding: '1px 5px', borderRadius: 4, flex: 'none' }}>
+                        <span style={{ fontSize: 9, color: C.onPale, background: C.lime, border: `1.5px solid ${C.border}`, padding: '1px 5px', borderRadius: 4, flex: 'none' }}>
                           ✓
                         </span>
                       )}
