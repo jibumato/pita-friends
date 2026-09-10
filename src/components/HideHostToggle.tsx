@@ -90,7 +90,7 @@ export default function HideHostToggle({
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 12,
-            color: C.ink,
+            color: on ? C.onPale : C.ink,
           }}
         >
           {on ? '✓' : ''}

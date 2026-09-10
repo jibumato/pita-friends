@@ -391,7 +391,7 @@ export default function Search({ flow }: { flow: Flow }) {
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
                         fontSize: 12,
-                        color: sel ? C.ink : C.body,
+                        color: sel ? C.onPale : C.body,
                         background: sel ? C.lime : C.white,
                         border: `1.5px solid ${C.border}`,
                         padding: '7px 13px',
@@ -479,7 +479,7 @@ export default function Search({ flow }: { flow: Flow }) {
                 cursor: 'pointer',
                 alignSelf: 'flex-start',
                 fontSize: 12,
-                color: C.ink,
+                color: selected[VERIFIED_FILTER] ? C.onPale : C.ink,
                 background: selected[VERIFIED_FILTER] ? C.lime : C.white,
                 border: `1.5px solid ${C.border}`,
                 padding: '7px 13px',
@@ -573,7 +573,7 @@ export default function Search({ flow }: { flow: Flow }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: 20,
-                    color: C.ink,
+                    color: C.onPale,
                     overflow: 'hidden',
                   }}
                 >
@@ -610,7 +610,7 @@ export default function Search({ flow }: { flow: Flow }) {
                         aria-label="本人確認済み"
                         style={{
                           fontSize: 8.5,
-                          color: C.ink,
+                          color: C.onPale,
                           background: C.lime,
                           border: `1.5px solid ${C.border}`,
                           padding: '1px 4px',
@@ -710,7 +710,7 @@ export default function Search({ flow }: { flow: Flow }) {
                     style={{
                       cursor: 'pointer',
                       fontSize: 11.5,
-                      color: C.ink,
+                      color: C.onPale,
                       background: C.lime,
                       border: `1.5px solid ${C.border}`,
                       padding: '5px 12px',

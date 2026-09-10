@@ -134,7 +134,7 @@ export default function ResetPassword({ flow }: { flow: Flow }) {
                 borderRadius: 8,
                 padding: '10px 12px',
                 fontSize: 11.5,
-                color: C.ink,
+                color: C.onPale,
               }}
             >
               {error}

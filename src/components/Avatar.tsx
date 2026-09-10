@@ -57,7 +57,9 @@ export default function Avatar({
             alignItems: 'center',
             justifyContent: 'center',
             fontSize,
-            color: C.ink,
+            // 背景は必ず avatarColors のいずれか（＝淡い固定色）なので onPale。
+            // ink はダークで白になり、頭文字が消える
+            color: C.onPale,
           }}
         >
           {initial}
@@ -78,7 +80,7 @@ export default function Avatar({
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: badgeFont,
-            color: C.ink,
+            color: C.onPale,
           }}
         >
           ✓

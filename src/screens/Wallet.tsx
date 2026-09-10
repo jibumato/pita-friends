@@ -278,7 +278,7 @@ function EarningsSection() {
                   cursor: busy ? 'not-allowed' : 'pointer',
                   opacity: busy ? 0.6 : 1,
                   fontSize: 12.5,
-                  color: C.ink,
+                  color: C.onPale,
                   background: C.lime,
                   border: `1.5px solid ${C.border}`,
                   borderRadius: 6,
@@ -479,7 +479,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
               padding: '11px 13px',
               fontSize: 12,
               lineHeight: 1.7,
-              color: C.ink,
+              color: C.onPale,
             }}
           >
             予約にあと<b>{flow.coinNeed.toLocaleString()}コイン</b>足りません。
@@ -548,7 +548,7 @@ export default function Wallet({ flow }: { flow: Flow }) {
               borderRadius: 8,
               padding: '10px 12px',
               fontSize: 11.5,
-              color: C.ink,
+              color: C.onPale,
             }}
           >
             {error}

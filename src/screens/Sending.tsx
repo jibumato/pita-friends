@@ -66,7 +66,7 @@ export default function Sending({ flow }: { flow: Flow }) {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 26,
-              color: C.ink,
+              color: C.onPale,
               animation: 'floaty 2.4s ease-in-out infinite',
             }}
           >
@@ -111,7 +111,7 @@ export default function Sending({ flow }: { flow: Flow }) {
           <span
             style={{
               fontSize: 9,
-              color: C.ink,
+              color: C.onPale,
               background: C.lime,
               padding: '2px 7px',
               borderRadius: 4,

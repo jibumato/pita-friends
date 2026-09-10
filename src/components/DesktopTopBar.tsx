@@ -232,7 +232,7 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 15,
-          color: C.ink,
+          color: C.onPale,
           flex: 'none',
         }}
       >
@@ -264,7 +264,7 @@ export default function DesktopTopBar({ flow }: { flow: Flow }) {
               cursor: 'pointer',
               flex: 'none',
               background: C.lime,
-              color: C.ink,
+              color: C.onPale,
               border: `1.5px solid ${C.border}`,
               boxShadow: `2px 2px 0 ${C.border}`,
               borderRadius: 20,

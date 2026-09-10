@@ -196,7 +196,7 @@ function FullHero({ label, onGo, sub }: { label: string; onGo: () => void; sub: 
             fontSize: 18,
             fontWeight: 800,
             letterSpacing: '.02em',
-            color: C.ink,
+            color: C.onPale,
             background: C.lime,
             border: `2.5px solid ${C.border}`,
             borderRadius: 12,

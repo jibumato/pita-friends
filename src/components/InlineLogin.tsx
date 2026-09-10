@@ -86,7 +86,7 @@ export default function InlineLogin({ flow, onBack }: { flow: Flow; onBack: () =
                 borderRadius: 8,
                 padding: '12px 14px',
                 fontSize: 12,
-                color: C.ink,
+                color: C.onPale,
                 lineHeight: 1.7,
               }}
             >
@@ -125,7 +125,7 @@ export default function InlineLogin({ flow, onBack }: { flow: Flow; onBack: () =
                   borderRadius: 8,
                   padding: '10px 12px',
                   fontSize: 11.5,
-                  color: C.ink,
+                  color: C.onPale,
                 }}
               >
                 {error}
@@ -217,7 +217,7 @@ export default function InlineLogin({ flow, onBack }: { flow: Flow; onBack: () =
               borderRadius: 8,
               padding: '10px 12px',
               fontSize: 11.5,
-              color: C.ink,
+              color: C.onPale,
             }}
           >
             {error}

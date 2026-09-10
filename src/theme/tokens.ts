@@ -9,6 +9,7 @@
  *  - shadowCol : ハードシャドウ      (light #453D5C / dark #6E648C)
  *  - fill      : 濃い塗り(選択チップ/装飾/感情ピーク背景) (両テーマ #453D5C)
  *  - ctaBg/ctaFg : 主要CTA (light 黒地ライム / dark ライム地黒)
+ *  - onPale    : 淡い固定色の上に載せる文字 (両テーマ #453D5C)
  */
 
 export const color = {
@@ -33,6 +34,20 @@ export const color = {
   avatarOrange: '#FBD79E',
   avatarAqua: '#B3E5F2',
   avatarPink: '#F5B8CE',
+
+  /**
+   * 淡い固定色（lime・avatarOrange・avatarAqua・avatarPink）の**上に載せる文字色**。
+   *
+   * ⚠️ **ここで `ink` を使ってはいけない。** `ink` はライトで #453d5c、
+   *    ダークで #ffffff に反転する。一方これらの淡色は**両テーマで同じ値**なので、
+   *    `background: C.lime; color: C.ink` はダークで「淡い黄緑の上に白文字」になる。
+   *    コントラスト比は 1.22:1（WCAG AA の要求は 4.5:1）で、事実上読めない。
+   *
+   *    2026-09 のレビューで、アバターの頭文字・「本人確認済み」バッジ・
+   *    「チャージ」ボタン・選択中のチップなど **113 箇所**がこの状態だった。
+   *    淡色の上には必ずこれを使うこと。
+   */
+  onPale: '#453D5C',
   /** 未読バッジ用の濃い赤。 */
   badge: '#E23B3B',
 

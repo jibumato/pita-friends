@@ -165,7 +165,7 @@ export default function Setup({ flow }: { flow: Flow }) {
           style={{
             cursor: 'pointer',
             background: C.lime,
-            color: C.ink,
+            color: C.onPale,
             border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '15px 0',

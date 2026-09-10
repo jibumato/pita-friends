@@ -142,7 +142,7 @@ export default function PushPrompt({ reason, onClose }: Props) {
                   borderRadius: 8,
                   padding: '10px 12px',
                   fontSize: 11.5,
-                  color: C.ink,
+                  color: C.onPale,
                   lineHeight: 1.6,
                 }}
               >

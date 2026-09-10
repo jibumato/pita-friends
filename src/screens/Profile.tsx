@@ -8,7 +8,7 @@ import { isBackendConfigured } from '../lib/supabase'
 import { fetchPublicProfile, fetchHostSchedule, type PublicProfile } from '../lib/queries'
 import ScheduleGrid, { buildScheduleView, type SlotState } from '../components/ScheduleGrid'
 import { coinsPer30, screenNames } from '../flow'
-import { mannerScoreLabel, dotakyanLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
+import { mannerScoreLabel, dotakyanLabel } from '../lib/trustDisplay'
 import OnlineBadge from '../components/OnlineBadge'
 import { subscribeOnlineUsers } from '../lib/presence'
 import FavoriteStar from '../components/FavoriteStar'
@@ -23,7 +23,7 @@ import SignedOutPrompt from '../components/SignedOutPrompt'
 /* ---- デモ(モック)用の固定データ ---- */
 const MOCK_STATS = [
   { value: '★4.9', label: 'マナースコア', bg: C.white, fg: C.lavender, sub: C.muted },
-  { value: '0%', label: 'ドタキャン率', bg: C.lime, fg: C.ink, sub: C.ink },
+  { value: '0%', label: 'ドタキャン率', bg: C.lime, fg: C.onPale, sub: C.onPale },
   { value: '132', label: '一緒に遊んだ', bg: C.white, fg: C.ink, sub: C.muted },
 ]
 const WEEK = [
@@ -63,8 +63,9 @@ function StatTile({ value, label, bg, fg, sub }: { value: string; label: string;
         gap: 2,
       }}
     >
-      {/* 「実績これから」のような文言も入るため、長さに応じて縮める */}
-      <span style={{ fontSize: value.length > 5 ? 11 : 16, color: fg, textAlign: 'center' }}>{value}</span>
+      {/* ⚠️ **数字が入る枠なので、文章を入れない。** 実績が無いことは「—」で示し、
+          意味は下のラベルが持つ（MyPage の升と同じ扱い） */}
+      <span style={{ fontSize: 16, color: fg, textAlign: 'center' }}>{value}</span>
       <span style={{ fontSize: 9.5, color: sub }}>{label}</span>
     </div>
   )
@@ -219,7 +220,7 @@ export default function Profile({ flow }: { flow: Flow }) {
     ? [
         // 実績が少ないうちは数値を出さない(docs/trust-safety-spec.md §1.2 / §2.2)
         {
-          value: mannerScoreLabel(data.mannerScore, data.reviewCount) ?? NEW_MEMBER_LABEL,
+          value: mannerScoreLabel(data.mannerScore, data.reviewCount) ?? '—',
           label: 'マナースコア',
           bg: C.white,
           fg: C.lavender,
@@ -229,8 +230,8 @@ export default function Profile({ flow }: { flow: Flow }) {
           value: dotakyanLabel(data.dotakyanRate, data.confirmedCount),
           label: 'ドタキャン率',
           bg: C.lime,
-          fg: C.ink,
-          sub: C.ink,
+          fg: C.onPale,
+          sub: C.onPale,
         },
         { value: `${data.confirmedCount}`, label: '一緒に遊んだ', bg: C.white, fg: C.ink, sub: C.muted },
       ]
@@ -332,7 +333,7 @@ export default function Profile({ flow }: { flow: Flow }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 34,
-                color: C.ink,
+                color: C.onPale,
                 overflow: 'hidden',
               }}
             >
@@ -357,7 +358,7 @@ export default function Profile({ flow }: { flow: Flow }) {
                   <span
                     style={{
                       fontSize: 9.5,
-                      color: C.ink,
+                      color: C.onPale,
                       background: C.lime,
                       border: `1.5px solid ${C.border}`,
                       padding: '3px 8px',
@@ -419,7 +420,7 @@ export default function Profile({ flow }: { flow: Flow }) {
                   style={{
                     flex: 'none',
                     fontSize: 9.5,
-                    color: C.ink,
+                    color: C.onPale,
                     background: C.lime,
                     border: `1.5px solid ${C.border}`,
                     borderRadius: 20,

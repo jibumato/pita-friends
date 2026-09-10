@@ -131,7 +131,7 @@ export default function ReportSheet({ flow }: { flow: Flow }) {
                       borderRadius: 8,
                       padding: '12px 14px',
                       fontSize: 12.5,
-                      color: C.ink,
+                      color: on ? C.onPale : C.ink,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',

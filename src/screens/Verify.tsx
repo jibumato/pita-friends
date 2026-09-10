@@ -187,7 +187,7 @@ function PhotoPicker({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: file ? C.ink : '#fff',
+          color: file ? C.onPale : '#fff',
           fontSize: 15,
         }}
       >

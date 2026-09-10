@@ -53,7 +53,7 @@ export default function ResidencyPrompt({ onDeclared }: { onDeclared: () => void
           padding: '11px 13px',
           fontSize: 11.5,
           lineHeight: 1.7,
-          color: C.ink,
+          color: C.onPale,
         }}
       >
         ピタフレは日本国内にお住まいの方向けのサービスです。恐れ入りますが、コインの購入はご利用いただけません。

@@ -65,7 +65,7 @@ export default function Match({ flow }: { flow: Flow }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 30,
-                color: C.ink,
+                color: C.onPale,
               }}
             >
               ユ
@@ -107,7 +107,7 @@ export default function Match({ flow }: { flow: Flow }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 30,
-                color: C.ink,
+                color: C.onPale,
               }}
             >
               み
@@ -117,7 +117,7 @@ export default function Match({ flow }: { flow: Flow }) {
               <span
                 style={{
                   fontSize: 8,
-                  color: C.ink,
+                  color: C.onPale,
                   background: C.lime,
                   padding: '1px 5px',
                   borderRadius: 4,
@@ -161,7 +161,7 @@ export default function Match({ flow }: { flow: Flow }) {
           style={{
             cursor: 'pointer',
             background: C.lime,
-            color: C.ink,
+            color: C.onPale,
             borderRadius: 8,
             padding: '15px 0',
             textAlign: 'center',

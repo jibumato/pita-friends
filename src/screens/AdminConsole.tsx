@@ -189,7 +189,7 @@ export default function AdminConsole({ flow }: { flow: Flow }) {
                 cursor: 'pointer',
                 flex: 'none',
                 fontSize: 12,
-                color: on ? C.ink : C.body,
+                color: on ? C.onPale : C.body,
                 background: on ? C.lime : C.white,
                 border: `1.5px solid ${C.border}`,
                 borderRadius: 8,
@@ -285,7 +285,7 @@ function ErrorBox({ children }: { children: React.ReactNode }) {
         borderRadius: 8,
         padding: '10px 12px',
         fontSize: 11.5,
-        color: C.ink,
+        color: C.onPale,
         lineHeight: 1.6,
       }}
     >
@@ -312,7 +312,7 @@ function Btn({
       style={{
         cursor: disabled ? 'default' : 'pointer',
         background: disabled ? C.disabledBg : danger ? '#E5484D' : C.lime,
-        color: disabled ? C.disabledFg : danger ? '#fff' : C.ink,
+        color: disabled ? C.disabledFg : danger ? '#fff' : C.onPale,
         border: `1.5px solid ${C.border}`,
         borderRadius: 8,
         padding: '9px 12px',

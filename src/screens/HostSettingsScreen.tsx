@@ -224,7 +224,7 @@ function BankAccountSection() {
               <span
                 style={{
                   fontSize: 10,
-                  color: C.ink,
+                  color: C.onPale,
                   background: C.lime,
                   border: `1.5px solid ${C.border}`,
                   padding: '2px 8px',
@@ -278,7 +278,7 @@ function BankAccountSection() {
                   borderRadius: 6,
                   padding: '9px 11px',
                   fontSize: 10.5,
-                  color: C.ink,
+                  color: C.onPale,
                   lineHeight: 1.7,
                 }}
               >
@@ -345,7 +345,7 @@ function BankAccountSection() {
                 opacity: busy ? 0.6 : 1,
                 textAlign: 'center',
                 fontSize: 12.5,
-                color: C.ink,
+                color: C.onPale,
                 background: C.lime,
                 border: `1.5px solid ${C.border}`,
                 borderRadius: 6,
@@ -426,7 +426,7 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
               borderRadius: 8,
               padding: '10px 12px',
               fontSize: 11.5,
-              color: C.ink,
+              color: C.onPale,
               lineHeight: 1.6,
             }}
           >
@@ -590,7 +590,7 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
               padding: '10px 12px',
               fontSize: 11,
               lineHeight: 1.7,
-              color: C.ink,
+              color: C.onPale,
               marginTop: -6,
             }}
           >
@@ -847,7 +847,7 @@ function StatusField() {
             borderRadius: 8,
             padding: '7px 14px',
             fontSize: 11.5,
-            color: C.ink,
+            color: C.onPale,
             ...(dirty && !saving ? save.style : {}),
           }}
         >

@@ -88,7 +88,7 @@ export default function BlockList({ flow }: { flow: Flow }) {
               borderRadius: 8,
               padding: '11px 13px',
               fontSize: 12,
-              color: C.ink,
+              color: C.onPale,
             }}
           >
             {error}
@@ -132,7 +132,7 @@ export default function BlockList({ flow }: { flow: Flow }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 17,
-                color: C.ink,
+                color: C.onPale,
               }}
             >
               {u.avatarInitial}
@@ -241,7 +241,7 @@ function HiddenSection() {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 17,
-              color: C.ink,
+              color: C.onPale,
               overflow: 'hidden',
             }}
           >

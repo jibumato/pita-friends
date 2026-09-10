@@ -9,7 +9,7 @@ import { Coin } from '../components/Icon'
 import { isBackendConfigured } from '../lib/supabase'
 import { fetchFriendCount, fetchPendingInviteCount } from '../lib/queries'
 import { coinsPer30 } from '../flow'
-import { mannerScoreLabel, dotakyanLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
+import { mannerScoreLabel, dotakyanLabel } from '../lib/trustDisplay'
 import VoiceRecorder from '../components/VoiceRecorder'
 import AvatarEditor from '../components/AvatarEditor'
 import { presenceStatusLabel, presenceStatusDot } from '../lib/presenceLabel'
@@ -47,7 +47,9 @@ export default function MyPage({ flow }: { flow: Flow }) {
     flow.confirmedCount,
   )
   const STATS = [
-    { v: mannerScoreLabel(flow.mannerScore, flow.reviewCount) ?? NEW_MEMBER_LABEL, l: 'マナー', fg: C.lavender },
+    // 数字の升なので「—」。隣の dotakyanLabel が母数不足で返すものと揃える
+    // （「実績これから」を入れるとこの升だけ2行に折り返して形が崩れる）
+    { v: mannerScoreLabel(flow.mannerScore, flow.reviewCount) ?? '—', l: 'マナー', fg: C.lavender },
     { v: dotakyanRate, l: 'ドタキャン', fg: C.ink },
     { v: String(flow.confirmedCount), l: 'プレイ回数', fg: C.ink },
     { v: isBackendConfigured ? (friendCount === null ? '…' : String(friendCount)) : '12', l: 'フレンド', fg: C.ink },
@@ -122,7 +124,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
                 <span
                   style={{
                     fontSize: 9.5,
-                    color: C.ink,
+                    color: flow.isVerified ? C.onPale : C.ink,
                     background: flow.isVerified ? C.lime : C.disabledBg,
                     border: `1.5px solid ${C.border}`,
                     padding: '2px 7px',
@@ -176,7 +178,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
                       justifyContent: 'center',
                       gap: 5,
                       fontSize: 11,
-                      color: C.ink,
+                      color: sel ? C.onPale : C.ink,
                       background: sel ? C.lime : C.white,
                       border: `1.5px solid ${C.border}`,
                       borderRadius: 6,
@@ -215,8 +217,13 @@ export default function MyPage({ flow }: { flow: Flow }) {
                   gap: 1,
                 }}
               >
-                {/* 「実績これから」のような文言も入るため、長さに応じて縮める */}
-                <span style={{ fontSize: s.v.length > 5 ? 10 : 15, color: s.fg, textAlign: 'center' }}>{s.v}</span>
+                {/*
+                  ⚠️ **数字が入る枠なので、文章を入れない。**
+                  「実績これから」を入れていたときは、この升だけ2行に折り返して
+                  隣の「0% / ドタキャン」と形が揃わなかった。
+                  実績が無いことは「—」で示し、意味は下のラベルが持つ。
+                */}
+                <span style={{ fontSize: 15, color: s.fg, textAlign: 'center' }}>{s.v}</span>
                 <span style={{ fontSize: 9, color: C.muted }}>{s.l}</span>
               </div>
             ))}
@@ -262,7 +269,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
           <span
             style={{
               fontSize: 11,
-              color: C.ink,
+              color: C.onPale,
               background: C.lime,
               border: `1.5px solid ${C.border}`,
               padding: '6px 11px',
@@ -357,7 +364,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
                 <span
                   style={{
                     fontSize: 10,
-                    color: C.ink,
+                    color: C.onPale,
                     background: C.lime,
                     border: `1.5px solid ${C.border}`,
                     borderRadius: 99,
@@ -384,7 +391,7 @@ export default function MyPage({ flow }: { flow: Flow }) {
               <span
                 style={{
                   fontSize: 10,
-                  color: C.ink,
+                  color: flow.isVerified ? C.onPale : C.ink,
                   background: flow.isVerified ? C.lime : C.disabledBg,
                   border: `1.5px solid ${C.border}`,
                   padding: '2px 8px',

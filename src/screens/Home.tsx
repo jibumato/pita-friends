@@ -121,7 +121,7 @@ function OnlineStrip({ flow, online, onOpen }: { flow: Flow; online: OnlineUser[
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: 17,
-                  color: C.ink,
+                  color: C.onPale,
                 }}
               >
                 {u.initial}
@@ -252,7 +252,7 @@ function PopularUserCard({ data, onOpen }: { data: RecommendCardData; onOpen: ()
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 56,
-          color: C.ink,
+          color: C.onPale,
         }}
       >
         {data.avatarUrl ? (
@@ -271,7 +271,7 @@ function PopularUserCard({ data, onOpen }: { data: RecommendCardData; onOpen: ()
               top: 8,
               left: 8,
               fontSize: 9,
-              color: C.ink,
+              color: C.onPale,
               background: C.lime,
               border: `1.5px solid ${C.border}`,
               padding: '2px 6px',
@@ -308,7 +308,7 @@ function PopularUserCard({ data, onOpen }: { data: RecommendCardData; onOpen: ()
               gap: 6,
               cursor: 'pointer',
               background: C.lime,
-              color: C.ink,
+              color: C.onPale,
               border: `1.5px solid ${C.border}`,
               borderRadius: 20,
               boxShadow: `2px 2px 0 ${C.border}`,
@@ -377,7 +377,7 @@ function PopularUserCard({ data, onOpen }: { data: RecommendCardData; onOpen: ()
           <span
             style={{
               fontSize: 10.5,
-              color: C.ink,
+              color: C.onPale,
               background: C.lime,
               border: `1.5px solid ${C.border}`,
               padding: '4px 11px',
@@ -445,7 +445,7 @@ function RankRow({ flow, r, rookie }: { flow: Flow; r: RankingEntry; rookie?: bo
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: first ? 26 : podium ? 20 : 16,
-          color: C.ink,
+          color: C.onPale,
           flex: 'none',
           overflow: 'hidden',
         }}
@@ -479,7 +479,7 @@ function RankRow({ flow, r, rookie }: { flow: Flow; r: RankingEntry; rookie?: bo
               aria-label="本人確認済み"
               style={{
                 fontSize: 8.5,
-                color: C.ink,
+                color: C.onPale,
                 background: C.lime,
                 border: `1.5px solid ${C.border}`,
                 padding: '1px 4px',
@@ -635,7 +635,7 @@ function PickupCard({
               width: 88, height: 88, flex: 'none', borderRadius: 14,
               background: host.avatarColor, border: `1.5px solid ${C.border}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 36, color: C.ink,
+              fontSize: 36, color: C.onPale,
             }}
           >
             {host.avatarInitial}
@@ -647,7 +647,7 @@ function PickupCard({
               {host.nickname}
             </span>
             {host.isVerified && (
-              <span style={{ flex: 'none', fontSize: 9, color: C.ink, background: C.lime, border: `1.5px solid ${C.border}`, padding: '2px 6px', borderRadius: 4 }}>
+              <span style={{ flex: 'none', fontSize: 9, color: C.onPale, background: C.lime, border: `1.5px solid ${C.border}`, padding: '2px 6px', borderRadius: 4 }}>
                 ✓
               </span>
             )}
@@ -726,7 +726,7 @@ function NewcomerRow({ flow, items, onOpen }: { flow: Flow; items: DiscoverableH
             {h.avatarUrl ? (
               <img src={h.avatarUrl} alt="" style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${C.border}` }} />
             ) : (
-              <div style={{ width: 52, height: 52, borderRadius: '50%', background: h.avatarColor, border: `1.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, color: C.ink }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: h.avatarColor, border: `1.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, color: C.onPale}}>
                 {h.avatarInitial}
               </div>
             )}
@@ -797,7 +797,7 @@ function FavoriteRow({
                     width: 40, height: 40, flex: 'none', borderRadius: '50%',
                     background: h.avatarColor, border: `1.5px solid ${C.border}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 16, color: C.ink,
+                    fontSize: 16, color: C.onPale,
                   }}
                 >
                   {h.avatarInitial}
@@ -1144,7 +1144,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
                 style={{
                   cursor: 'pointer',
                   background: C.lime,
-                  color: C.ink,
+                  color: C.onPale,
                   border: `1.5px solid ${C.border}`,
                   boxShadow: `2px 2px 0 ${C.border}`,
                   borderRadius: 8,
@@ -1296,7 +1296,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           <NightHome flow={flow} />
         ) : (
         <>
-        {/* 人気のユーザー: 掲載ピタメイトをカードで並べて探せる(モバイル・デスクトップ共通)。 */}
+        {/* 人気のピタメイト: 掲載ピタメイトをカードで並べて探せる(モバイル・デスクトップ共通)。 */}
         {(() => {
           const popular: RecommendCardData[] = isBackendConfigured
             ? [...recommended]
@@ -1327,7 +1327,7 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 15, color: C.ink }}>🔥 人気のユーザー</span>
+                <span style={{ fontSize: 15, color: C.ink }}>🔥 人気のピタメイト</span>
                 <span
                   onClick={() => flow.go('search')}
                   {...clickable(() => flow.go('search'), 'もっと見る')}
@@ -1508,7 +1508,7 @@ function NightHome({ flow }: { flow: Flow }) {
           style={{
             cursor: 'pointer',
             background: C.lime,
-            color: C.ink,
+            color: C.onPale,
             border: `1.5px solid ${C.border}`,
             borderRadius: 8,
             padding: '11px 0',

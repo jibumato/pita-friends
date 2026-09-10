@@ -244,7 +244,7 @@ function Steps({ items }: { items: string[] }) {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 10,
-              color: C.ink,
+              color: C.onPale,
               lineHeight: 1,
             }}
           >
