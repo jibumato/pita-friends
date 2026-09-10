@@ -241,6 +241,9 @@ export default function Profile({ flow }: { flow: Flow }) {
   const onCta = () => {
     if (useReal && data) {
       if (data.isHost) {
+        // 予約は、申し込みを確定する直前（confirmBooking）で関所を通す。
+        // **ここで止めない**のは、料金と長さを見てもらってからのほうが、
+        // 何のために登録するのかが伝わるため
         flow.startBooking({
           name: data.nickname,
           initial: data.avatarInitial,
@@ -249,6 +252,9 @@ export default function Profile({ flow }: { flow: Flow }) {
           userId: data.userId,
         })
       } else {
+        // 誘い＝やりとりの始まり。**送る前に**関所を通す
+        // （送ってから「実は届いていません」は取り返しがつかない）
+        if (!flow.requireSignIn('message', { userId: data.userId, name: data.nickname })) return
         flow.openInvite(data.userId, data.nickname)
       }
     } else {
@@ -352,7 +358,16 @@ export default function Profile({ flow }: { flow: Flow }) {
                 <span style={{ fontSize: 20, color: C.ink }}>{name}</span>
                 {/* お気に入り登録。相手には人数だけが伝わり、誰が押したかは伝わらない(0053) */}
                 {targetId && targetId !== flow.userId && isFav !== null && (
-                  <FavoriteStar hostId={targetId} initialOn={isFav} size={28} onChanged={setIsFav} />
+                  <FavoriteStar
+                    hostId={targetId}
+                    initialOn={isFav}
+                    size={28}
+                    onChanged={setIsFav}
+                    signedIn={signedIn}
+                    onBlocked={() =>
+                      flow.requireSignIn('favorite', { userId: targetId, name: data?.nickname ?? '' })
+                    }
+                  />
                 )}
                 {verified && (
                   <span
