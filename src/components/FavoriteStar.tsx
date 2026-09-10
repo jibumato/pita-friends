@@ -18,12 +18,28 @@ type Props = {
   initialOn: boolean
   /** 未ログインなど、押せない状態のときに呼ぶ(登録へ誘導する等)。 */
   onBlocked?: () => void
+  /**
+   * ログイン済みか。**false なら書き込みを試さず、その場で `onBlocked`。**
+   *
+   * ⚠️ 以前はこれが無く、未ログインでも先に⭐を点けてから書き込み、
+   *    認証で落ちて元に戻していた。**理由が出ないまま⭐が戻るので、
+   *    壊れているようにしか見えなかった。**
+   * 省略時は true（デモや、判定を持たない場所からの利用）。
+   */
+  signedIn?: boolean
   size?: number
   /** 変更が確定したときに親へ知らせる(一覧の再取得など)。 */
   onChanged?: (on: boolean) => void
 }
 
-export default function FavoriteStar({ hostId, initialOn, onBlocked, size = 30, onChanged }: Props) {
+export default function FavoriteStar({
+  hostId,
+  initialOn,
+  onBlocked,
+  size = 30,
+  onChanged,
+  signedIn = true,
+}: Props) {
   const [on, setOn] = useState(initialOn)
   const [busy, setBusy] = useState(false)
 
@@ -31,6 +47,11 @@ export default function FavoriteStar({ hostId, initialOn, onBlocked, size = 30, 
     // カード全体が押せるようになっている場所に置くので、親への伝播を止める
     e.stopPropagation()
     if (busy) return
+    // **点ける前に**止める。点けてから戻すと、押した人には理由が分からない
+    if (!signedIn) {
+      onBlocked?.()
+      return
+    }
     if (!isBackendConfigured) {
       onBlocked?.()
       return

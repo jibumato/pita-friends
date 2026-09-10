@@ -12,6 +12,7 @@ import { mannerScoreLabel, NEW_MEMBER_LABEL } from '../lib/trustDisplay'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { isBackendConfigured } from '../lib/supabase'
 import { consumeHostIntent } from '../lib/hostIntent'
+import { consumePendingIntent } from '../lib/pendingIntent'
 import SignedOutPrompt from '../components/SignedOutPrompt'
 import ActivityStats from '../components/ActivityStats'
 import { subscribeOnlineUsers, type OnlineUser } from '../lib/presence'
@@ -657,8 +658,11 @@ function PickupCard({
               initialOn={isFav}
               size={30}
               onChanged={onFavChanged}
-              // 未ログインだと保存できず失敗するだけなので、登録へ誘導する
-              onBlocked={() => flow.go('signUp')}
+              signedIn={!isBackendConfigured || flow.userId !== null}
+              // 未ログインは関所へ。**画面を移動させない**ので、
+              // 閉じればこの人のカードを見たまま続けられる
+              // （以前は登録画面へ飛ばしていて、見ていた相手を見失っていた）
+              onBlocked={() => flow.requireSignIn('favorite', { userId: host.userId, name: host.nickname })}
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
@@ -804,7 +808,14 @@ function FavoriteRow({
                 </div>
               )}
               <div style={{ flex: 1 }} />
-              <FavoriteStar hostId={h.userId} initialOn size={26} onChanged={onChanged} />
+              <FavoriteStar
+                hostId={h.userId}
+                initialOn
+                size={26}
+                onChanged={onChanged}
+                signedIn={!isBackendConfigured || flow.userId !== null}
+                onBlocked={() => flow.requireSignIn('favorite', { userId: h.userId, name: h.nickname })}
+              />
             </div>
             <span style={{ fontSize: 12.5, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {h.nickname}
@@ -955,6 +966,26 @@ export default function HomeScreen({ flow }: { flow: Flow }) {
    */
   useEffect(() => {
     if (!isBackendConfigured || flow.userId === null) return
+
+    /**
+     * 登録の前に「予約・メッセージ・お気に入り」を押していた人を、
+     * **見ていた相手のページへ戻す。**
+     *
+     * ここまでやらないと、関所で登録に送った人はホームに着き、
+     * さっき見ていた相手をもう一度さがすところからやり直すことになる。
+     * いちばん気持ちが乗っている瞬間に、いちばん手間のかかる作業を渡すことになる。
+     *
+     * ⚠️ **予約そのものは再開しない。** 登録しているあいだに枠が埋まったり
+     *    料金が変わったりする。古い前提のまま申し込ませない。
+     *    お気に入りも勝手には登録しない（押したのは登録前なので、
+     *    本人が改めて押せる場所まで連れて行くだけ）。
+     */
+    const pending = consumePendingIntent()
+    if (pending) {
+      flow.openProfile(pending.hostId)
+      return
+    }
+
     if (flow.hostSettings.isHost) return
     if (consumeHostIntent()) flow.go('hostSettings')
     // 着地の判定は初回のみ。以後のホーム表示で飛ばされては困る

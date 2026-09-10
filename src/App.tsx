@@ -23,6 +23,7 @@ import {
 import type { PersonalityResult } from './content/personality'
 import PhoneFrame from './components/PhoneFrame'
 import LoginOverlay from './components/LoginOverlay'
+import SignInGate from './components/SignInGate'
 import InstallGuideHost from './components/InstallGuideHost'
 import PushPromptHost from './components/PushPromptHost'
 import DesktopTopBar from './components/DesktopTopBar'
@@ -54,6 +55,7 @@ import {
   setPresenceStatus as setPresenceStatusRemote,
 } from './lib/queries'
 import { armNotifyPrompt, refreshPushSubscription } from './lib/push'
+import { markPendingIntent, clearPendingIntent, type PendingAction } from './lib/pendingIntent'
 
 import SignUp from './screens/SignUp'
 import ResetPassword from './screens/ResetPassword'
@@ -209,6 +211,11 @@ export type Flow = {
   screen: ScreenKey
   /** ようこそ画面(メインページ)にインライン表示するログインフォームの開閉状態。 */
   welcomeLoginOpen: boolean
+  /**
+   * 未ログインの人が、登録の要る操作を押したときに出す関所（null で閉じている）。
+   * **画面は移動しない**ので、閉じれば見ていたものがそのまま残る。
+   */
+  signInGate: { action: PendingAction; name: string } | null
   game: string
   when: string
   dealDone: boolean
@@ -332,6 +339,19 @@ export type Flow = {
   goCharge: (need: number) => void
   /** ようこそ画面をログインフォーム表示状態で開く(専用のログイン画面は廃止済み)。 */
   openLogin: () => void
+  /**
+   * 登録が要る操作の前に必ず通す関所。
+   *
+   * **ログイン済み（デモを含む）なら true を返すので、呼び出し側はそのまま進む。**
+   * 未ログインなら関所を開いて false を返し、やろうとしたことを覚える。
+   *
+   * デモ（バックエンド未接続）は他の画面と同じく「ログイン済み」扱いにする——
+   * ここだけ違う判定にすると、デモの一連の流れが途中で止まる。
+   */
+  requireSignIn: (action: PendingAction, host: { userId?: string; name: string }) => boolean
+  closeSignInGate: () => void
+  goSignUpFromGate: () => void
+  goLoginFromGate: () => void
   /** ようこそ画面のログインフォームを閉じ、通常のトップ表示に戻す。 */
   closeLogin: () => void
   sendInvite: () => void
@@ -379,6 +399,7 @@ const INITIAL = {
   // URLで直接開かれたときは、セッションの有無にかかわらずその文書を出す
   screen: (bootLegalKey ? 'legalDoc' : bootAbout ? 'about' : 'home') as ScreenKey,
   welcomeLoginOpen: false,
+  signInGate: null as { action: PendingAction; name: string } | null,
   game: 'Apex',
   when: '今夜 22:00〜',
   dealDone: false,
@@ -706,6 +727,38 @@ export default function App() {
   // 以前はようこそ画面に固定していたが、その画面自体を廃止したため
   // **画面を移動させず**にフォームだけを開く。見ていたピタメイトの
   // ページから離れずにログインできる。
+  /**
+   * 登録が要る操作の関所。詳細は Flow 型のコメントと SignInGate.tsx を参照。
+   *
+   * ⚠️ **判定は他の画面の `signedIn` と揃える**（`!isBackendConfigured || userId !== null`）。
+   *    ここだけ厳しくすると、デモの流れが途中で関所に当たって止まる。
+   */
+  const requireSignIn = useCallback(
+    (action: PendingAction, host: { userId?: string; name: string }) => {
+      if (!isBackendConfigured || state.userId !== null) return true
+      // 登録が終わったあと、見ていた相手のページへ戻せるように覚えておく
+      if (host.userId) markPendingIntent({ action, hostId: host.userId, name: host.name })
+      setState((p) => ({ ...p, signInGate: { action, name: host.name } }))
+      return false
+    },
+    [state.userId],
+  )
+
+  const closeSignInGate = useCallback(() => {
+    // 「あとで」で閉じたなら、覚えていることも捨てる。
+    // 次にログインしたときに、やめたはずの相手のページが突然開くのを防ぐ
+    clearPendingIntent()
+    setState((p) => ({ ...p, signInGate: null }))
+  }, [])
+
+  const goSignUpFromGate = useCallback(() => {
+    setState((p) => ({ ...p, signInGate: null, screen: 'signUp' }))
+  }, [])
+
+  const goLoginFromGate = useCallback(() => {
+    setState((p) => ({ ...p, signInGate: null, welcomeLoginOpen: true }))
+  }, [])
+
   const openLogin = useCallback(() => {
     setState((p) => ({ ...p, welcomeLoginOpen: true }))
   }, [])
@@ -728,6 +781,11 @@ export default function App() {
   const confirmBooking = useCallback(async () => {
     const host = state.bookingHost
     if (!host) return
+
+    // ★未ログインはここで止める。
+    //   **以前はそのまま下のデモ経路に落ちていて、偽の残高を減らして
+    //   「送信中 → マッチ」を再生していた。** 予約できたと思って帰る人が出る。
+    if (!requireSignIn('booking', { userId: host.userId, name: host.name })) return
 
     // 実データのピタメイト(Supabase側にuserIdを持つ)は、コイン消費と予約作成を
     // アトミックに行うcreate_booking RPCを呼ぶ。デモのモックピタメイトは
@@ -865,6 +923,7 @@ export default function App() {
     state.coinBalance,
     state.userId,
     clearTimer,
+    requireSignIn,
   ])
 
   const goJoin = useCallback(() => {
@@ -1077,6 +1136,10 @@ export default function App() {
     goCharge,
     openLogin,
     closeLogin,
+    requireSignIn,
+    closeSignInGate,
+    goSignUpFromGate,
+    goLoginFromGate,
     sendInvite,
     goJoin,
     restart,
@@ -1156,6 +1219,8 @@ export default function App() {
         {flow.reportTarget && <ReportSheet flow={flow} />}
         {flow.sendFailOpen && <SendFailDialog flow={flow} />}
         <LoginOverlay flow={flow} />
+        {/* 登録が要る操作の関所。画面は移動しないので、閉じれば元の場所に戻る */}
+        <SignInGate flow={flow} />
         {/* ホーム画面への追加と通知の案内。開くきっかけは設定・マイページ・⭐・
             予約完了から飛んでくる。両方が同時に出ないことは armNotifyPrompt が保証する */}
         <InstallGuideHost />
