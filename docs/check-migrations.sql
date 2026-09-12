@@ -142,7 +142,10 @@ with expected(seq, migration, kind, obj, needle) as (
     (117, '0117_public_activity_stats',      'column',  'platform_pricing',    'activity_stats_min_plays'),
     (118, '0118_admin_message_moderation',   'column',  'messages',            'deleted_at'),
     (119, '0119_residency_for_guests',       'column',  'coin_purchases',      'buyer_country'),
-    (120, '0120_guest_requests',             'table',   'guest_requests',      null)
+    (120, '0120_guest_requests',             'table',   'guest_requests',      null),
+    -- 0121 は関数本体だけを直すので、番号を本文に埋めても後の
+    -- create or replace で消える(0102 で実際に起きた)。**トリガの有無で見る。**
+    (121, '0121_blocked_and_stale_time',     'trigger', 'messages',            'messages_require_not_blocked')
 ),
 checked as (
   select
@@ -329,7 +332,10 @@ with expected(seq, migration, kind, obj, needle) as (
     (117, '0117_public_activity_stats',      'column',  'platform_pricing',    'activity_stats_min_plays'),
     (118, '0118_admin_message_moderation',   'column',  'messages',            'deleted_at'),
     (119, '0119_residency_for_guests',       'column',  'coin_purchases',      'buyer_country'),
-    (120, '0120_guest_requests',             'table',   'guest_requests',      null)
+    (120, '0120_guest_requests',             'table',   'guest_requests',      null),
+    -- 0121 は関数本体だけを直すので、番号を本文に埋めても後の
+    -- create or replace で消える(0102 で実際に起きた)。**トリガの有無で見る。**
+    (121, '0121_blocked_and_stale_time',     'trigger', 'messages',            'messages_require_not_blocked')
 ),
 checked as (
   select e.seq, e.migration,

@@ -651,22 +651,30 @@ export default function Booking({ flow }: { flow: Flow }) {
             </span>
           ))}
         </div>
+        {/* ⚠️ **送信中は押せなくする。** 枠の重複検査(0049)があるので二重に
+            成立はしないが、押しても何も起きない状態だと連打され、
+            2件目のエラーは画面が切り替わったあとに設定されて**誰にも見えない**。
+            お金が動くボタンなので、押した手応えをここで返す。 */}
         <div
           className="pita-press"
           onClick={flow.confirmBooking}
-          {...confirm.handlers}
+          aria-disabled={flow.bookingSubmitting}
+          {...(flow.bookingSubmitting ? {} : confirm.handlers)}
           style={{
-            cursor: 'pointer',
+            cursor: flow.bookingSubmitting ? 'not-allowed' : 'pointer',
+            opacity: flow.bookingSubmitting ? 0.55 : 1,
             background: C.ctaBg,
             color: C.ctaFg,
             borderRadius: 8,
             padding: '14px 0',
             textAlign: 'center',
             fontSize: 14,
-            ...confirm.style,
+            ...(flow.bookingSubmitting ? {} : confirm.style),
           }}
         >
-          {totalCost} コインで{repeat > 1 ? `${repeat}回分を` : ''}予約を確定 ▶
+          {flow.bookingSubmitting
+            ? '申し込んでいます…'
+            : `${totalCost} コインで${repeat > 1 ? `${repeat}回分を` : ''}予約を確定 ▶`}
         </div>
       </div>
     </Screen>

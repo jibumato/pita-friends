@@ -2463,18 +2463,34 @@ export async function respondToGuestRequest(requestId: string, startsAt: Date): 
   }
 }
 
-/** 応じてくれた相手を予約する。中身は通常の create_booking。 */
+/**
+ * 応じてくれた相手を予約する。中身は通常の create_booking。
+ *
+ * ⚠️ **画面に出ていた開始時刻を必ず渡すこと（0121）。**
+ *    ホストは応じたあとに時刻を言い直せる。渡さないと、
+ *    **ゲストは 20:00 のつもりで 22:00 の約束を買う**ことになる
+ *    （41 のテスト3 で実際にそうなっていた）。
+ */
 export async function createBookingFromRequest(
   requestId: string,
   hostUserId: string,
   policyVersion: string,
+  expectedStartsAt: Date,
 ): Promise<string> {
   const { data, error } = await requireSupabase().rpc('create_booking_from_request', {
     p_request_id: requestId,
     p_host_id: hostUserId,
     p_policy_version: policyVersion,
+    p_expected_starts_at: expectedStartsAt.toISOString(),
   })
-  if (error) throwMapped(error)
+  if (error) {
+    if (/RESPONSE_TIME_CHANGED/.test(error.message)) {
+      throw new Error(
+        '相手が開始時刻を変更しました。この画面の時刻は古くなっています。「出したリクエスト」を開き直してご確認ください',
+      )
+    }
+    throwMapped(error)
+  }
   return data as string
 }
 
