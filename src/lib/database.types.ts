@@ -806,7 +806,13 @@ export type Database = {
         Returns: string
       }
       create_booking_from_request: {
-        Args: { p_request_id: string; p_host_id: string; p_policy_version: string }
+        Args: {
+          p_request_id: string
+          p_host_id: string
+          p_policy_version: string
+          /** 0121: 画面に出ていた開始時刻。食い違えば RESPONSE_TIME_CHANGED。 */
+          p_expected_starts_at?: string
+        }
         Returns: string
       }
       admin_guest_requests: {

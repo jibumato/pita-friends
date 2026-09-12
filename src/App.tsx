@@ -216,6 +216,13 @@ export type Flow = {
    * **画面は移動しない**ので、閉じれば見ていたものがそのまま残る。
    */
   signInGate: { action: PendingAction; name: string } | null
+  /**
+   * 予約の申し込みが送信中か。**ボタンを押せなくするために要る。**
+   * 枠の重複検査(0049)があるので二重に成立はしないが、
+   * 押しても何も起きない状態だと連打され、2件目のエラーは
+   * 画面が切り替わったあとに設定されて**誰にも見えない**。
+   */
+  bookingSubmitting: boolean
   game: string
   when: string
   dealDone: boolean
@@ -400,6 +407,7 @@ const INITIAL = {
   screen: (bootLegalKey ? 'legalDoc' : bootAbout ? 'about' : 'home') as ScreenKey,
   welcomeLoginOpen: false,
   signInGate: null as { action: PendingAction; name: string } | null,
+  bookingSubmitting: false,
   game: 'Apex',
   when: '今夜 22:00〜',
   dealDone: false,
@@ -781,6 +789,8 @@ export default function App() {
   const confirmBooking = useCallback(async () => {
     const host = state.bookingHost
     if (!host) return
+    // 連打・二重送信を止める。**お金が動くボタンなので、ここは必ず持つ**
+    if (state.bookingSubmitting) return
 
     // ★未ログインはここで止める。
     //   **以前はそのまま下のデモ経路に落ちていて、偽の残高を減らして
@@ -796,7 +806,7 @@ export default function App() {
     }
 
     if (isBackendConfigured && host.userId && state.userId) {
-      setState((p) => ({ ...p, bookingInsufficient: false, bookingError: null }))
+      setState((p) => ({ ...p, bookingInsufficient: false, bookingError: null, bookingSubmitting: true }))
       try {
         // 予約はリクエスト(承諾待ち)として作られる。ピタメイトが承諾するまで
         // トークは開かないので、送信完了→承諾待ち画面に遷移する。
@@ -811,10 +821,14 @@ export default function App() {
         if (host.fromGuestRequestId) {
           // 0120: リクエストに応じてもらった枠。**まとめ予約はしない**——
           // 応じてもらったのは1回ぶんの時間で、翌週以降は開いていない
+          // 開始時刻は requestStartAt に固定されている。**それをそのまま渡す**——
+          // 渡さないと、相手が時刻を言い直していた場合に
+          // 画面と違う時刻で成立する(0121)
           await createBookingFromRequest(
             host.fromGuestRequestId,
             host.userId,
             CANCELLATION_POLICY_VERSION,
+            host.requestStartAt ?? state.bookingStartAt!,
           )
         } else if (host.fromBoardPostId) {
           // 0113: 募集板から来た申込み。**まとめ予約はしない**——
@@ -850,6 +864,7 @@ export default function App() {
           coinBalance: p.coinBalance - cost,
           screen: 'bookingRequested',
           activeThreadId: null,
+          bookingSubmitting: false,
         }))
         // 承諾を待つ状態になったところ。ここから先の連絡(承認・変更・
         // キャンセル)は取り逃がすと困るので、通知を勧めるのに適した瞬間。
@@ -896,6 +911,10 @@ export default function App() {
           }))
         }
         console.warn('[pita-friends] create_bookingに失敗:', err)
+      } finally {
+        // **どの分岐でも必ず解除する。** 解除し忘れると、
+        // エラーを直したあとにボタンが二度と押せなくなる
+        setState((p) => ({ ...p, bookingSubmitting: false }))
       }
       return
     }
