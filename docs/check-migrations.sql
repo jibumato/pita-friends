@@ -148,7 +148,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (121, '0121_blocked_and_stale_time',     'trigger', 'messages',            'messages_require_not_blocked'),
     -- 0122 も関数本体だけ。GMV の数え方が platform_fees 基準に変わったかで見る
     -- (額面ではなく「実際に付与された額」。この語が消えたら 0122 が上書きされている)
-    (122, '0122_fee_on_actual_gmv',          'funcsrc', 'host_monthly_ticket_gmv', 'platform_fees')
+    (122, '0122_fee_on_actual_gmv',          'funcsrc', 'host_monthly_ticket_gmv', 'platform_fees'),
+    (123, '0123_newcomer_discovery',         'table',   'profile_views',       null)
 ),
 checked as (
   select
@@ -341,7 +342,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (121, '0121_blocked_and_stale_time',     'trigger', 'messages',            'messages_require_not_blocked'),
     -- 0122 も関数本体だけ。GMV の数え方が platform_fees 基準に変わったかで見る
     -- (額面ではなく「実際に付与された額」。この語が消えたら 0122 が上書きされている)
-    (122, '0122_fee_on_actual_gmv',          'funcsrc', 'host_monthly_ticket_gmv', 'platform_fees')
+    (122, '0122_fee_on_actual_gmv',          'funcsrc', 'host_monthly_ticket_gmv', 'platform_fees'),
+    (123, '0123_newcomer_discovery',         'table',   'profile_views',       null)
 ),
 checked as (
   select e.seq, e.migration,
