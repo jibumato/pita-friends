@@ -32,6 +32,13 @@ declare
     'host_repeat_guests(p_host_id uuid)',
     'host_repeat_stats(p_host_ids uuid[])',
     'public_host_cards(p_limit integer)',
+    -- はじめたばかりのピタメイト(0123)。返す列は `public_host_cards` と
+    -- **同じもの**に「いつ始めたか」を足しただけで、個人情報は増えていない。
+    -- 未ログインに見せる理由も掲載一覧と同じ——登録前の人にこそ
+    -- 「新しい人が入ってきている」が見えないと、始めた人に予約が届かない。
+    -- ⚠️ `host_discovery_shuffle` はここに**入れない**。並べ替えは
+    --    この関数の中で終わっており、外から鍵を引く必要が無い。
+    'new_host_cards(p_limit integer, p_days integer)',
     -- 賑わいの集計(0117)。返るのは**数だけ**で、行も個人も返さない。
     -- 未ログインに見せる理由は、掲載一覧を見せているのに動いている形跡が
     -- 何も無いと「誰もいないサイト」に見えるため。

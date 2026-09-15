@@ -197,6 +197,64 @@ export async function fetchPublicHostCards(limit = 24): Promise<DiscoverableHost
   }))
 }
 
+/** 0123: 「はじめたばかりのピタメイト」。`DiscoverableHost` に始めた日を足しただけ。 */
+export type NewHost = DiscoverableHost & { hostSince: string }
+
+/**
+ * はじめたばかりのピタメイト(0123)。
+ *
+ * 実績順の一覧とは**別枠**で見せるためのもの。実績で並べると、
+ * 予約が入らない → 評価がつかない → 表示されない、の輪から出られない。
+ *
+ * 枠を1つも登録していない人は返らない(サーバ側で除いてある)。
+ * **空なら、その区画ごと出さないこと。** 「新しい人はいません」と
+ * 書いてある場所は、無いほうがましな場所になる。
+ */
+export async function fetchNewHostCards(limit = 12, days = 14): Promise<NewHost[]> {
+  const { data, error } = await requireSupabase().rpc('new_host_cards', {
+    p_limit: limit,
+    p_days: days,
+  })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    userId: r.host_id,
+    nickname: r.nickname,
+    avatarInitial: r.avatar_initial,
+    avatarColor: r.avatar_color,
+    hourlyRate: r.hourly_rate,
+    games: r.games ?? [],
+    bio: r.bio ?? '',
+    mannerScore: Number(r.manner_score),
+    reviewCount: r.review_count,
+    isVerified: r.is_verified,
+    // 掲載カードと同じく、在席とボイスは返らない(0052の判断)
+    voiceUrl: null,
+    voiceSeconds: null,
+    avatarUrl: r.avatar_path ? avatarImageUrl(r.avatar_path) : null,
+    lastSeenAt: null,
+    presenceStatus: 'online' as PresenceStatus,
+    statusText: r.status_text,
+    statusUpdatedAt: r.status_updated_at,
+    repeatGuests: 0,
+    hostSince: r.host_since,
+  }))
+}
+
+/**
+ * プロフィールを見たことを記録する(0123)。
+ *
+ * 枠が開いたときの通知を、お気に入り以外にも届けるためだけに使う。
+ * **失敗しても黙って捨てる。** 画面の役に立つ処理ではないので、
+ * ここで例外を上げるとプロフィールが開けないという形で出てしまう。
+ */
+export async function recordProfileView(hostId: string): Promise<void> {
+  try {
+    await requireSupabase().rpc('record_profile_view', { p_host_id: hostId })
+  } catch {
+    /* 記録できなくても困らない */
+  }
+}
+
 export async function fetchDiscoverableHosts(excludeUserId: string | null): Promise<DiscoverableHost[]> {
   const sb = requireSupabase()
   const { data: hosts, error: hostsError } = await sb
@@ -226,6 +284,13 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
   for (const r of repeats ?? []) {
     repeatMap.set(r.host_id, { count: r.repeat_guests, score: Number(r.repeat_score) })
   }
+
+  // 0123: 同点だったときの並び順の鍵。**式をこちらに写さない。**
+  // 写すと SQL 側(public_host_cards)とずれて、ログインした瞬間に
+  // 一覧が入れ替わる。サーバが作ったものをそのまま使う。
+  const shuffleMap = new Map<string, string>()
+  const { data: shuffle } = await sb.rpc('host_discovery_shuffle', { p_host_ids: userIds })
+  for (const r of shuffle ?? []) shuffleMap.set(r.host_id, r.shuffle_key)
 
   return hosts
     .filter((h) => profileMap.has(h.user_id))
@@ -263,6 +328,12 @@ export async function fetchDiscoverableHosts(excludeUserId: string | null): Prom
       if (sa !== sb2) return sb2 - sa
       if (a.mannerScore !== b.mannerScore) return b.mannerScore - a.mannerScore
       if (a.reviewCount !== b.reviewCount) return b.reviewCount - a.reviewCount
+      // 0123: 最後の決め手。ここが userId だったころは、一度沈んだ人が
+      // 何をしても浮かべなかった。鍵が取れなければ元の userId 順に戻す
+      // (並びが日替わりでなくなるだけで、一覧は出る)。
+      const ka = shuffleMap.get(a.userId)
+      const kb = shuffleMap.get(b.userId)
+      if (ka && kb) return ka.localeCompare(kb)
       return a.userId.localeCompare(b.userId)
     })
 }

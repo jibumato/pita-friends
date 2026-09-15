@@ -29,6 +29,7 @@ import OnlineBadge from '../components/OnlineBadge'
 import VoiceChip from '../components/VoiceChip'
 import HostStatus from '../components/HostStatus'
 import RepeatBadge from '../components/RepeatBadge'
+import NewHostsRail from '../components/NewHostsRail'
 import type { PresenceStatus } from '../lib/database.types'
 import { GAMES, coinsPer30, SEARCH_VERIFIED_FILTER as VERIFIED_FILTER, SEARCH_DEMO_FILTERS as DEMO_FILTERS, SEARCH_REAL_FILTERS as REAL_FILTERS } from '../flow'
 
@@ -275,6 +276,14 @@ export default function Search({ flow }: { flow: Flow }) {
           }
           return filtered.indexOf(a) - filtered.indexOf(b)
         })
+
+  /** 何かで絞り込んでいるか(新人枠を出すかの判断に使う)。 */
+  const filtering =
+    query.trim() !== '' ||
+    timeWindow !== null ||
+    sort !== 'recommended' ||
+    GAMES.some((g) => selected[g]) ||
+    Boolean(selected[VERIFIED_FILTER])
 
   if (!signedIn) {
     // ピタメイトの検索はログインしてから。未ログインで叩くと認証エラーになり、
@@ -526,6 +535,13 @@ export default function Search({ flow }: { flow: Flow }) {
               <b style={{ color: C.ink }}>受け身設定の人は非表示</b> ・ 誘いは承認制です
             </span>
           </div>
+          {/* 0123: 実績順では永久に下に来る人を、順位と関係なく見せる場所。
+              **絞り込み中は出さない。** 「Apex」で絞っているのに関係ない
+              新人が並ぶと、結果の一部だと誤解される。
+              デモにはデータが無いので実データのときだけ。 */}
+          {isBackendConfigured && !filtering && (
+            <NewHostsRail onOpen={(id) => flow.openProfile(id)} />
+          )}
           {isBackendConfigured && allCards.length > 0 && cards.length === 0 && (
             <span style={{ fontSize: 12, color: C.muted, textAlign: 'center', padding: '20px 0', lineHeight: 1.8, whiteSpace: 'pre-line' }}>
               {openLoading

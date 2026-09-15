@@ -17,7 +17,7 @@ import RepeatBadge, { playMilestone } from '../components/RepeatBadge'
 import RebookSame from '../components/RebookSame'
 import FastReleaseToggle from '../components/FastReleaseToggle'
 import HideHostToggle from '../components/HideHostToggle'
-import { fetchMyFavorites, fetchPlayHistoryWith, type PlayHistoryWith } from '../lib/queries'
+import { fetchMyFavorites, fetchPlayHistoryWith, recordProfileView, type PlayHistoryWith } from '../lib/queries'
 import SignedOutPrompt from '../components/SignedOutPrompt'
 
 /* ---- デモ(モック)用の固定データ ---- */
@@ -118,6 +118,19 @@ export default function Profile({ flow }: { flow: Flow }) {
       active = false
     }
   }, [useReal, signedIn, targetId])
+
+  /**
+   * 見たことを記録する(0123)。枠が開いたときに知らせる相手を、
+   * お気に入り登録者だけでなく「見たけれど予約しなかった人」にも
+   * 広げるためのもの。**通知は本人が「おすすめマッチ」を on に
+   * したときだけ**飛ぶ(既定は off)。
+   *
+   * 自分のページと、ピタメイトでない相手は記録されない(サーバ側で落ちる)。
+   */
+  useEffect(() => {
+    if (!useReal || !signedIn || !targetId || targetId === flow.userId) return
+    recordProfileView(targetId)
+  }, [useReal, signedIn, targetId, flow.userId])
 
   useEffect(() => {
     if (!useReal || !signedIn || !targetId) return

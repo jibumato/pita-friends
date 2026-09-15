@@ -305,6 +305,12 @@ export type Database = {
           /** 0056: ピタメイトの「ひとこと」(近況)。60字まで。 */
           status_text: string | null
           status_updated_at: string | null
+          /**
+           * 0123: ピタメイトになった日。新人枠の対象を決めるのに使う。
+           * **Update には入れない。** サーバのトリガだけが書ける
+           * (書き換えられると、出し入れして新人枠に戻れてしまう)。
+           */
+          host_since: string | null
         }
         Insert: Record<string, never>
         Update: Partial<
@@ -1109,6 +1115,44 @@ export type Database = {
           /** 0058: 2回以上遊んだ人の数(誰かは返らない)。 */
           repeat_guests: number
         }[]
+      }
+      /**
+       * 0123: はじめたばかりのピタメイト。返す列は public_host_cards と同じで、
+       * 「いつ始めたか」だけ多い。掲載条件も同じ(枠が無い人は出ない)。
+       */
+      new_host_cards: {
+        Args: { p_limit?: number; p_days?: number }
+        Returns: {
+          host_id: string
+          nickname: string
+          avatar_initial: string
+          avatar_color: string
+          avatar_path: string | null
+          hourly_rate: number
+          games: string[] | null
+          bio: string | null
+          manner_score: number
+          review_count: number
+          is_verified: boolean
+          status_text: string | null
+          status_updated_at: string | null
+          repeat_guests: number
+          host_since: string
+        }[]
+      }
+      /**
+       * 0123: 同点だったときの並び順を日替わりにする鍵。
+       * **式を画面側に写さないこと。** 写すと SQL 側とずれて、
+       * 「ログインしたら一覧の順が変わった」が起きる。
+       */
+      host_discovery_shuffle: {
+        Args: { p_host_ids: string[] }
+        Returns: { host_id: string; shuffle_key: string }[]
+      }
+      /** 0123: 掲載中のピタメイトを見たことを記録する(1組1行・30日で消える)。 */
+      record_profile_view: {
+        Args: { p_host_id: string }
+        Returns: undefined
       }
       /** 0058: そのピタメイトと2回以上遊んだ人の数。 */
       host_repeat_guests: {

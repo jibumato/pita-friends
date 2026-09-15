@@ -346,8 +346,13 @@ export default function Settings({ flow }: { flow: Flow }) {
               />
             }
           />
+          {/* 0123: 何に使う設定なのかを具体的に書く。
+              「おすすめマッチ」だけだと、閲覧を材料にしていることが伝わらない。
+              **既定は off のまま。** 見た記録はこちらが勝手に取ったものなので、
+              本人が読んで on にしたときだけ使う */}
           <ListRow
             label="おすすめマッチ"
+            sub="見ていたピタメイトが枠を開けたときに知らせます"
             divider={false}
             right={
               <Toggle
