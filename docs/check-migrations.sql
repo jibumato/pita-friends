@@ -145,7 +145,10 @@ with expected(seq, migration, kind, obj, needle) as (
     (120, '0120_guest_requests',             'table',   'guest_requests',      null),
     -- 0121 は関数本体だけを直すので、番号を本文に埋めても後の
     -- create or replace で消える(0102 で実際に起きた)。**トリガの有無で見る。**
-    (121, '0121_blocked_and_stale_time',     'trigger', 'messages',            'messages_require_not_blocked')
+    (121, '0121_blocked_and_stale_time',     'trigger', 'messages',            'messages_require_not_blocked'),
+    -- 0122 も関数本体だけ。GMV の数え方が platform_fees 基準に変わったかで見る
+    -- (額面ではなく「実際に付与された額」。この語が消えたら 0122 が上書きされている)
+    (122, '0122_fee_on_actual_gmv',          'funcsrc', 'host_monthly_ticket_gmv', 'platform_fees')
 ),
 checked as (
   select
@@ -335,7 +338,10 @@ with expected(seq, migration, kind, obj, needle) as (
     (120, '0120_guest_requests',             'table',   'guest_requests',      null),
     -- 0121 は関数本体だけを直すので、番号を本文に埋めても後の
     -- create or replace で消える(0102 で実際に起きた)。**トリガの有無で見る。**
-    (121, '0121_blocked_and_stale_time',     'trigger', 'messages',            'messages_require_not_blocked')
+    (121, '0121_blocked_and_stale_time',     'trigger', 'messages',            'messages_require_not_blocked'),
+    -- 0122 も関数本体だけ。GMV の数え方が platform_fees 基準に変わったかで見る
+    -- (額面ではなく「実際に付与された額」。この語が消えたら 0122 が上書きされている)
+    (122, '0122_fee_on_actual_gmv',          'funcsrc', 'host_monthly_ticket_gmv', 'platform_fees')
 ),
 checked as (
   select e.seq, e.migration,
