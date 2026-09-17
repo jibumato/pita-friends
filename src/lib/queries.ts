@@ -2393,6 +2393,13 @@ export type GuestRequestAnswer = {
   answeredAt: string
 }
 
+/**
+ * 応じられない理由(0124)。null なら応じられる。
+ * `'enough'` は5人埋まった / `'reserved_for_new'` は残りが
+ * はじめたばかりの人のために取り置かれている(最初の30分だけ)。
+ */
+export type HostRequestBlock = 'enough' | 'reserved_for_new' | null
+
 export type HostInboxRequest = {
   id: string
   guestId: string
@@ -2408,6 +2415,11 @@ export type HostInboxRequest = {
   answered: boolean
   myStartsAt: Date | null
   createdAt: string
+  /**
+   * 0124: 今は応じられない理由(応じられるなら null)。
+   * **サーバが応じる側と同じ規則で出した答え。** 画面で数え直さない。
+   */
+  cannotRespond: HostRequestBlock
 }
 
 /** リクエストを出せなかった理由を、画面に出せる日本語にする。 */
@@ -2502,6 +2514,9 @@ export async function fetchGuestRequestsForHost(): Promise<HostInboxRequest[]> {
     answered: r.answered,
     myStartsAt: r.my_starts_at ? new Date(r.my_starts_at) : null,
     createdAt: r.created_at,
+    // 0124: 今この人が応じられるか。**画面で数え直さない**——
+    // サーバが応じる側と同じ規則で出した答えをそのまま使う
+    cannotRespond: r.cannot_respond as HostRequestBlock,
   }))
 }
 
@@ -2526,6 +2541,11 @@ export async function respondToGuestRequest(requestId: string, startsAt: Date): 
       throw new Error('その時間は、リクエストした方に別の予定が入っています')
     if (/ENOUGH_RESPONSES/.test(error.message))
       throw new Error('このリクエストには十分な人数が応じています')
+    // 0124: 5枠のうち2つは、最初の30分だけ実績ゼロの人に残してある
+    if (/RESERVED_FOR_NEW_HOSTS/.test(error.message))
+      throw new Error(
+        '残りの枠は、はじめたばかりのピタメイトのために30分だけ取ってあります。少し経ってからもう一度お試しください',
+      )
     if (/REQUEST_NOT_OPEN/.test(error.message))
       throw new Error('このリクエストは受付を終えています')
     if (/START_TOO_SOON/.test(error.message))

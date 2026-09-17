@@ -149,7 +149,10 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 0122 も関数本体だけ。GMV の数え方が platform_fees 基準に変わったかで見る
     -- (額面ではなく「実際に付与された額」。この語が消えたら 0122 が上書きされている)
     (122, '0122_fee_on_actual_gmv',          'funcsrc', 'host_monthly_ticket_gmv', 'platform_fees'),
-    (123, '0123_newcomer_discovery',         'table',   'profile_views',       null)
+    (123, '0123_newcomer_discovery',         'table',   'profile_views',       null),
+    -- 0124 は関数だけ。列が1つ増えた一覧のほうで見る
+    -- (この列が消えたら、画面が「押してから断られる」状態に戻っている)
+    (124, '0124_request_slots_for_new_hosts', 'funcsrc', 'guest_requests_for_host', 'cannot_respond')
 ),
 checked as (
   select
@@ -343,7 +346,10 @@ with expected(seq, migration, kind, obj, needle) as (
     -- 0122 も関数本体だけ。GMV の数え方が platform_fees 基準に変わったかで見る
     -- (額面ではなく「実際に付与された額」。この語が消えたら 0122 が上書きされている)
     (122, '0122_fee_on_actual_gmv',          'funcsrc', 'host_monthly_ticket_gmv', 'platform_fees'),
-    (123, '0123_newcomer_discovery',         'table',   'profile_views',       null)
+    (123, '0123_newcomer_discovery',         'table',   'profile_views',       null),
+    -- 0124 は関数だけ。列が1つ増えた一覧のほうで見る
+    -- (この列が消えたら、画面が「押してから断られる」状態に戻っている)
+    (124, '0124_request_slots_for_new_hosts', 'funcsrc', 'guest_requests_for_host', 'cannot_respond')
 ),
 checked as (
   select e.seq, e.migration,

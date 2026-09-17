@@ -805,6 +805,12 @@ export type Database = {
           answered: boolean
           my_starts_at: string | null
           created_at: string
+          /**
+           * 0124: 今この人が応じられるか。null=応じられる /
+           * 'enough'=5人埋まった / 'reserved_for_new'=残りは新人用に取り置き中。
+           * **応じる側と同じ規則の答え。** 画面で数え直さない。
+           */
+          cannot_respond: 'enough' | 'reserved_for_new' | null
         }[]
       }
       respond_to_guest_request: {

@@ -194,9 +194,19 @@ function RequestCard({
       <span style={{ fontSize: 11.5, color: C.body }}>{windowLabel(r.windowStart, r.windowEnd)}</span>
       {r.note && <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>{r.note}</span>}
 
+      {/* 0124: 応じられないときは、時刻のチップも送信ボタンも出さない。
+          **押してから断られるのが一番よくない。** 理由はサーバが
+          応じる側と同じ規則で返している(cannotRespond)ので、
+          ここで数え直さない */}
       {starts.length === 0 ? (
         <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.7 }}>
           この範囲に、いまから応じられる時刻がありません。
+        </span>
+      ) : r.cannotRespond !== null ? (
+        <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.7 }}>
+          {r.cannotRespond === 'enough'
+            ? 'このリクエストには十分な人数が応じています。'
+            : '残りの枠は、はじめたばかりのピタメイトのために30分だけ取ってあります。少し経つと応じられるようになります。'}
         </span>
       ) : (
         <>
