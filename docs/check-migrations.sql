@@ -152,7 +152,11 @@ with expected(seq, migration, kind, obj, needle) as (
     (123, '0123_newcomer_discovery',         'table',   'profile_views',       null),
     -- 0124 は関数だけ。列が1つ増えた一覧のほうで見る
     -- (この列が消えたら、画面が「押してから断られる」状態に戻っている)
-    (124, '0124_request_slots_for_new_hosts', 'funcsrc', 'guest_requests_for_host', 'cannot_respond')
+    (124, '0124_request_slots_for_new_hosts', 'funcsrc', 'guest_requests_for_host', 'cannot_respond'),
+    (125, '0125_host_pair_partners',          'table',   'host_pair_partners',  null),
+    -- 0126 も列の有無で見る(from_pair_id が消えたら create_booking の
+    -- ペア対応ごと上書きされている)
+    (126, '0126_paired_bookings',             'column',  'bookings',            'from_pair_id')
 ),
 checked as (
   select
@@ -349,7 +353,11 @@ with expected(seq, migration, kind, obj, needle) as (
     (123, '0123_newcomer_discovery',         'table',   'profile_views',       null),
     -- 0124 は関数だけ。列が1つ増えた一覧のほうで見る
     -- (この列が消えたら、画面が「押してから断られる」状態に戻っている)
-    (124, '0124_request_slots_for_new_hosts', 'funcsrc', 'guest_requests_for_host', 'cannot_respond')
+    (124, '0124_request_slots_for_new_hosts', 'funcsrc', 'guest_requests_for_host', 'cannot_respond'),
+    (125, '0125_host_pair_partners',          'table',   'host_pair_partners',  null),
+    -- 0126 も列の有無で見る(from_pair_id が消えたら create_booking の
+    -- ペア対応ごと上書きされている)
+    (126, '0126_paired_bookings',             'column',  'bookings',            'from_pair_id')
 ),
 checked as (
   select e.seq, e.migration,

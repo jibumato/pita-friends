@@ -37,6 +37,8 @@ export type BookingStatus =
   | 'declined_by_host'
   | 'no_show_host'
   | 'no_show_guest'
+  /** 0126: ペアの相方が申請段階で終わったことによる、システム側の自動取消し。 */
+  | 'cancelled_by_platform'
 export type InviteStatus = 'pending' | 'approved' | 'declined' | 'expired'
 export type PromiseStatus = 'scheduled' | 'joined' | 'completed' | 'cancelled'
 export type ReportCategory =
@@ -1120,6 +1122,72 @@ export type Database = {
           status_updated_at: string | null
           /** 0058: 2回以上遊んだ人の数(誰かは返らない)。 */
           repeat_guests: number
+        }[]
+      }
+      /** 0125: ペア相手を申請する。相手からの申請が既にあれば、その場で成立させる。 */
+      propose_pair_partner: {
+        Args: { p_partner_id: string }
+        Returns: string
+      }
+      /** 0125: ペア相手の申請に応じる。断ったときは行ごと消える。 */
+      respond_pair_partner: {
+        Args: { p_partner_row_id: string; p_accept: boolean }
+        Returns: undefined
+      }
+      /** 0125: ペア相手を解消する(申請中の取り下げにも使う)。 */
+      end_pair_partner: {
+        Args: { p_partner_row_id: string }
+        Returns: undefined
+      }
+      /** 0125: 自分のペア相手(申請中・成立済み)の一覧。 */
+      my_pair_partners: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          partner_id: string
+          partner_nickname: string
+          partner_avatar_initial: string
+          partner_avatar_color: string
+          status: 'pending' | 'active'
+          requested_by_me: boolean
+          created_at: string
+        }[]
+      }
+      /** 0126: 指定したホストの、active なペア相手の一覧(公開情報、誰でも呼べる)。 */
+      host_pair_partners_of: {
+        Args: { p_host_id: string }
+        Returns: {
+          partner_id: string
+          partner_nickname: string
+          partner_avatar_initial: string
+          partner_avatar_color: string
+        }[]
+      }
+      /**
+       * 0126: ペア相手の2人をまとめて予約する。戻り値は booking_pairs.id。
+       * 承認・チェックイン・完了・キャンセル・手数料・GMV・リピート判定は、
+       * 成立後は通常の1対1予約と完全に同じ経路をホストごとに通る。
+       */
+      create_paired_booking: {
+        Args: {
+          p_host_a_id: string
+          p_host_b_id: string
+          p_duration_minutes: number
+          p_policy_version: string
+          p_scheduled_at: string
+        }
+        Returns: string
+      }
+      /** 0126: この予約がペアの一部なら、相方の状態を返す(無ければ0行)。 */
+      fetch_booking_pair: {
+        Args: { p_booking_id: string }
+        Returns: {
+          pair_id: string
+          sibling_booking_id: string
+          sibling_user_id: string
+          sibling_nickname: string
+          sibling_status: string
+          sibling_starts_at: string
         }[]
       }
       /**

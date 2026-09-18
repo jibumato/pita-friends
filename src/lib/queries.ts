@@ -4540,3 +4540,180 @@ export async function fetchDisputeEvidence(disputeId: string): Promise<unknown> 
   if (error) throw error
   return data
 }
+
+/* ============================================================
+ * 0125/0126: ペア相手・ペア予約
+ * ============================================================ */
+
+export type PairPartner = {
+  id: string
+  partnerId: string
+  partnerNickname: string
+  partnerAvatarInitial: string
+  partnerAvatarColor: string
+  status: 'pending' | 'active'
+  /** true なら自分が申請した側(取り下げはできるが承認はできない)。 */
+  requestedByMe: boolean
+  createdAt: string
+}
+
+function pairPartnerErrorMessage(message: string): string | null {
+  if (/HOST_ONLY/.test(message)) return 'ペア相手を申請できるのはピタメイトだけです'
+  if (/PARTNER_NOT_HOST/.test(message)) return '相手がまだピタメイトになっていません'
+  if (/BLOCKED/.test(message)) return 'ブロック関係があるため申請できません'
+  if (/ALREADY_PARTNERS/.test(message)) return 'すでにペア相手です'
+  if (/CANNOT_RESPOND_OWN_REQUEST/.test(message)) return '自分が出した申請には応じられません'
+  if (/PARTNER_REQUEST_NOT_PENDING/.test(message)) return 'この申請はすでに処理されています'
+  if (/PARTNER_REQUEST_NOT_FOUND/.test(message)) return 'この申請は見つかりませんでした'
+  if (/INVALID_PARTNER/.test(message)) return '相手を選び直してください'
+  return null
+}
+
+/** ペア相手を申請する(0125)。相手からの申請が既にあれば、その場で成立する。 */
+export async function proposePairPartner(partnerId: string): Promise<string> {
+  const { data, error } = await requireSupabase().rpc('propose_pair_partner', {
+    p_partner_id: partnerId,
+  })
+  if (error) {
+    const msg = pairPartnerErrorMessage(error.message)
+    throw msg ? new Error(msg) : error
+  }
+  return data as string
+}
+
+/** ペア相手の申請に応じる(0125)。断ったときは行ごと消える。 */
+export async function respondPairPartner(partnerRowId: string, accept: boolean): Promise<void> {
+  const { error } = await requireSupabase().rpc('respond_pair_partner', {
+    p_partner_row_id: partnerRowId,
+    p_accept: accept,
+  })
+  if (error) {
+    const msg = pairPartnerErrorMessage(error.message)
+    throw msg ? new Error(msg) : error
+  }
+}
+
+/** ペア相手を解消する(申請中の取り下げにも使う)。 */
+export async function endPairPartner(partnerRowId: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('end_pair_partner', {
+    p_partner_row_id: partnerRowId,
+  })
+  if (error) {
+    const msg = pairPartnerErrorMessage(error.message)
+    throw msg ? new Error(msg) : error
+  }
+}
+
+/** 自分のペア相手(申請中・成立済み)の一覧。 */
+export async function fetchMyPairPartners(): Promise<PairPartner[]> {
+  const { data, error } = await requireSupabase().rpc('my_pair_partners', {})
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    partnerId: r.partner_id,
+    partnerNickname: r.partner_nickname || '(名前未設定)',
+    partnerAvatarInitial: r.partner_avatar_initial,
+    partnerAvatarColor: r.partner_avatar_color,
+    status: r.status as 'pending' | 'active',
+    requestedByMe: r.requested_by_me,
+    createdAt: r.created_at,
+  }))
+}
+
+/** そのホストのプロフィールに出す用の、ペア相手の最小限の表示情報。 */
+export type PublicPairPartner = {
+  partnerId: string
+  nickname: string
+  avatarInitial: string
+  avatarColor: string
+}
+
+/**
+ * 指定したホストの、active なペア相手の一覧(誰でも呼べる)。
+ *
+ * `fetchMyPairPartners` はログイン中の自分の分しか読めない(RLS)ので、
+ * **いま見ているプロフィールの相手**のペア相手を知るには使えない。
+ * `host_pair_partners_of` は公開情報として別に用意してある
+ * (掲載中のゲーム・時給と同じ扱い。申請中の行や申請した側は渡さない)。
+ */
+export async function fetchPairPartnersOf(hostUserId: string): Promise<PublicPairPartner[]> {
+  const { data, error } = await requireSupabase().rpc('host_pair_partners_of', {
+    p_host_id: hostUserId,
+  })
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    partnerId: r.partner_id,
+    nickname: r.partner_nickname || '(名前未設定)',
+    avatarInitial: r.partner_avatar_initial,
+    avatarColor: r.partner_avatar_color,
+  }))
+}
+
+function pairedBookingErrorMessage(message: string): string | null {
+  if (/NOT_PAIR_PARTNERS/.test(message)) return 'この2人はペア相手ではありません'
+  if (/PARTNER_BLOCKED/.test(message)) return 'お二人の間にブロック関係があるため、ペアでは予約できません'
+  if (/INVALID_PAIR/.test(message)) return '相手を選び直してください'
+  if (/HOST_NOT_AVAILABLE/.test(message)) return 'どちらかの掲載が終了しています'
+  if (/HOST_NOT_VERIFIED/.test(message)) return 'どちらかの本人確認が済んでいません'
+  if (/HOST_NOT_OPEN/.test(message)) return 'その時間は、どちらかの予定が空いていません'
+  if (/REGULARS_FIRST/.test(message)) return 'その時間は、常連の方の先行予約期間です'
+  if (/HOST_SLOT_TAKEN/.test(message)) return 'その時間には、どちらかに別の予定が入っています'
+  if (/GUEST_SLOT_TAKEN/.test(message)) return 'その時間には、あなたの別の予定が入っています'
+  if (/INSUFFICIENT_COINS/.test(message)) return 'コインが不足しています'
+  if (/BLOCKED/.test(message)) return 'ブロック関係があるため予約できません'
+  if (/START_TOO_SOON/.test(message)) return `開始まで${MIN_LEAD_MINUTES}分以上あける必要があります`
+  if (/START_TOO_FAR/.test(message)) return '開始が先すぎます。日を近づけてください'
+  return null
+}
+
+/**
+ * ペア相手の2人をまとめて予約する(0126)。
+ * 戻り値は booking_pairs.id。成立後の各予約は通常どおり承諾待ちになる。
+ */
+export async function createPairedBooking(
+  hostAId: string,
+  hostBId: string,
+  durationMinutes: number,
+  policyVersion: string,
+  scheduledAt: Date,
+): Promise<string> {
+  const { data, error } = await requireSupabase().rpc('create_paired_booking', {
+    p_host_a_id: hostAId,
+    p_host_b_id: hostBId,
+    p_duration_minutes: durationMinutes,
+    p_policy_version: policyVersion,
+    p_scheduled_at: scheduledAt.toISOString(),
+  })
+  if (error) {
+    const msg = pairedBookingErrorMessage(error.message)
+    throw msg ? new Error(msg) : error
+  }
+  return data as string
+}
+
+export type BookingPairInfo = {
+  pairId: string
+  siblingBookingId: string
+  siblingUserId: string
+  siblingNickname: string
+  siblingStatus: string
+  siblingStartsAt: string
+}
+
+/** この予約がペアの一部なら、相方の状態を返す(無ければnull)。 */
+export async function fetchBookingPair(bookingId: string): Promise<BookingPairInfo | null> {
+  const { data, error } = await requireSupabase().rpc('fetch_booking_pair', {
+    p_booking_id: bookingId,
+  })
+  if (error) throw error
+  const r = (data ?? [])[0]
+  if (!r) return null
+  return {
+    pairId: r.pair_id,
+    siblingBookingId: r.sibling_booking_id,
+    siblingUserId: r.sibling_user_id,
+    siblingNickname: r.sibling_nickname || '(名前未設定)',
+    siblingStatus: r.sibling_status,
+    siblingStartsAt: r.sibling_starts_at,
+  }
+}
