@@ -81,6 +81,7 @@ import BoardCreate from './screens/BoardCreate'
 import RequestCreate from './screens/RequestCreate'
 import MyRequests from './screens/MyRequests'
 import RequestInbox from './screens/RequestInbox'
+import PairBooking from './screens/PairBooking'
 import TalkList from './screens/TalkList'
 import MyPage from './screens/MyPage'
 import Settings from './screens/Settings'
@@ -235,6 +236,11 @@ export type Flow = {
   profileUserId: string | null
   profileReturn: ScreenKey
   inviteTarget: { userId: string; name: string } | null
+  /**
+   * 0126: ペアで予約する対象(基点のホスト＋ペア相手)。
+   * `openPairBooking` から設定され、PairBooking画面が読む。
+   */
+  pairBookingTarget: { hostAId: string; hostBId: string } | null
   activeThreadId: string | null
   /** トークを閉じたときに戻る画面(通知から開いたら通知に戻る等)。 */
   threadReturn: ScreenKey
@@ -331,6 +337,8 @@ export type Flow = {
   openProfile: (userId: string) => void
   /** 指定ユーザーへの誘いシートを開く(実データ)。 */
   openInvite: (userId: string, name: string) => void
+  /** 0126: ペアで予約する画面を開く(基点のホスト＋ペア相手)。 */
+  openPairBooking: (hostAId: string, hostBId: string) => void
   /** 誘いを実際に送信する(実データ)。成功でresolve。 */
   submitInvite: (game: string, whenText: string, message: string) => Promise<void>
   /** 実データのトークルーム(約束/promise)を開く。 */
@@ -418,6 +426,7 @@ const INITIAL = {
   profileUserId: null as string | null,
   profileReturn: 'search' as ScreenKey,
   inviteTarget: null as { userId: string; name: string } | null,
+  pairBookingTarget: null as { hostAId: string; hostBId: string } | null,
   activeThreadId: null as string | null,
   threadReturn: 'talkList' as ScreenKey,
   sendFailOpen: false,
@@ -994,6 +1003,8 @@ export default function App() {
       setState((p) => ({ ...p, profileUserId: userId, profileReturn: p.screen, screen: 'profile' })),
     openInvite: (userId, name) =>
       setState((p) => ({ ...p, inviteTarget: { userId, name }, screen: 'invite' })),
+    openPairBooking: (hostAId, hostBId) =>
+      setState((p) => ({ ...p, pairBookingTarget: { hostAId, hostBId }, screen: 'pairBooking' })),
     submitInvite: async (game, whenText, message) => {
       const target = state.inviteTarget
       if (!target) throw new Error('送信先が不明です')
@@ -1216,6 +1227,7 @@ export default function App() {
         {state.screen === 'requestCreate' && <RequestCreate flow={flow} />}
         {state.screen === 'myRequests' && <MyRequests flow={flow} />}
         {state.screen === 'requestInbox' && <RequestInbox flow={flow} />}
+        {state.screen === 'pairBooking' && <PairBooking flow={flow} />}
         {state.screen === 'talkList' && <TalkList flow={flow} />}
         {state.screen === 'mypage' && <MyPage flow={flow} />}
         {state.screen === 'settings' && <Settings flow={flow} />}

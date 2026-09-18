@@ -18,6 +18,7 @@ import {
 } from '../flow'
 import GameThumb from '../components/GameThumb'
 import AvailabilityEditor from '../components/AvailabilityEditor'
+import PairPartnerManager from '../components/PairPartnerManager'
 import { usePress } from '../hooks/usePress'
 import { isBackendConfigured } from '../lib/supabase'
 import SignedOutPrompt from '../components/SignedOutPrompt'
@@ -636,6 +637,15 @@ export default function HostSettingsScreen({ flow }: { flow: Flow }) {
         ) : (
           <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6 }}>
             （デモ表示のため、募集枠の保存はできません）
+          </span>
+        )}
+
+        {/* 0125/0126: ペア相手。複数人ゲームでゲストが2人まとめて予約できる。 */}
+        {isBackendConfigured ? (
+          <PairPartnerManager />
+        ) : (
+          <span style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.6 }}>
+            （デモ表示のため、ペア相手の申請はできません）
           </span>
         )}
 

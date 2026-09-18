@@ -17,6 +17,7 @@ import RepeatBadge, { playMilestone } from '../components/RepeatBadge'
 import RebookSame from '../components/RebookSame'
 import FastReleaseToggle from '../components/FastReleaseToggle'
 import HideHostToggle from '../components/HideHostToggle'
+import PairPartnerBanner from '../components/PairPartnerBanner'
 import { fetchMyFavorites, fetchPlayHistoryWith, recordProfileView, type PlayHistoryWith } from '../lib/queries'
 import SignedOutPrompt from '../components/SignedOutPrompt'
 
@@ -487,6 +488,12 @@ export default function Profile({ flow }: { flow: Flow }) {
               3回以上遊んだ相手にしか出ない(部品側で判定している)。 */}
           {useReal && targetId && targetId !== flow.userId && data?.isHost && (
             <FastReleaseToggle hostId={targetId} hostName={data.nickname} />
+          )}
+
+          {/* 「一緒に組める相手」がいれば案内する(0126)。3回以上遊んだ相手に
+              絞る理由が無い——初回のゲストにこそ効く(卓が埋まる)施策のため。 */}
+          {useReal && targetId && targetId !== flow.userId && data?.isHost && (
+            <PairPartnerBanner flow={flow} hostId={targetId} hostNickname={data.nickname} />
           )}
 
           {/* ボイスプロフィール。声はこのサービスでいちばん人となりが伝わる材料なので、

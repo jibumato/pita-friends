@@ -28,6 +28,8 @@ export type ScreenKey =
   | 'requestCreate'
   | 'myRequests'
   | 'requestInbox'
+  // 0126: ペア相手2人をまとめて予約する
+  | 'pairBooking'
   | 'talkList'
   | 'mypage'
   | 'settings'
@@ -74,6 +76,7 @@ export const screenNames: Record<ScreenKey, string> = {
   requestCreate: 'リクエストを出す',
   myRequests: '出したリクエスト',
   requestInbox: '届いたリクエスト',
+  pairBooking: 'ペアで予約',
   talkList: 'トーク一覧',
   mypage: 'マイページ',
   settings: '設定',
@@ -297,6 +300,7 @@ export const stepOf: Record<ScreenKey, number> = {
   requestCreate: -1,
   myRequests: -1,
   requestInbox: -1,
+  pairBooking: -1,
   talkList: -1,
   mypage: -1,
   settings: -1,
