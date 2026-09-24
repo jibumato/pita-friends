@@ -156,7 +156,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (125, '0125_host_pair_partners',          'table',   'host_pair_partners',  null),
     -- 0126 も列の有無で見る(from_pair_id が消えたら create_booking の
     -- ペア対応ごと上書きされている)
-    (126, '0126_paired_bookings',             'column',  'bookings',            'from_pair_id')
+    (126, '0126_paired_bookings',             'column',  'bookings',            'from_pair_id'),
+    (127, '0127_dormant_accounts',            'table',   'dormant_account_notices', null)
 ),
 checked as (
   select
@@ -357,7 +358,8 @@ with expected(seq, migration, kind, obj, needle) as (
     (125, '0125_host_pair_partners',          'table',   'host_pair_partners',  null),
     -- 0126 も列の有無で見る(from_pair_id が消えたら create_booking の
     -- ペア対応ごと上書きされている)
-    (126, '0126_paired_bookings',             'column',  'bookings',            'from_pair_id')
+    (126, '0126_paired_bookings',             'column',  'bookings',            'from_pair_id'),
+    (127, '0127_dormant_accounts',            'table',   'dormant_account_notices', null)
 ),
 checked as (
   select e.seq, e.migration,
