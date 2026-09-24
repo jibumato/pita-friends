@@ -90,7 +90,7 @@
    - ✅ `0093` / `0094` / `0095` を適用（2026-08-03）
    - ☐ `docs/check-migrations.sql` を実行して**59項目すべて OK**・
      「順番の飛びはありません」
-   - ☐ `docs/check-cron.sql` を実行して**すべて ✅**。定期ジョブは**11件**、
+   - ☐ `docs/check-cron.sql` を実行して**すべて ✅**。定期ジョブは**15件**、
      権限の3行（`credit_coins_for_purchase` / `record_payment_dispute` /
      `record_payment_card`）も ✅ であること
      ※ `pg_net` の「未有効」は現時点では想定内（プッシュ通知の鍵が未設定）
@@ -231,7 +231,7 @@
    - リンクの有効期限(既定1時間)は Authentication → Sessions で確認
 4. ☐ **(必須)pg_cron / pg_net の確認**:
    **`docs/check-cron.sql` を SQL Editor に貼って実行**してください。
-   拡張・定期ジョブ9本・サーバー専用関数の権限を一度に見ます。
+   拡張・定期ジョブ15本・サーバー専用関数の権限を一度に見ます。
 
    > ⚠️ **マイグレーションは cron ジョブの登録に失敗しても静かに進みます**
    > (`exception when others then raise notice` で握りつぶす作り)。
@@ -248,9 +248,9 @@
    - `pg_net`: プッシュの送信で Edge Function を叩くのに使う(0064)。
      push-send / prune-push は**VAPID鍵を設定してから**登録します
      (`docs/web-push-setup.md` の手順5)。鍵が無いうちは毎分失敗し続けます
-5. ☐ **(必須)Pro プランにする**($25/月。無料プランには保証されたバックアップが無い)
-   - **コインを売る前に**。Settings → Billing → Pro
-   - PITR($100/月 + Small コンピュート$15/月)は取引量が増えてからで可
+5. ✅ **(必須)Pro プランにする**($25/月。無料プランには保証されたバックアップが無い)
+   - **コインを売る前に**。Settings → Billing → Pro（2026-09-24 完了）
+   - ☐ PITR($100/月 + Small コンピュート$15/月)は取引量が増えてからで可（**Proとは別料金。未確認**）
    - 費用の内訳と切り替えの目安: `docs/data-integrity.md`
 6. ☐ (推奨)本人確認画像バケットのストレージポリシーを再確認
    (`docs/manual-verification-review.md`)
