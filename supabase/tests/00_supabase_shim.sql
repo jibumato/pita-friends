@@ -5,7 +5,11 @@ create schema if not exists cron;
 
 create table auth.users (
   id uuid primary key default gen_random_uuid(),
-  email text
+  email text,
+  -- 0127: 本番の Supabase Auth が実際に持つ列(GoTrue が毎回のログインで更新)。
+  -- **profiles.last_seen_at は代用にならない**——オンライン表示のプライバシー
+  -- 設定(0026)で null に戻る仕様のため、最終ログインの判定には使えない。
+  last_sign_in_at timestamptz
 );
 
 -- テスト中に切り替える現在ユーザー
