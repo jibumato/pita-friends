@@ -11,7 +11,8 @@ insert into public.profiles (id, nickname) values
   ('f0000000-0000-0000-0000-0000000000b1'::uuid, '長時間ゲスト')
 on conflict (id) do update set nickname = excluded.nickname;
 update public.profile_trust_stats set is_verified = true
-  where user_id = 'f0000000-0000-0000-0000-0000000000a1'::uuid;
+  where user_id in ('f0000000-0000-0000-0000-0000000000a1'::uuid,
+                    'f0000000-0000-0000-0000-0000000000b1'::uuid);
 insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('f0000000-0000-0000-0000-0000000000a1'::uuid, true, 1000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 1000, trial_discount_percent = 0;

@@ -15,7 +15,8 @@ on conflict (id) do update set nickname = excluded.nickname;
 insert into public.admins (user_id) values ('a0000000-0000-0000-0000-00000000cc99'::uuid)
   on conflict do nothing;
 update public.profile_trust_stats set is_verified = true
-  where user_id = 'a0000000-0000-0000-0000-00000000cc01'::uuid;
+  where user_id in ('a0000000-0000-0000-0000-00000000cc01'::uuid,
+                    'a0000000-0000-0000-0000-00000000cc11'::uuid);
 insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('a0000000-0000-0000-0000-00000000cc01'::uuid, true, 2000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 2000, trial_discount_percent = 0;

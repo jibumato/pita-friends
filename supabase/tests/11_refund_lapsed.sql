@@ -7,7 +7,8 @@ insert into public.profiles (id, nickname) values
   ('22222222-2222-2222-2222-222222222222','ホスト')
   on conflict (id) do update set nickname = excluded.nickname;
 update public.profile_trust_stats set is_verified = true
-  where user_id = '22222222-2222-2222-2222-222222222222';
+  where user_id in ('22222222-2222-2222-2222-222222222222',
+                    '11111111-1111-1111-1111-111111111111');
 insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('22222222-2222-2222-2222-222222222222', true, 1000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 1000;

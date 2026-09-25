@@ -17,7 +17,9 @@ insert into public.profiles (id, nickname) values
 on conflict (id) do update set nickname = excluded.nickname;
 
 update public.profile_trust_stats set is_verified = true
-  where user_id = 'd0000000-0000-0000-0000-00000000ff01'::uuid;
+  where user_id in ('d0000000-0000-0000-0000-00000000ff01'::uuid,
+                    'd0000000-0000-0000-0000-00000000ff11'::uuid,
+                    'd0000000-0000-0000-0000-00000000ff22'::uuid);
 
 -- 30分1000コイン(時給2000)・初回30%OFF
 insert into public.host_settings (user_id, is_host, hourly_rate, trial_discount_percent)

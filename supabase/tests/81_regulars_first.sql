@@ -17,7 +17,9 @@ insert into public.profiles (id, nickname) values
   ('a8000000-0000-0000-0000-000000000009'::uuid, '先行メイト')
 on conflict (id) do update set nickname = excluded.nickname;
 update public.profile_trust_stats set is_verified = true
-  where user_id = 'a8000000-0000-0000-0000-000000000009'::uuid;
+  where user_id in ('a8000000-0000-0000-0000-000000000009'::uuid,
+                    'a8000000-0000-0000-0000-000000000001'::uuid,
+                    'a8000000-0000-0000-0000-000000000002'::uuid);
 insert into public.host_settings (user_id, is_host, hourly_rate, regulars_first_hours)
   values ('a8000000-0000-0000-0000-000000000009'::uuid, true, 1000, 48)
   on conflict (user_id) do update

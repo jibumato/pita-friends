@@ -31,7 +31,8 @@ insert into public.profiles (id, nickname) values
 insert into public.admins (user_id) values ('27000000-0000-0000-0000-0000000000ad')
   on conflict do nothing;
 update public.profile_trust_stats set is_verified = true
-  where user_id = '27000000-0000-0000-0000-000000000002';
+  where user_id in ('27000000-0000-0000-0000-000000000002',
+                    '27000000-0000-0000-0000-000000000001');
 insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('27000000-0000-0000-0000-000000000002', true, 2000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 2000;

@@ -15,7 +15,8 @@ insert into public.profiles (id, nickname) values
   ('55555555-5555-5555-5555-555555555555','ホスト')
   on conflict (id) do update set nickname = excluded.nickname;
 update public.profile_trust_stats set is_verified = true
-  where user_id = '55555555-5555-5555-5555-555555555555';
+  where user_id in ('55555555-5555-5555-5555-555555555555',
+                    '44444444-4444-4444-4444-444444444444');
 insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('55555555-5555-5555-5555-555555555555', true, 1000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 1000;

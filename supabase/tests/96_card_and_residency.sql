@@ -108,7 +108,8 @@ end $$;
 -- 家族カード・同一世帯で正当に一致しうるので、送金は止めない。
 -- 止めるのは端末一致(0021)だけ。
 update public.profile_trust_stats set is_verified = true
-  where user_id = 'c0000000-0000-0000-0000-000000000002';
+  where user_id in ('c0000000-0000-0000-0000-000000000002',
+                    'c0000000-0000-0000-0000-000000000001');
 insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('c0000000-0000-0000-0000-000000000002', true, 2000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 2000;
