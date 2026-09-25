@@ -4655,6 +4655,7 @@ function pairedBookingErrorMessage(message: string): string | null {
   if (/INVALID_PAIR/.test(message)) return '相手を選び直してください'
   if (/HOST_NOT_AVAILABLE/.test(message)) return 'どちらかの掲載が終了しています'
   if (/HOST_NOT_VERIFIED/.test(message)) return 'どちらかの本人確認が済んでいません'
+  if (/GUEST_NOT_VERIFIED/.test(message)) return 'ご自身の本人確認が済んでいません'
   if (/HOST_NOT_OPEN/.test(message)) return 'その時間は、どちらかの予定が空いていません'
   if (/REGULARS_FIRST/.test(message)) return 'その時間は、常連の方の先行予約期間です'
   if (/HOST_SLOT_TAKEN/.test(message)) return 'その時間には、どちらかに別の予定が入っています'

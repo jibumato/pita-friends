@@ -22,7 +22,9 @@ insert into public.profiles (id, nickname) values
 on conflict (id) do update set nickname = excluded.nickname;
 update public.profile_trust_stats set is_verified = true
   where user_id in ('a3000000-0000-0000-0000-0000000000d1'::uuid,
-                    'a3000000-0000-0000-0000-0000000000d2'::uuid);
+                    'a3000000-0000-0000-0000-0000000000d2'::uuid,
+                    'a3000000-0000-0000-0000-0000000000e1'::uuid,
+                    'a3000000-0000-0000-0000-0000000000e2'::uuid);
 insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('a3000000-0000-0000-0000-0000000000d1'::uuid, true, 1000),
   ('a3000000-0000-0000-0000-0000000000d2'::uuid, true, 1000)

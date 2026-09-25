@@ -23,7 +23,8 @@ insert into public.profiles (id, nickname) values
   on conflict (id) do update set nickname = excluded.nickname;
 insert into public.admins (user_id) values ('e0000000-0000-0000-0000-000000000009');
 update public.profile_trust_stats set is_verified = true
-  where user_id = 'e0000000-0000-0000-0000-000000000002';
+  where user_id in ('e0000000-0000-0000-0000-000000000002',
+                    'e0000000-0000-0000-0000-000000000001');
 insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('e0000000-0000-0000-0000-000000000002', true, 2000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 2000;
@@ -266,6 +267,8 @@ end $$;
 insert into auth.users (id) values ('e0000000-0000-0000-0000-000000000003');
 insert into public.profiles (id, nickname) values
   ('e0000000-0000-0000-0000-000000000003','無償だけのゲスト') on conflict (id) do nothing;
+update public.profile_trust_stats set is_verified = true
+  where user_id = 'e0000000-0000-0000-0000-000000000003';
 insert into public.coin_lots (user_id, kind, remaining, expires_at) values
   ('e0000000-0000-0000-0000-000000000003','bonus', 5000, public.coin_expiry_from(now()));
 update public.coin_wallets set balance = 0, bonus_balance = 5000

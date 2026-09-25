@@ -25,7 +25,8 @@ insert into public.profiles (id, nickname) values
   ('a1000000-0000-0000-0000-000000000002','ピタメイト')
   on conflict (id) do update set nickname = excluded.nickname;
 update public.profile_trust_stats set is_verified = true
-  where user_id = 'a1000000-0000-0000-0000-000000000002';
+  where user_id in ('a1000000-0000-0000-0000-000000000002',
+                    'a1000000-0000-0000-0000-000000000001');
 insert into public.host_settings (user_id, is_host, hourly_rate) values
   ('a1000000-0000-0000-0000-000000000002', true, 2000)
   on conflict (user_id) do update set is_host = true, hourly_rate = 2000;
