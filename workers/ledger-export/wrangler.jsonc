@@ -28,7 +28,7 @@
   // SUPABASE_SERVICE_ROLE_KEY と TRIGGER_SECRET は
   // 必ず `wrangler secret put` で登録すること(このファイルには書かない)。
   "vars": {
-    "SUPABASE_URL": "https://REPLACE_ME.supabase.co"
+    "SUPABASE_URL": "https://ytxsyklnqepanloomzcw.supabase.co"
   },
 
   "observability": {
