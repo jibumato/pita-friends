@@ -295,8 +295,11 @@
      **`charge.dispute.created`** と **`charge.dispute.closed`** の**3つ**を選ぶ
    - ⚠️ **dispute の2つを忘れると、チャージバック中もコインが使える**
      (「申し立てながら使い切る」が通る)。`docs/payments-stripe-setup.md` §5
-3-b. ☐ **取引データの外部バックアップ Worker をデプロイ**
+3-b. ☐ **(必須)取引データの外部バックアップ Worker をデプロイ**
+   - **PITR を契約していないので、Supabase の外にある写しはこれだけ**になる
    - R2バケット作成 → `service_role` キーをシークレット登録 → `npx wrangler deploy`
+     (Supabase の URL は `wrangler.jsonc` に記入済み)
+   - 手動で1回流し、Supabase の `ledger_exports` に `ok = true` の行が出ることを確認
    - 手順: `workers/ledger-export/README.md`(費用は無料枠)
 3-c. ☐ **EMV 3-Dセキュア(3DS2)の確認**
    - コード側は `request_three_d_secure: 'any'` を指定済み(`create-checkout-session`)

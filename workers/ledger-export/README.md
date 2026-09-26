@@ -13,10 +13,26 @@ Supabase の PITR($100/月 + Small コンピュート$15/月)を当面見送る�
 | | 対象 | 頻度 | 失う可能性のある時間 |
 |---|---|---|---|
 | 差分 | `coin_transactions` / `coin_purchases` | 毎時 :07 | 最大1時間 |
-| 全量 | `bookings` / `payouts` / `coin_lots` / `coin_wallets` / `coin_lot_consumptions` / `ledger_audit` / `account_anonymizations` | 毎日 19:23 UTC | 最大24時間 |
+| 全量 | 下の表の24テーブル | 毎日 19:23 UTC | 最大24時間 |
 
 状態が変わるテーブル(予約・換金・ロット)は差分では追えないので、毎日丸ごと取ります。
-金額に関わるものだけに絞ってあるので、件数が少ないうちはこれで十分軽く済みます。
+金額・債務・法的な証跡に関わるものだけに絞ってあるので、件数が少ないうちはこれで十分軽く済みます。
+
+| 区分 | テーブル |
+|---|---|
+| 台帳 | `bookings` `booking_pairs` `payouts` `coin_lots` `coin_wallets` `coin_lot_consumptions` `gifts` `ledger_audit` `account_anonymizations` |
+| 当社が負う金銭債務・売上 | `cash_refunds`(金銭返金債務) `platform_fees`(利用料の明細) `purchase_voids` `payment_disputes` `chargeback_offsets` |
+| 料率の版 | `host_fee_tiers` `gift_fee_rates` `fee_change_notices` |
+| 同意・通知・立証の証跡 | `policy_consents` `monitoring_consents` `residency_declarations` `purchase_evidence` `account_withdrawals` `dormant_account_notices` `admin_actions` |
+
+**入れていないもの**: `host_bank_accounts`(口座番号)と `user_payment_cards`。
+別事業者に口座番号を置くと、漏えいしたときの影響が広がるためです。
+Supabase ごと失った場合は、ピタメイトに振込先を登録し直してもらうことになります。
+
+> 2026-09-26 に対象を7→24テーブルに広げました。当初(`0047`)の対象は、
+> その後にできた金銭返金債務(`0085`)・利用料の明細(`0033`)・チャージバックの
+> 相殺(`0088`)・同意の記録(`0106`)などを含んでいませんでした。
+> **テーブルを足したら、ここに入れるかどうかを必ず判断すること。**
 
 **PITR より優れている点**: PITR は Supabase 内部の機能なので、
 アカウント凍結・請求トラブル・誤ってプロジェクトを削除、といった
@@ -32,10 +48,11 @@ Supabase の PITR($100/月 + Small コンピュート$15/月)を当面見送る�
 Cloudflare ダッシュボード → R2 → Create bucket → 名前 `pita-ledger`
 (別名にする場合は `wrangler.jsonc` の `bucket_name` も合わせる)
 
-### 2. Supabase の URL を書く
+### 2. Supabase の URL を確認する
 
-`wrangler.jsonc` の `vars.SUPABASE_URL` を実際の値に置き換えます。
-この値は公開されても問題ありません。
+`wrangler.jsonc` の `vars.SUPABASE_URL` に本番の値(`.env.production` と同じ)を
+入れてあります。この値は公開されても問題ありません。プロジェクトを作り直した
+場合だけ書き換えてください。
 
 ### 3. シークレットを登録する
 
@@ -86,6 +103,15 @@ Worker は実行結果を `ledger_exports` に書き戻し、毎日 04:17 UTC �
 | 復旧はしたが直近24時間に失敗がある | warn |
 
 結果は `integrity_latest` に他のチェックと並んで出ます。
+
+**取れた件数が実際の件数より少なければ、その回は失敗として記録します。**
+Supabase の「1回に返す最大件数」(Settings → API → Max rows)が1000より
+小さいと、1ページ目で打ち切られたまま成功扱いになるためです。
+失敗の記録に「◯/◯ 件しか取れなかった」と出たら、Max rows を1000以上に戻してください。
+
+件数が大きく増えて Worker の CPU 時間の上限に当たるようになった場合も、
+実行が失敗して上の仕組みで通知されます。そのときは Workers の有料プラン
+($5/月)に切り替えるのが最も手軽です。
 
 ## 復元するとき
 

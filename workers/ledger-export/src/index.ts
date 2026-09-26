@@ -46,20 +46,44 @@ export interface Env {
 const APPEND_ONLY = ['coin_transactions', 'coin_purchases'] as const
 
 /**
- * 状態が変わるテーブル。丸ごと取る。
- * どれも金額に関わるものだけに絞ってあるので、件数は当面小さい。
+ * 状態が変わるテーブル、または差分を取る仕組みを持たないテーブル。丸ごと取る。
+ * 金額・債務・法的な証跡に関わるものだけに絞ってあるので、件数は当面小さい。
  *
- * order はページ送りを安定させるための並び順。テーブルごとに時刻列の
- * 名前が違い(coin_wallets には時刻列自体が無い)ので個別に指定する。
+ * order は主キー。offset でページを送るので、並びが一意でないと
+ * ページの境目で行が抜けたり重なったりする。
+ *
+ * host_bank_accounts(口座番号)と user_payment_cards は意図的に入れていない。
+ * 別事業者に口座番号を置くと漏えい時の影響が広がるため。
  */
 const SNAPSHOT: { table: string; order: string }[] = [
-  { table: 'bookings', order: 'created_at' },
-  { table: 'payouts', order: 'created_at' },
-  { table: 'coin_lots', order: 'created_at' },
+  // 台帳まわり
+  { table: 'bookings', order: 'id' },
+  { table: 'booking_pairs', order: 'id' },
+  { table: 'payouts', order: 'id' },
+  { table: 'coin_lots', order: 'id' },
   { table: 'coin_wallets', order: 'user_id' },
-  { table: 'coin_lot_consumptions', order: 'created_at' },
-  { table: 'ledger_audit', order: 'at' },
-  { table: 'account_anonymizations', order: 'anonymized_at' },
+  { table: 'coin_lot_consumptions', order: 'id' },
+  { table: 'gifts', order: 'id' },
+  { table: 'ledger_audit', order: 'id' },
+  { table: 'account_anonymizations', order: 'user_id' },
+  // 当社が負う金銭債務・売上の根拠
+  { table: 'cash_refunds', order: 'id' },
+  { table: 'platform_fees', order: 'id' },
+  { table: 'purchase_voids', order: 'purchase_id' },
+  { table: 'payment_disputes', order: 'id' },
+  { table: 'chargeback_offsets', order: 'id' },
+  // 料率の版(予約成立時点の率で計算し直すのに要る)
+  { table: 'host_fee_tiers', order: 'effective_from,step' },
+  { table: 'gift_fee_rates', order: 'effective_from' },
+  { table: 'fee_change_notices', order: 'effective_from' },
+  // 同意・通知・立証の証跡
+  { table: 'policy_consents', order: 'id' },
+  { table: 'monitoring_consents', order: 'id' },
+  { table: 'residency_declarations', order: 'id' },
+  { table: 'purchase_evidence', order: 'stripe_session_id' },
+  { table: 'account_withdrawals', order: 'user_id' },
+  { table: 'dormant_account_notices', order: 'user_id' },
+  { table: 'admin_actions', order: 'id' },
 ]
 
 /** PostgREST の1回あたりの取得件数。 */
@@ -78,6 +102,7 @@ async function fetchRows(
   query: string,
 ): Promise<Record<string, unknown>[]> {
   const rows: Record<string, unknown>[] = []
+  let expected: number | null = null
   for (let offset = 0; ; offset += PAGE) {
     const url = `${env.SUPABASE_URL}/rest/v1/${table}?${query}&limit=${PAGE}&offset=${offset}`
     const res = await fetch(url, {
@@ -85,15 +110,27 @@ async function fetchRows(
         apikey: env.SUPABASE_SERVICE_ROLE_KEY,
         Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
         Accept: 'application/json',
+        ...(offset === 0 ? { Prefer: 'count=exact' } : {}),
       },
     })
     if (!res.ok) {
       throw new Error(`${table}: ${res.status} ${await res.text()}`)
     }
+    if (offset === 0) {
+      // Content-Range: 0-999/1234
+      const total = res.headers.get('Content-Range')?.split('/')[1]
+      expected = total && total !== '*' ? Number(total) : null
+    }
     const page = (await res.json()) as Record<string, unknown>[]
     rows.push(...page)
-    if (page.length < PAGE) return rows
+    if (page.length < PAGE) break
   }
+  // Supabase の「1回に返す最大件数」が PAGE より小さく設定されていると、
+  // 1ページ目で打ち切られたまま成功扱いになる。件数で突き合わせて失敗にする。
+  if (expected !== null && rows.length < expected) {
+    throw new Error(`${table}: ${rows.length}/${expected} 件しか取れなかった`)
+  }
+  return rows
 }
 
 function toNdjson(rows: Record<string, unknown>[]): string {
