@@ -2725,7 +2725,38 @@ function LimitsTab() {
 // 健全性
 // ------------------------------------------------------------
 
+/** 0043 の各チェックが何と何を突き合わせているか。 */
+const INTEGRITY_LABEL: Record<string, string> = {
+  wallet_vs_lots_paid: '購入コインの残高 ↔ ロットの残り',
+  wallet_vs_lots_bonus: '無償コインの残高 ↔ ロットの残り',
+  wallet_vs_ledger: '残高の合計 ↔ 取引履歴の累計',
+  purchase_vs_ledger: '購入記録 ↔ 取引履歴(Stripeでの付与)',
+  payout_vs_ledger: '換金申請 ↔ 取引履歴',
+  escrow_split: '預かり中の予約の内訳(有償+無償)',
+  stale_expired_lots: '期限切れなのに残っているコイン',
+  escrow_outstanding: '預かり中の予約(情報)',
+  unused_coin_balance: '未使用コインの総額(情報)',
+}
 
+/** detail.rows のうち、ズレている行を「列=値」で並べる。 */
+function IntegrityRows({ detail }: { detail: unknown }) {
+  const rows = (detail as { rows?: Record<string, unknown>[] } | null)?.rows
+  if (!Array.isArray(rows) || rows.length === 0) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+      {rows.map((r, i) => (
+        <span
+          key={i}
+          style={{ fontSize: 10, color: C.ink, fontFamily: 'monospace', wordBreak: 'break-all' }}
+        >
+          {Object.entries(r)
+            .map(([k, v]) => `${k}=${String(v)}`)
+            .join('  ')}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 function HealthTab() {
   const [h, setH] = useState<AdminHealth | null>(null)
@@ -2760,15 +2791,18 @@ function HealthTab() {
           return (
             <Card key={c.check_name} alert={bad}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                <span style={{ fontSize: 12, color: C.ink }}>{c.check_name}</span>
+                <span style={{ fontSize: 12, color: C.ink }}>
+                  {INTEGRITY_LABEL[c.check_name] ?? c.check_name}
+                </span>
                 <span style={{ fontSize: 11, color: bad ? '#E5484D' : C.muted, flex: 'none' }}>
                   {bad ? `${c.severity} / ${c.affected_count}件` : 'OK'}
                 </span>
               </div>
               <span style={{ fontSize: 10, color: C.muted }}>
-                {jst(c.ran_at)}
+                {c.check_name} / {jst(c.ran_at)}
                 {c.total_gap != null && c.total_gap !== 0 && ` / ズレ ${c.total_gap.toLocaleString()}`}
               </span>
+              {bad && <IntegrityRows detail={c.detail} />}
             </Card>
           )
         })
