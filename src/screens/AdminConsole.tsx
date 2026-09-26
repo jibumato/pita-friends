@@ -2736,6 +2736,18 @@ const INTEGRITY_LABEL: Record<string, string> = {
   stale_expired_lots: '期限切れなのに残っているコイン',
   escrow_outstanding: '預かり中の予約(情報)',
   unused_coin_balance: '未使用コインの総額(情報)',
+  ledger_export_freshness: '外部バックアップの鮮度',
+}
+
+/** total_gap の意味はチェックごとに違う(ズレの額／総額／経過時間)。 */
+function gapText(check: string, gap: number): string {
+  if (check === 'ledger_export_freshness') {
+    return gap >= 999 ? '一度も成功していません' : `最終成功から ${gap} 時間`
+  }
+  if (check === 'escrow_outstanding' || check === 'unused_coin_balance') {
+    return `総額 ${gap.toLocaleString()}`
+  }
+  return `ズレ ${gap.toLocaleString()}`
 }
 
 /** detail.rows のうち、ズレている行を「列=値」で並べる。 */
@@ -2787,7 +2799,9 @@ function HealthTab() {
         <Note>まだ一度も走っていません（pg_cron の設定を確認してください）。</Note>
       ) : (
         h.integrity.map((c) => {
-          const bad = c.severity !== 'ok' && c.affected_count > 0
+          // ledger_export_freshness は affected_count に「直近の失敗回数」を入れるので、
+          // 一度も成功していないと error でも 0 になる。件数ではなく severity で判定する。
+          const bad = c.severity !== 'ok'
           return (
             <Card key={c.check_name} alert={bad}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
@@ -2795,12 +2809,16 @@ function HealthTab() {
                   {INTEGRITY_LABEL[c.check_name] ?? c.check_name}
                 </span>
                 <span style={{ fontSize: 11, color: bad ? '#E5484D' : C.muted, flex: 'none' }}>
-                  {bad ? `${c.severity} / ${c.affected_count}件` : 'OK'}
+                  {bad
+                    ? c.check_name === 'ledger_export_freshness'
+                      ? c.severity
+                      : `${c.severity} / ${c.affected_count}件`
+                    : 'OK'}
                 </span>
               </div>
               <span style={{ fontSize: 10, color: C.muted }}>
                 {c.check_name} / {jst(c.ran_at)}
-                {c.total_gap != null && c.total_gap !== 0 && ` / ズレ ${c.total_gap.toLocaleString()}`}
+                {c.total_gap != null && c.total_gap !== 0 && ` / ${gapText(c.check_name, c.total_gap)}`}
               </span>
               {bad && <IntegrityRows detail={c.detail} />}
             </Card>
