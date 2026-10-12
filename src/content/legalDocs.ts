@@ -54,7 +54,12 @@ function fillBusiness(md: string): string {
     ['【氏名（個人事業主本人）：公開前に記入】', BUSINESS.name],
     ['【氏名（個人事業主）：公開前に記入】', BUSINESS.name],
     ['【サービス専用の問い合わせ用メールアドレス：公開前に記入】', BUSINESS.email],
-    ['【所在地：公開前に記入】', open ? `〒${BUSINESS.postalCode} ${BUSINESS.address}` : ON_REQUEST],
+    [
+      '【所在地：公開前に記入】',
+      open
+        ? `〒${BUSINESS.postalCode} ${BUSINESS.address}`
+        : `${BUSINESS.addressArea}（請求があれば遅滞なく開示）`,
+    ],
     ['【電話番号：公開前に記入】', open ? BUSINESS.phone : ON_REQUEST],
   ]
   return pairs.reduce((acc, [from, to]) => acc.split(from).join(to), md)

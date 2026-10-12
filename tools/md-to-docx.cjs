@@ -389,16 +389,18 @@ function fillBusiness(text) {
   };
   const b = {
     name: pick('name'), tradeName: pick('tradeName'), postalCode: pick('postalCode'),
-    address: pick('address'), phone: pick('phone'), email: pick('email'),
+    address: pick('address'), addressArea: pick('addressArea'),
+    phone: pick('phone'), email: pick('email'),
   };
   const open = /ADDRESS_DISCLOSURE[^=]*=\s*'public'/.test(ts);
   const onRequest = 'ご請求があれば遅滞なく開示します（下記のメールアドレスへご連絡ください）';
   const pairs = [
-    ['【事業者名（屋号）：公開前に記入】', b.tradeName],
+    // アプリの TERMS_PARTY_NAME と同じ形。屋号だけにすると 08-04 の弁護士回答に反する
+    ['【事業者名（屋号）：公開前に記入】', `${b.name}（屋号：${b.tradeName}）`],
     ['【氏名（個人事業主本人）：公開前に記入】', b.name],
     ['【氏名（個人事業主）：公開前に記入】', b.name],
     ['【サービス専用の問い合わせ用メールアドレス：公開前に記入】', b.email],
-    ['【所在地：公開前に記入】', open ? `〒${b.postalCode} ${b.address}` : onRequest],
+    ['【所在地：公開前に記入】', open ? `〒${b.postalCode} ${b.address}` : `${b.addressArea}（請求があれば遅滞なく開示）`],
     ['【電話番号：公開前に記入】', open ? b.phone : onRequest],
   ];
   const out = pairs.reduce((acc, [from, to]) => acc.split(from).join(to), text);
