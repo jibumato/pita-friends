@@ -3057,11 +3057,23 @@ export async function rejectVerification(verificationId: string, reason: string)
  * **失敗したら投げる。** 呼び出し側で運営に見える形で知らせる
  * (審査結果は確定済み。消し残しは毎日の掃除が再試行する)。
  */
-export async function purgeVerificationImages(verificationId: string): Promise<void> {
-  const { error } = await requireSupabase().functions.invoke('identity-images-purge', {
-    body: { verificationId },
-  })
-  if (error) throw error
+export async function purgeVerificationImages(
+  verificationId: string,
+  paths: (string | null)[],
+): Promise<void> {
+  const sb = requireSupabase()
+  const { error } = await sb.functions.invoke('identity-images-purge', { body: { verificationId } })
+  if (!error) return
+  // Edge Function が未デプロイ・失敗のときは、以前と同じくブラウザから消す
+  // (運営は identity_documents_delete_admin で消せる)。記録は残らないが、
+  // 毎日の掃除が images_deleted_at を後から入れる。**こちらも失敗なら投げる。**
+  const targets = paths.filter((p): p is string => !!p)
+  if (targets.length === 0) return
+  const { data, error: rmErr } = await sb.storage.from('identity-documents').remove(targets)
+  if (rmErr) throw rmErr
+  // 権限が無いと、エラーにならず空の結果が返る。判定直後なら画像は必ずあるので、
+  // 消えた枚数が足りなければ失敗として扱う
+  if ((data?.length ?? 0) < targets.length) throw new Error('IMAGES_NOT_REMOVED')
 }
 
 /* ============================================================

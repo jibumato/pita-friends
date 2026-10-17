@@ -100,7 +100,7 @@ function VerificationCard({
     setError(null)
     try {
       await approveVerification(v.id, true)
-      await purgeAfterDecision(v.id)
+      await purgeAfterDecision(v.id, [v.documentPath, v.selfiePath])
       onDecide(v.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '承認に失敗しました')
@@ -115,7 +115,7 @@ function VerificationCard({
     setError(null)
     try {
       await rejectVerification(v.id, reason)
-      await purgeAfterDecision(v.id)
+      await purgeAfterDecision(v.id, [v.documentPath, v.selfiePath])
       onDecide(v.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '却下に失敗しました')
@@ -240,9 +240,9 @@ function VerificationCard({
  * 判定後に提出画像を消す(規約第3条5項)。審査結果は確定済みなので、失敗しても
  * 先へ進めるが、**黙っては進めない**(以前は失敗を握りつぶしていた)。
  */
-async function purgeAfterDecision(verificationId: string): Promise<void> {
+async function purgeAfterDecision(verificationId: string, paths: (string | null)[]): Promise<void> {
   try {
-    await purgeVerificationImages(verificationId)
+    await purgeVerificationImages(verificationId, paths)
   } catch {
     window.alert(
       '審査結果は保存しましたが、提出画像の削除に失敗しました。\n' +
