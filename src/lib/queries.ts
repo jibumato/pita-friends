@@ -2946,6 +2946,9 @@ export async function submitIdentityVerification(
     selfie_path: selfiePath,
   })
   if (!error) return
+  // 申請行ができなかった画像は、審査画面にも出ずに残り続ける。自分で上げたものは
+  // 自分で消せる(identity_documents_delete_own)。消せなくても毎日の掃除が消す(0129)
+  await sb.storage.from('identity-documents').remove([documentPath, selfiePath])
   // 0081 のトリガ。画面側でチェックを必須にしているので通常は出ないが、
   // 未申告と「いいえ」で文言を変える(前者は操作の案内、後者は利用条件の説明)
   if (/RESIDENCY_NOT_DECLARED/.test(error.message)) {
@@ -3027,7 +3030,7 @@ export async function getSignedVerificationImageUrl(path: string): Promise<strin
   return data.signedUrl
 }
 
-/** 本人確認を承認する(DB更新のみ)。画像削除は deleteVerificationImages で別途行う。 */
+/** 本人確認を承認する(DB更新のみ)。画像削除は purgeVerificationImages で別途行う。 */
 export async function approveVerification(verificationId: string, isAdult: boolean): Promise<void> {
   const { error } = await requireSupabase().rpc('approve_identity_verification', {
     p_verification_id: verificationId,
@@ -3036,7 +3039,7 @@ export async function approveVerification(verificationId: string, isAdult: boole
   if (error) throw error
 }
 
-/** 本人確認を却下する(DB更新のみ)。画像削除は deleteVerificationImages で別途行う。 */
+/** 本人確認を却下する(DB更新のみ)。画像削除は purgeVerificationImages で別途行う。 */
 export async function rejectVerification(verificationId: string, reason: string): Promise<void> {
   const { error } = await requireSupabase().rpc('reject_identity_verification', {
     p_verification_id: verificationId,
@@ -3046,18 +3049,19 @@ export async function rejectVerification(verificationId: string, reason: string)
 }
 
 /**
- * 審査完了後、提出画像をStorageから削除する(管理者のみ、best-effort)。
- * 法務レビュー(operations-legal-qa.md Q6)の「審査後は速やかに削除」に対応。
- * 削除に失敗しても審査結果自体は確定済みなので、例外は投げず握りつぶす。
+ * 判定後に提出画像を消す(規約第3条5項「照合の完了後すみやかに削除」)。
+ * Edge Function identity-images-purge がサーバー側で消し、消した日時を記録する(0129)。
+ *
+ * 以前はブラウザから Storage API で消し、失敗を握りつぶしていた。しかも
+ * remove() は失敗を例外ではなく戻り値で返すので、try/catch では拾えていなかった。
+ * **失敗したら投げる。** 呼び出し側で運営に見える形で知らせる
+ * (審査結果は確定済み。消し残しは毎日の掃除が再試行する)。
  */
-export async function deleteVerificationImages(paths: (string | null)[]): Promise<void> {
-  const targets = paths.filter((p): p is string => !!p)
-  if (targets.length === 0) return
-  try {
-    await requireSupabase().storage.from('identity-documents').remove(targets)
-  } catch (err) {
-    console.warn('[pita-friends] 本人確認画像の削除に失敗(審査結果は確定済み):', err)
-  }
+export async function purgeVerificationImages(verificationId: string): Promise<void> {
+  const { error } = await requireSupabase().functions.invoke('identity-images-purge', {
+    body: { verificationId },
+  })
+  if (error) throw error
 }
 
 /* ============================================================

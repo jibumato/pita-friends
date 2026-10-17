@@ -2737,6 +2737,7 @@ const INTEGRITY_LABEL: Record<string, string> = {
   escrow_outstanding: '預かり中の予約(情報)',
   unused_coin_balance: '未使用コインの総額(情報)',
   ledger_export_freshness: '外部バックアップの鮮度',
+  identity_images_purge: '本人確認画像の削除',
 }
 
 /** total_gap の意味はチェックごとに違う(ズレの額／総額／経過時間)。 */
@@ -2744,6 +2745,7 @@ function gapText(check: string, gap: number): string {
   if (check === 'ledger_export_freshness') {
     return gap >= 999 ? '一度も成功していません' : `最終成功から ${gap} 時間`
   }
+  if (check === 'identity_images_purge') return `この回に削除 ${gap} 枚`
   if (check === 'escrow_outstanding' || check === 'unused_coin_balance') {
     return `総額 ${gap.toLocaleString()}`
   }

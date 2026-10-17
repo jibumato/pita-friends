@@ -85,7 +85,11 @@ jobs(seq, jobname, schedule, purpose, blocker) as (values
       '★規約に書いた通知義務を果たせない。長期未ログインのまま放置される'),
   (15, 'execute-dormant-accounts',     '20 4 * * *',
       '通知から30日後、まだ休眠なら利用を停止する(規約第6条の4・0127)',
-      '通知は届いても、その後の措置(停止)が実行されないまま残る')
+      '通知は届いても、その後の措置(停止)が実行されないまま残る'),
+  (16, 'purge-identity-images',        '41 18 * * *',
+      '本人確認の画像の消し残し・退会者のファイルを消す(規約第3条5項・0129)',
+      '★「照合後すみやかに削除」を守れない。判定直後の削除に失敗した画像や、'
+      '退会者の本人確認書類が残り続ける。登録には秘密が要る(下の「直しかた」)')
 ),
 
 -- ------------------------------------------------------------
@@ -200,6 +204,19 @@ order by sec, seq;
 --   select cron.schedule('notify-expiring-coins',         '9 9 * * *',   'select public.notify_expiring_coins()');
 --   select cron.schedule('close-expired-board-posts',     '*/15 * * * *','select public.close_expired_board_posts()');
 --   select cron.schedule('expire-guest-requests',          '*/15 * * * *','select public.expire_guest_requests()');
+--
+--   【purge-identity-images】(秘密が入るので、他と分けて手で登録する)
+--   Edge Function identity-images-purge をデプロイし、IDENTITY_PURGE_SECRET を
+--   設定してから(docs/identity-images-purge.md)、次の <> を実際の値に置き換えて実行。
+--   **実行後のSQLをどこかに貼り残さないこと。**
+--
+--   select cron.schedule('purge-identity-images', '41 18 * * *', $$
+--     select net.http_post(
+--       url := 'https://<PROJECT-REF>.supabase.co/functions/v1/identity-images-purge',
+--       headers := jsonb_build_object('Content-Type', 'application/json',
+--                                     'x-purge-secret', '<IDENTITY_PURGE_SECRET と同じ値>'),
+--       body := '{}'::jsonb);
+--   $$);
 --
 --   ※ 時刻はUTCではなくDBのタイムゾーン(Supabaseの既定はUTC)で解釈されます。
 --     夜間に寄せているのは、失敗しても翌朝に気づける時間帯にするためです。

@@ -158,7 +158,8 @@ with expected(seq, migration, kind, obj, needle) as (
     -- ペア対応ごと上書きされている)
     (126, '0126_paired_bookings',             'column',  'bookings',            'from_pair_id'),
     (127, '0127_dormant_accounts',            'table',   'dormant_account_notices', null),
-    (128, '0128_guest_verification_required', 'funcsrc', 'create_booking',      'GUEST_NOT_VERIFIED')
+    (128, '0128_guest_verification_required', 'funcsrc', 'create_booking',      'GUEST_NOT_VERIFIED'),
+    (129, '0129_identity_image_purge',        'column',  'identity_verifications', 'images_deleted_at')
 ),
 checked as (
   select
@@ -361,7 +362,8 @@ with expected(seq, migration, kind, obj, needle) as (
     -- ペア対応ごと上書きされている)
     (126, '0126_paired_bookings',             'column',  'bookings',            'from_pair_id'),
     (127, '0127_dormant_accounts',            'table',   'dormant_account_notices', null),
-    (128, '0128_guest_verification_required', 'funcsrc', 'create_booking',      'GUEST_NOT_VERIFIED')
+    (128, '0128_guest_verification_required', 'funcsrc', 'create_booking',      'GUEST_NOT_VERIFIED'),
+    (129, '0129_identity_image_purge',        'column',  'identity_verifications', 'images_deleted_at')
 ),
 checked as (
   select e.seq, e.migration,

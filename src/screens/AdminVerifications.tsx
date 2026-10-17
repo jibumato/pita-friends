@@ -7,7 +7,7 @@ import { SubHeader } from '../components/Ui'
 import { Shield } from '../components/Icon'
 import {
   approveVerification,
-  deleteVerificationImages,
+  purgeVerificationImages,
   fetchPendingVerifications,
   getSignedVerificationImageUrl,
   rejectVerification,
@@ -100,8 +100,7 @@ function VerificationCard({
     setError(null)
     try {
       await approveVerification(v.id, true)
-      // 審査確定後に提出画像を削除(best-effort・失敗しても審査は確定済み)
-      await deleteVerificationImages([v.documentPath, v.selfiePath])
+      await purgeAfterDecision(v.id)
       onDecide(v.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '承認に失敗しました')
@@ -116,7 +115,7 @@ function VerificationCard({
     setError(null)
     try {
       await rejectVerification(v.id, reason)
-      await deleteVerificationImages([v.documentPath, v.selfiePath])
+      await purgeAfterDecision(v.id)
       onDecide(v.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '却下に失敗しました')
@@ -235,6 +234,21 @@ function VerificationCard({
       </div>
     </div>
   )
+}
+
+/**
+ * 判定後に提出画像を消す(規約第3条5項)。審査結果は確定済みなので、失敗しても
+ * 先へ進めるが、**黙っては進めない**(以前は失敗を握りつぶしていた)。
+ */
+async function purgeAfterDecision(verificationId: string): Promise<void> {
+  try {
+    await purgeVerificationImages(verificationId)
+  } catch {
+    window.alert(
+      '審査結果は保存しましたが、提出画像の削除に失敗しました。\n' +
+        '毎日の自動削除で再試行します。運営コンソールの「健全性」で結果を確認してください。',
+    )
+  }
 }
 
 export default function AdminVerifications({ flow }: { flow: Flow }) {

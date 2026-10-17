@@ -90,7 +90,7 @@
    - ✅ `0093` / `0094` / `0095` を適用（2026-08-03）
    - ☐ `docs/check-migrations.sql` を実行して**59項目すべて OK**・
      「順番の飛びはありません」
-   - ☐ `docs/check-cron.sql` を実行して**すべて ✅**。定期ジョブは**15件**、
+   - ☐ `docs/check-cron.sql` を実行して**すべて ✅**。定期ジョブは**16件**、
      権限の3行（`credit_coins_for_purchase` / `record_payment_dispute` /
      `record_payment_card`）も ✅ であること
      ※ `pg_net` の「未有効」は現時点では想定内（プッシュ通知の鍵が未設定）
@@ -231,7 +231,7 @@
    - リンクの有効期限(既定1時間)は Authentication → Sessions で確認
 4. ☐ **(必須)pg_cron / pg_net の確認**:
    **`docs/check-cron.sql` を SQL Editor に貼って実行**してください。
-   拡張・定期ジョブ15本・サーバー専用関数の権限を一度に見ます。
+   拡張・定期ジョブ16本・サーバー専用関数の権限を一度に見ます。
 
    > ⚠️ **マイグレーションは cron ジョブの登録に失敗しても静かに進みます**
    > (`exception when others then raise notice` で握りつぶす作り)。
@@ -254,6 +254,11 @@
    - 費用の内訳と切り替えの目安: `docs/data-integrity.md`
 6. ☐ (推奨)本人確認画像バケットのストレージポリシーを再確認
    (`docs/manual-verification-review.md`)
+7. ☐ **(必須)本人確認画像の削除を動かす**(規約第3条5項「照合後すみやかに削除」)
+   - Edge Function `identity-images-purge` のデプロイ → `IDENTITY_PURGE_SECRET` の設定 →
+     毎日の掃除(`purge-identity-images`)の登録。手順: `docs/identity-images-purge.md`
+   - **これが無いと、判定後の画像が消えずに残る**(以前の削除方式は失敗に気づけなかった)
+   - 動いたら `docs/check-identity-images.sql` で、審査待ち以外の画像が 0 枚になることを確かめる
 
 ## C. Stripe 本番化(コイン購入)
 
